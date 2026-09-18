@@ -138,11 +138,11 @@ Internify logs applications into a Google Sheet tracker and saves compiled PDF r
    - Under the created service account, go to the **Keys** tab ➔ **Add Key** ➔ **Create new key** ➔ select **JSON**.
    - Download the JSON file (keep it secure, never commit this file).
 3. **Setup Google Sheet & Google Drive Folder**:
-   - Create a new Google Sheet named `Internify — Application Tracker`.
-   - In Google Sheets, click **File** ➔ **Import** ➔ **Upload** and select [`templates/tracker_template.csv`](templates/tracker_template.csv).
-   - Rename the sheet tab to `Tracker`.
+   - Open the [**Internify Application Tracker Template**](https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing).
+   - In Google Sheets, click **File** ➔ **Make a copy** (or **Download** ➔ **Comma Separated Values (.csv)**).
+   - Ensure the sheet tab is named `Tracker`.
    - Create a dedicated folder in Google Drive (e.g. `Internify Resumes`).
-   - **Important**: Share BOTH the Google Sheet and the Google Drive folder with your service account email (e.g. `internify-bot@your-project.iam.gserviceaccount.com`) as **Editor**.
+   - **Important**: Share BOTH your Google Sheet and your Google Drive folder with your service account email (e.g. `internify-bot@your-project.iam.gserviceaccount.com`) as **Editor**.
 
 ---
 
