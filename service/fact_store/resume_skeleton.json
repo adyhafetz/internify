@@ -1,0 +1,92 @@
+{
+  "header": {
+    "name": "Jane Doe",
+    "phone": "+1 (555) 019-2834",
+    "email": "jane.doe@example.com",
+    "linkedin_url": "https://linkedin.com/in/janedoe",
+    "linkedin_display": "linkedin.com/in/janedoe",
+    "github_url": "https://github.com/janedoe",
+    "github_display": "github.com/janedoe"
+  },
+  "education": [
+    {
+      "id": "edu_sample_university",
+      "institution": "Sample University",
+      "location": "City, State",
+      "degree_line": "B.S. in Computer Science, GPA: 3.8/4.0",
+      "dates": "Aug 2022 -- May 2026",
+      "courses": [
+        "Data Structures & Algorithms",
+        "Database Systems",
+        "Operating Systems",
+        "Software Engineering",
+        "Web Development"
+      ],
+      "honor_bullets": [
+        "Honors: Dean's Honor Roll"
+      ]
+    }
+  ],
+  "experience_entries": [
+    {
+      "id": "exp_sample_tech",
+      "title": "Software Engineering Intern",
+      "dates": "Jun 2024 -- Aug 2024",
+      "company": "Tech Corp",
+      "location": "Remote"
+    }
+  ],
+  "project_entries": [
+    {
+      "id": "proj_sample_app",
+      "name": "TaskFlow",
+      "tech_stack": "React, Node.js, PostgreSQL, Docker",
+      "date": "Dec 2024"
+    }
+  ],
+  "leadership": [
+    {
+      "title": "Vice President",
+      "dates": "Aug 2023 -- May 2024",
+      "org": "Computer Science Society",
+      "location": "Sample University",
+      "bullets": [
+        "Organized tech talks, workshops, and hackathons for 200+ active student members"
+      ]
+    }
+  ],
+  "skills": {
+    "Languages": [
+      "Python",
+      "JavaScript",
+      "TypeScript",
+      "SQL",
+      "Java"
+    ],
+    "Frameworks & Libraries": [
+      "React.js",
+      "FastAPI",
+      "Node.js",
+      "Tailwind CSS"
+    ],
+    "Databases": [
+      "PostgreSQL",
+      "MySQL",
+      "Redis",
+      "SQLite"
+    ],
+    "AI/ML": [
+      "OpenAI API",
+      "Pandas",
+      "NumPy",
+      "Scikit-learn"
+    ],
+    "Developer Tools & Infra": [
+      "Git",
+      "GitHub",
+      "Docker",
+      "Linux",
+      "n8n"
+    ]
+  }
+}

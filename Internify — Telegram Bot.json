@@ -1,0 +1,3542 @@
+{
+  "name": "Internify — Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -352,
+        -304
+      ],
+      "id": "e23c4c20-c94f-430d-b2b7-9fec864db1bf",
+      "name": "Telegram Trigger",
+      "webhookId": "12ae4438-ee69-43cf-8a33-be5503168621",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1d3a5c47-eaca-42d4-9c7f-474c7e442a9b",
+              "name": "job_url",
+              "value": "={{ $json.message.text.trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "9794d77b-42a8-4a7a-b7dc-fe3fb0f68da7",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        160,
+        0
+      ],
+      "id": "34df31ba-b6d3-4be8-92a5-e2c48703a0ba",
+      "name": "Extract URL"
+    },
+    {
+      "parameters": {
+        "operation": "getMarkdown",
+        "markdownUrl": "={{ $('Extract URL').item.json.job_url }}",
+        "markdownOptions": {}
+      },
+      "type": "n8n-nodes-scrapingant.scrapingAnt",
+      "typeVersion": 1,
+      "position": [
+        736,
+        112
+      ],
+      "id": "405c3ae1-06db-4fe1-a17b-1e09c4a58d53",
+      "name": "Scrape Page",
+      "credentials": {
+        "scrapingAntApi": {
+          "id": "9bojsY7aYVGlziaJ",
+          "name": "Internify — ScrapingAnt Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "mode": "list",
+          "cachedResultName": "Internify — Application Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Job Title": "={{ $json.output[0].content[0].text.job_title }}",
+            "Job Description": "={{ $json.output[0].content[0].text.job_description }}",
+            "Job Requirements": "={{ $json.output[0].content[0].text.job_requirements }}",
+            "Location": "={{ $json.output[0].content[0].text.location }}",
+            "Job Link": "={{ $('Extract URL').item.json.job_url }}",
+            "Status": "New",
+            "Company": "={{ $json.output[0].content[0].text.company }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Requirements",
+              "displayName": "Job Requirements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resume Link",
+              "displayName": "Resume Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resume Status",
+              "displayName": "Resume Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Comment",
+              "displayName": "Comment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "107fa029-0c65-4a9e-ada8-4d42189b1d94",
+      "name": "Append Row",
+      "credentials": {
+        "googleApi": {
+          "id": "gVtly8W6NR77R14Z",
+          "name": "Internify — Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "42ecc22f-fc6f-4615-9c6b-a4d5cb1d3f98",
+              "leftValue": "={{ $json.row_number }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        0
+      ],
+      "id": "28d9679b-426f-4765-adc0-1e66068067eb",
+      "name": "Duplicate Check",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "mode": "list",
+          "cachedResultName": "Internify — Application Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Job Link",
+              "lookupValue": "={{ $json.job_url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        352,
+        0
+      ],
+      "id": "5146ebb6-6028-4361-9d58-ecece56f4fc7",
+      "name": "Lookup",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "gVtly8W6NR77R14Z",
+          "name": "Internify — Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.markdown }}"
+            },
+            {
+              "role": "system",
+              "content": "You extract structured job information from scraped job posting text.\nReturn ONLY valid JSON with exactly these keys:\n- company (string)\n- job_title (string)\n- job_description (string — 2 to 4 sentences summarising the role)\n- job_requirements (string — key qualifications as bullet points separated by \\n)\n- location (string — city/country, or \"Remote\" if not specified)\n\nDo not invent information. If a field is missing, use an empty string."
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        928,
+        112
+      ],
+      "id": "6cd623be-d422-491e-bed2-4b0dba2962d1",
+      "name": "Normalize",
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ Already tracked!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        -112
+      ],
+      "id": "d7e58cf3-183c-46b9-96c7-ae50ea082274",
+      "name": "Duplicate Message",
+      "webhookId": "d155d534-4922-4a18-a28b-c629b6f5d2a7",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "mode": "list",
+          "cachedResultName": "Internify — Application Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        112
+      ],
+      "id": "dee5c48f-d6bc-49e6-ada4-42af9a3c9a54",
+      "name": "Get Row Number",
+      "credentials": {
+        "googleApi": {
+          "id": "gVtly8W6NR77R14Z",
+          "name": "Internify — Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/process",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    company: $json.Company,\n    job_title: $json['Job Title'],\n    location: $json.Location,\n    job_description: $json['Job Description'],\n    job_requirements: $json['Job Requirements'],\n    job_link: $json['Job Link']\n  })\n}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1632,
+        112
+      ],
+      "id": "6d2d289e-67e5-471e-bd4a-7bf4d8ee0c8e",
+      "name": "Generate Resume"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b9214fed-6383-4a9c-be5c-b13dd7915a9a",
+              "leftValue": "={{ $json.pdf_download_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1824,
+        112
+      ],
+      "id": "44d6f97a-ea5a-48ba-befb-098c50138da0",
+      "name": "Is Resume Generated?",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Generate Resume').item.json.pdf_download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2016,
+        16
+      ],
+      "id": "e1f24466-7f68-44b5-8678-9d8bb058f587",
+      "name": "Download Resume"
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Generate Resume').item.json.job.company }}_{{ $('Generate Resume').item.json.job.role }}.pdf",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Y9zHbGKEaNxVmtjGCRxClJbSM3M4PNzv",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2208,
+        16
+      ],
+      "id": "ce39c37d-61ed-4b00-8ba9-d9b596d77bab",
+      "name": "Upload Resume",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Wdb0nMjxmTWdj9X9",
+          "name": "Internify — Google Drive Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract URL').item.json.chat_id }}",
+        "text": "❌ Something went wrong. Try again!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        208
+      ],
+      "id": "fde4c3d4-1c47-439a-b515-df8e89378f8f",
+      "name": "Fail Message",
+      "webhookId": "a52cb52d-23dc-4ba1-b506-a177546fb073",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "mode": "list",
+          "cachedResultName": "Internify — Application Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+        },
+        "startIndex": "={{ $('Get Row Number').item.json.row_number }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        208
+      ],
+      "id": "8d2f81cb-1916-4712-adbc-ce9b2bd713db",
+      "name": "Delete Failed Row",
+      "credentials": {
+        "googleApi": {
+          "id": "gVtly8W6NR77R14Z",
+          "name": "Internify — Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "mode": "list",
+          "cachedResultName": "Internify — Application Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Get Row Number').item.json.row_number }}",
+            "Resume Link": "={{ $json.webViewLink }}",
+            "Resume Status": "={{ $('Download Resume').item.json.resume_status }}",
+            "Comment": "={{ $('Download Resume').item.json.comment }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Job Requirements",
+              "displayName": "Job Requirements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Resume Link",
+              "displayName": "Resume Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resume Status",
+              "displayName": "Resume Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Comment",
+              "displayName": "Comment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        16
+      ],
+      "id": "64110e56-b968-4426-bd0f-87cec9f6cae2",
+      "name": "Update Resume Link",
+      "credentials": {
+        "googleApi": {
+          "id": "gVtly8W6NR77R14Z",
+          "name": "Internify — Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract project details from the user's plain English description.\nReturn ONLY valid JSON with exactly these keys:\n\n- name (string): project name\n- tech_stack (string): comma-separated technologies, e.g. \"React.js, Node.js, PostgreSQL\"\n- date (string): completion/latest date in format \"Mon YYYY\", e.g. \"May 2026\"\n- bullets (array of objects): 2–4 achievement bullets, each with:\n    - text (string): strong action-verb bullet, include metrics if mentioned\n    - tech_tags (array of strings): technologies in that specific bullet\n- suggested_skills (object): skills from the description grouped into categories.\n    YOU MUST use ONLY these exact category name strings as keys — no others:\n    \"Languages\", \"Frameworks & Libraries\", \"Databases\", \"AI/ML\", \"Developer Tools & Infra\"\n    Only include a category if at least one item belongs there. Items must be concise tool/language names.\n\nDo not invent information not present in the description."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        -1648
+      ],
+      "id": "b83995e9-032c-43bc-8092-f9820fee4819",
+      "name": "Process Project",
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b61d7724-7d50-451f-9647-60f3dca48a5c",
+              "name": "command",
+              "value": "={{ $json.message.text.split(' ')[0].toLowerCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "0ab4b9a7-3d3b-4eba-9d4c-aa6d72c36f02",
+              "name": "body",
+              "value": "={{ $json.message.text.split(' ').slice(1).join(' ').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "e2d73230-83b4-438a-a3ea-41768b3fd104",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        160,
+        -672
+      ],
+      "id": "147e6771-fa10-4531-a73b-f0ef55991e3e",
+      "name": "Extract Command"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "fc74a6db-cab8-40c3-b2f7-b4b5272db8f2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "command"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d2975dd2-30ba-44d3-bf26-04bc5bd82add",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "https",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "https"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        -304
+      ],
+      "id": "93f42fb9-996a-401a-a726-82baf8998af9",
+      "name": "Switch Mode"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract work experience details from the user's plain English description.\nReturn ONLY valid JSON with exactly these keys:\n\n- title (string): job title\n- company (string): company name\n- location (string): city and country, e.g. \"Kuala Lumpur, Malaysia\"\n- dates (string): date range in format \"Mon YYYY -- Mon YYYY\", use \"Present\" if ongoing\n- bullets (array of objects): 2–4 achievement bullets, each with:\n    - text (string): strong action-verb bullet, include metrics if mentioned\n    - tech_tags (array of strings): technologies in that specific bullet\n- suggested_skills (object): skills from the description grouped into categories.\n    YOU MUST use ONLY these exact category name strings as keys — no others:\n    \"Languages\", \"Frameworks & Libraries\", \"Databases\", \"AI/ML\", \"Developer Tools & Infra\"\n    Only include a category if at least one item belongs there. Items must be concise tool/language names.\n\nDo not invent information not present in the description."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        -1456
+      ],
+      "id": "4b760cc4-390d-45cc-8c62-0e36d8df78bb",
+      "name": "Process Experience",
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract leadership or extracurricular details from the user's plain English description.\nReturn ONLY valid JSON with exactly these keys:\n\n- title (string): role/position title\n- org (string): organization name\n- location (string): city and country\n- dates (string): date range in format \"Mon YYYY -- Mon YYYY\"\n- bullets (array of strings): 1–3 achievement bullets in action-verb format\n- suggested_skills (object): any technical skills mentioned (e.g. tools, languages used in the role).\n    YOU MUST use ONLY these exact category name strings as keys — no others:\n    \"Languages\", \"Frameworks & Libraries\", \"Databases\", \"AI/ML\", \"Developer Tools & Infra\"\n    If no technical skills are mentioned, return an empty object {}.\n\nDo not invent information not present in the description."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        -1264
+      ],
+      "id": "5f35ce15-c133-479a-9ea3-7a11e9f2cf13",
+      "name": "Process Leadership",
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "The user wants to add skills to their resume. Extract and categorise them.\nReturn ONLY valid JSON with exactly these keys:\n\n- category (string): YOU MUST use one of these EXACT strings — no other value is accepted:\n    \"Languages\"\n    \"Frameworks & Libraries\"\n    \"Databases\"\n    \"AI/ML\"\n    \"Developer Tools & Infra\"\n  Choose the most appropriate one for the skills mentioned.\n- items (array of strings): individual skill/tool names, concise and exact\n\nExample input: \"add Docker, Kubernetes, Helm to my infra tools\"\nExample output: {\"category\": \"Developer Tools & Infra\", \"items\": [\"Docker\", \"Kubernetes\", \"Helm\"]}\n\nDo not invent items not mentioned by the user."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        -1072
+      ],
+      "id": "f7c6ea6c-5bf3-465a-b177-b7404ebbc627",
+      "name": "Process Skill",
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/admin/skeleton/project",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    name: $json.output[0].content[0].text.name,\n    tech_stack: $json.output[0].content[0].text.tech_stack,\n    date: $json.output[0].content[0].text.date,\n    bullets: $json.output[0].content[0].text.bullets,\n    suggested_skills: $json.output[0].content[0].text.suggested_skills\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -1648
+      ],
+      "id": "d8403627-b6f3-42ba-853f-ea18427c844f",
+      "name": "Add Project"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/admin/skeleton/experience",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    title: $json.output[0].content[0].text.title,\n    company: $json.output[0].content[0].text.company,\n    location: $json.output[0].content[0].text.location,\n    dates: $json.output[0].content[0].text.dates,\n    bullets: $json.output[0].content[0].text.bullets,\n    suggested_skills: $json.output[0].content[0].text.suggested_skills\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -1456
+      ],
+      "id": "d93dca41-9e71-45aa-ac53-78dde30265f4",
+      "name": "Add Experience"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/admin/skeleton/leadership",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    title: $json.output[0].content[0].text.title,\n    org: $json.output[0].content[0].text.org,\n    location: $json.output[0].content[0].text.location,\n    dates: $json.output[0].content[0].text.dates,\n    bullets: $json.output[0].content[0].text.bullets,\n    suggested_skills: $json.output[0].content[0].text.suggested_skills\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -1264
+      ],
+      "id": "70b5722f-b3a6-4482-8625-4633392fd4b5",
+      "name": "Add Leadership"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://fastapi-service:8000/admin/skeleton/skills",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    category: $json.output[0].content[0].text.category,\n    items: $json.output[0].content[0].text.items\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -1072
+      ],
+      "id": "cdaa6b37-0bf8-4042-af0a-3ef0d5c299e9",
+      "name": "Add Skill"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7a2d64a6-ca53-4aac-b3c6-5a8434d41575",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addproject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addproject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "23d2e9e0-b715-454b-ade9-0d15e1605d0d",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addexperience",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addexperience"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0c8ef074-26d8-4226-8c21-0cee4fd4fdac",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addleadership",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addleadership"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "59b0bca5-ecbb-44cc-ad11-35c27cbc7231",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addskill",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addskill"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sa-edu-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addeducation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addeducation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sa-crs-0001-0001-0001-000000000002",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addcourse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addcourse"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        -1392
+      ],
+      "id": "4b90c656-9659-4d15-bd34-731a24b01e1f",
+      "name": "Switch Add"
+    },
+    {
+      "parameters": {
+        "url": "http://fastapi-service:8000/admin/skeleton/skills",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1104,
+        -816
+      ],
+      "id": "887d224d-d4c0-4a34-9041-f2bac8f9093a",
+      "name": "List Skills"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0984554f-3823-4dae-b869-54a6897ef41c",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/add",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/add"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "29fa638f-c216-43cb-b3a9-7d73d941c88a",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=/list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-del-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/delete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-set-0001-0001-0001-000000000002",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/set"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-sta-0001-0001-0001-000000000003",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-pro-0001-0001-0001-000000000004",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/myprofile",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/myprofile"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-upd-0001-0001-0001-000000000005",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/update"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-res-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/resume",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/resume"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        -672
+      ],
+      "id": "f836bdc1-62f4-4bc2-926c-79391eb48eb0",
+      "name": "Switch Command"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Switch Add').item.json.message.chat.id }}",
+        "text": "=✅ *Done!*\n\n{{ $json.message }}\n\n{{ Object.keys($json.skills_added || {}).length > 0 ? '🛠 *Skills auto\\-added:*\\n' + Object.entries($json.skills_added).map(([cat, items]) => `• *${cat}:* ` + items.map(i => `\\`${i}\\``).join(', ')).join('\\n') : '' }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1472,
+        -1360
+      ],
+      "id": "a905d7ac-dcd3-4699-90d9-a11497853593",
+      "name": "Add Success Message",
+      "webhookId": "09b05164-ff0d-4b6a-b5ad-014dc98a8d9d",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://fastapi-service:8000/admin/skeleton/entries",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1104,
+        -656
+      ],
+      "id": "024dbce3-c096-424e-86d7-9eebebf4ae2d",
+      "name": "List Entries"
+    },
+    {
+      "parameters": {
+        "jsCode": "const skills = $input.item.json.skills;\n\nlet lines = ['📋 *Your Skills Master List*\\n'];\n\nfor (const [category, items] of Object.entries(skills)) {\n  lines.push(`*${category}*`);\n  lines.push(items.map(i => `  • ${i}`).join('\\n'));\n  lines.push('');\n}\n\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -816
+      ],
+      "id": "97941cd5-8f64-47a9-b41e-2e95862f151b",
+      "name": "Format Skills"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\nlet lines = ['📂 *Your Resume Entries*\\n'];\n\nlines.push('*💼 Experience*');\nfor (const e of data.experience_entries || []) {\n  lines.push(`  • *Role:* ${e.title}`);\n  lines.push(`     *Company:* ${e.company}`);\n  lines.push(`     *Date:* ${e.dates}`);\n  lines.push(`     *ID:* \\`${e.id}\\``);\n}\n\nlines.push('');\nlines.push('*🛠 Projects*');\nfor (const p of data.project_entries || []) {\n  lines.push(`  • *Name:* ${p.name}`);\n  lines.push(`     *Tech:* ${p.tech_stack}`);\n  lines.push(`     *Date:* ${p.dates}`);\n  lines.push(`     *ID:* \\`${p.id}\\``);\n}\n\nlines.push('');\nlines.push('*🏅 Leadership*');\nfor (const l of data.leadership || []) {\n  lines.push(`  • *Title:* ${l.title}`);\n  lines.push(`     *Org:* ${l.org}`);\n  lines.push(`     *Date:* ${l.dates}`);\n}\n\nlines.push('\\n_Use /listfacts <ID> to see bullets for any entry._');\nlines.push('');\n\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -656
+      ],
+      "id": "0a8380ec-fe17-4531-a381-581db7aed316",
+      "name": "Format Entries"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        -816
+      ],
+      "id": "6eff9cfa-00e8-43e3-8590-c4421ee2897f",
+      "name": "List Skills Message",
+      "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        -656
+      ],
+      "id": "23bba58c-080f-4552-81a3-8646e8de3486",
+      "name": "List Entries Message",
+      "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7a2d64a6-ca53-4aac-b3c6-5a8434d41575",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/listskills",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/listskills"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "23d2e9e0-b715-454b-ade9-0d15e1605d0d",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/listentries",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/listentries"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0c8ef074-26d8-4226-8c21-0cee4fd4fdac",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/listfacts",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/listfacts"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sl-edu-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/listeducation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/listeducation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        -672
+      ],
+      "id": "45b693c3-4cac-4e3c-825a-bbe4316e736c",
+      "name": "Switch List"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "28aa4caa-a69e-4a1c-9cbc-e26fea264c84",
+              "leftValue": "={{ $json.body }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        -416
+      ],
+      "id": "22f2e96f-ba39-4a89-93f4-a2ec56b7e0a1",
+      "name": "ID Check"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -496
+      ],
+      "id": "1d453396-4049-4e20-972f-da2b762fcd3f",
+      "name": "List Facts Message",
+      "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Switch List').item.json.chat_id }}",
+        "text": "⚠️ Please provide an entry ID. Use /listentries to see all IDs.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1296,
+        -320
+      ],
+      "id": "68fb9dcb-a73a-4e31-9d30-fd14b87ad515",
+      "name": "No ID Message",
+      "webhookId": "7bc4ca9a-e754-496f-88a3-42d735066508",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://fastapi-service:8000/admin/facts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "entry_id",
+              "value": "={{ $json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1296,
+        -496
+      ],
+      "id": "08f1cb36-14e3-453c-a1b0-49c69b0f40f0",
+      "name": "List Facts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\nconst entryId = $('ID Check').first().json.body;\n\nif (data.count === 0) {\n  return [{ json: { text: `⚠️ No facts found for entry ID: \\`${entryId}\\`\\n\\nUse /listentries to see valid IDs.` } }];\n}\n\nlet lines = [`📝 *Facts for* \\`${entryId}\\` (${data.count} bullet${data.count > 1 ? 's' : ''})\\n`];\n\nfor (const fact of data.facts) {\n  lines.push(`*ID:* \\`${fact.id}\\``);\n  lines.push(`• ${fact.text}`);\n  if (fact.tech_tags.length > 0) {\n    lines.push(`_Tags: ${fact.tech_tags.join(', ')}_`);\n  }\n  lines.push('');\n}\n\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        -496
+      ],
+      "id": "90cfd66b-0e45-47ed-830e-2e6186f6c02b",
+      "name": "Format Facts"
+    },
+    {
+      "id": "aa000001-aaaa-aaaa-aaaa-000000000001",
+      "name": "Start Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        -2600
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=👋 *Welcome to Internify\\!*\n\nPaste any job URL and I'll generate a tailored resume automatically\\.\n\n━━━━━━━━━━━━━━━━━━━━\n📄 *MASTER RESUME*\n/resume — generate & download full untailored resume\n\n👤 *PROFILE*\n/myprofile — view your current info\n/setname, /setphone, /setemail\n/setlinkedin, /setgithub\n\n🎓 *EDUCATION*\n/listeducation — view all entries\n/addeducation — add via plain English\n/deleteeducation \\<id\\>\n/addcourse \\<id\\> \\<course\\>, /deletecourse \\<id\\> \\<course\\>\n\n💼 *EXPERIENCE & PROJECTS*\n/addexperience, /addproject, /addleadership\n/listentries — view all entries \\+ IDs\n/listfacts \\<id\\> — view bullets for an entry\n/updatefact \\<fact\\_id\\> \\<new text\\>\n/deleteexperience, /deleteproject, /deleteleadership, /deletefact\n\n🛠 *SKILLS*\n/addskill, /listskills, /deleteskill \\<item\\>\n\n━━━━━━━━━━━━━━━━━━━━\n💡 _First time? Start with /myprofile then /addeducation and /addexperience before generating your first resume\\._",
+        "additionalFields": {
+          "parse_mode": "MarkdownV2"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000002-aaaa-aaaa-aaaa-000000000002",
+      "name": "Get Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        -2400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://fastapi-service:8000/admin/skeleton/header",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000003-aaaa-aaaa-aaaa-000000000003",
+      "name": "Format Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -2400
+      ],
+      "parameters": {
+        "jsCode": "const h = $input.item.json.header;\nconst lines = [\n  '👤 *Your Profile*\\n',\n  `*Name:* ${h.name}`,\n  `*Phone:* ${h.phone}`,\n  `*Email:* ${h.email}`,\n  `*LinkedIn:* ${h.linkedin_url}`,\n  `*GitHub:* ${h.github_url}`,\n  '',\n  '_Use /setname, /setphone, /setemail, /setlinkedin, /setgithub to update any field._'\n];\nreturn [{ json: { text: lines.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "aa000004-aaaa-aaaa-aaaa-000000000004",
+      "name": "Profile Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        -2400
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000005-aaaa-aaaa-aaaa-000000000005",
+      "name": "Build Set Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -2200
+      ],
+      "parameters": {
+        "jsCode": "const command = $json.command;\nconst body = $json.body.trim();\nconst fieldMap = {\n  '/setname': 'name',\n  '/setphone': 'phone',\n  '/setemail': 'email',\n  '/setlinkedin': 'linkedin_url',\n  '/setgithub': 'github_url'\n};\nconst field = fieldMap[command];\nif (!field || !body) {\n  return [{ json: { error: true, text: '⚠️ Usage: ' + command + ' <value>' } }];\n}\nreturn [{ json: { patch: { [field]: body }, field } }];"
+      }
+    },
+    {
+      "id": "aa000006-aaaa-aaaa-aaaa-000000000006",
+      "name": "Patch Header",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1000,
+        -2200
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "http://fastapi-service:8000/admin/skeleton/header",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.patch) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000007-aaaa-aaaa-aaaa-000000000007",
+      "name": "Set Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        -2200
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=✅ {{ $json.message }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000008-aaaa-aaaa-aaaa-000000000008",
+      "name": "Process Education OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        -1900
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract education details from the user's plain English description.\nReturn ONLY valid JSON with exactly these keys:\n- institution (string): full institution name\n- location (string): city and country, e.g. \"Shah Alam, Malaysia\"\n- degree_line (string): full degree name, e.g. \"Bachelor of Computer Science (Hons)\"\n- dates (string): date range in format \"Mon YYYY -- Mon YYYY\" or \"Mon YYYY -- Present\"\n- courses (array of strings): relevant courses taken, each as a short course name\n- honor_bullets (array of strings): honors, awards, or GPA info as bullet strings\nDo not invent information not present in the description."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "id": "aa000009-aaaa-aaaa-aaaa-000000000009",
+      "name": "Add Education HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -1900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/admin/skeleton/education",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ institution: $json.output[0].content[0].text.institution, location: $json.output[0].content[0].text.location, degree_line: $json.output[0].content[0].text.degree_line, dates: $json.output[0].content[0].text.dates, courses: $json.output[0].content[0].text.courses, honor_bullets: $json.output[0].content[0].text.honor_bullets }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000010-aaaa-aaaa-aaaa-000000000010",
+      "name": "Edu Add Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        -1900
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=✅ {{ $json.message }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000011-aaaa-aaaa-aaaa-000000000011",
+      "name": "List Education HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1104,
+        -480
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://fastapi-service:8000/admin/skeleton/education",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000012-aaaa-aaaa-aaaa-000000000012",
+      "name": "Format Education",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -480
+      ],
+      "parameters": {
+        "jsCode": "const edu = $input.item.json.education || [];\nconst lines = ['🎓 *Education Entries*\\n'];\nfor (const e of edu) {\n  lines.push(`*${e.institution}*`);\n  lines.push(`  ${e.degree_line}`);\n  lines.push(`  ${e.dates}`);\n  lines.push(`  ID: \\`${e.id}\\``);\n  if (e.courses && e.courses.length > 0) {\n    lines.push(`  Courses (${e.courses.length}): ${e.courses.slice(0, 3).join(', ')}${e.courses.length > 3 ? '...' : ''}`);\n  }\n  lines.push('');\n}\nlines.push('_Use /addcourse <id> <name> or /deletecourse <id> <name>_');\nreturn [{ json: { text: lines.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "aa000013-aaaa-aaaa-aaaa-000000000013",
+      "name": "List Education Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        -480
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000014-aaaa-aaaa-aaaa-000000000014",
+      "name": "Parse Course",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -1840
+      ],
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
+      }
+    },
+    {
+      "id": "aa000015-aaaa-aaaa-aaaa-000000000015",
+      "name": "Add Course HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1104,
+        -1840
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.edu_id }}/courses",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "course",
+              "value": "={{ $json.course }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000016-aaaa-aaaa-aaaa-000000000016",
+      "name": "Course Add Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1296,
+        -1840
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=✅ {{ $json.message }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000017-aaaa-aaaa-aaaa-000000000017",
+      "name": "Switch Delete",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        500
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-pro-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deleteproject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deleteproject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-exp-0001-0001-0001-000000000002",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deleteexperience",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deleteexperience"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-lea-0001-0001-0001-000000000003",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deleteleadership",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deleteleadership"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-fac-0001-0001-0001-000000000004",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deletefact",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deletefact"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-ski-0001-0001-0001-000000000005",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deleteskill",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deleteskill"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-edu-0001-0001-0001-000000000006",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deleteeducation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deleteeducation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sd-crs-0001-0001-0001-000000000007",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/deletecourse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/deletecourse"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000018-aaaa-aaaa-aaaa-000000000018",
+      "name": "Delete Project HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        400
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/project/{{ $json.body }}",
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000019-aaaa-aaaa-aaaa-000000000019",
+      "name": "Delete Experience HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        480
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/experience/{{ $json.body }}",
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000020-aaaa-aaaa-aaaa-000000000020",
+      "name": "Delete Leadership HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        560
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://fastapi-service:8000/admin/skeleton/leadership",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $json.body }}"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000021-aaaa-aaaa-aaaa-000000000021",
+      "name": "Delete Fact HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        640
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/facts/{{ $json.body }}",
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000022-aaaa-aaaa-aaaa-000000000022",
+      "name": "Delete Skill HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        720
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://fastapi-service:8000/admin/skeleton/skills",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "item",
+              "value": "={{ $json.body }}"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000023-aaaa-aaaa-aaaa-000000000023",
+      "name": "Delete Education HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        800
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.body }}",
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000024-aaaa-aaaa-aaaa-000000000024",
+      "name": "Parse Course Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        880
+      ],
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
+      }
+    },
+    {
+      "id": "aa000025-aaaa-aaaa-aaaa-000000000025",
+      "name": "Delete Course HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1080,
+        880
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.edu_id }}/courses",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "course",
+              "value": "={{ $json.course }}"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "aa000026-aaaa-aaaa-aaaa-000000000026",
+      "name": "Delete Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        640
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=🗑️ {{ $json.message || $json.error?.message || 'Done.' }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000027-aaaa-aaaa-aaaa-000000000027",
+      "name": "Parse Update Fact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -3000
+      ],
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst fact_id = parts[0];\nconst new_text = parts.slice(1).join(' ');\nreturn [{ json: { fact_id, new_text } }];"
+      }
+    },
+    {
+      "id": "aa000028-aaaa-aaaa-aaaa-000000000028",
+      "name": "Re-extract Tags OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1000,
+        -3000
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract technology tags from this resume bullet point.\nReturn ONLY valid JSON with one key: tech_tags (array of strings).\nEach tag should be a concise technology, tool, or framework name.\nOnly include tags for things explicitly mentioned in the text."
+            },
+            {
+              "content": "={{ $json.new_text }}"
+            }
+          ]
+        },
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "I9k2Y1DsKewNepuL",
+          "name": "Internify — OpenAI Account"
+        }
+      }
+    },
+    {
+      "id": "aa000029-aaaa-aaaa-aaaa-000000000029",
+      "name": "Update Fact HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        -3000
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://fastapi-service:8000/admin/facts/{{ $('Parse Update Fact').item.json.fact_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $('Parse Update Fact').item.json.new_text, tech_tags: $json.output[0].content[0].text.tech_tags }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa000030-aaaa-aaaa-aaaa-000000000030",
+      "name": "Update Fact Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        -3000
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=✅ {{ $json.message }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "id": "aa000031-aaaa-aaaa-aaaa-000000000031",
+      "name": "Resume Ready Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2784,
+        16
+      ],
+      "parameters": {
+        "chatId": "={{ $('Extract URL').item.json.chat_id }}",
+        "text": "=✅ *Resume Ready\\!*\n\n🏢 *{{ $('Append Row').item.json.Company }}*\n💼 {{ $('Append Row').item.json['Job Title'] }}\n📊 ATS Score: {{ $('Generate Resume').item.json.score }}/100\n🏅 Quality: {{ $('Generate Resume').item.json.resume_status }}\n\n📄 Resume: {{ $('Upload Resume').item.json.webViewLink }}\n\n💡 {{ $('Generate Resume').item.json.summary }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi-service:8000/admin/resume/master",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        -3200
+      ],
+      "id": "aa000032-aaaa-aaaa-aaaa-000000000032",
+      "name": "Generate Master Resume"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Generate Master Resume').item.json.pdf_download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1000,
+        -3200
+      ],
+      "id": "aa000033-aaaa-aaaa-aaaa-000000000033",
+      "name": "Download Master Resume"
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Generate Master Resume').item.json.filename }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Y9zHbGKEaNxVmtjGCRxClJbSM3M4PNzv",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        -3200
+      ],
+      "id": "aa000034-aaaa-aaaa-aaaa-000000000034",
+      "name": "Upload Master Resume",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Wdb0nMjxmTWdj9X9",
+          "name": "Internify — Google Drive Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Command').item.json.chat_id }}",
+        "text": "=📄 *Master Resume Ready!*\n\n👤 *{{ $('Generate Master Resume').item.json.name }}*\n📁 [View on Google Drive]({{ $json.webViewLink }})",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        -3200
+      ],
+      "id": "aa000035-aaaa-aaaa-aaaa-000000000035",
+      "name": "Master Resume Ready Message",
+      "credentials": {
+        "telegramApi": {
+          "id": "GO9SBIMysotJrBA0",
+          "name": "Internify — Telegram Account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract URL": {
+      "main": [
+        [
+          {
+            "node": "Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Page": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Row": {
+      "main": [
+        [
+          {
+            "node": "Get Row Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Check": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scrape Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "Append Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Row Number": {
+      "main": [
+        [
+          {
+            "node": "Generate Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Resume": {
+      "main": [
+        [
+          {
+            "node": "Is Resume Generated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Resume Generated?": {
+      "main": [
+        [
+          {
+            "node": "Download Resume",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Failed Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Resume": {
+      "main": [
+        [
+          {
+            "node": "Upload Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Resume": {
+      "main": [
+        [
+          {
+            "node": "Update Resume Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Failed Row": {
+      "main": [
+        [
+          {
+            "node": "Fail Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Resume Link": {
+      "main": [
+        [
+          {
+            "node": "Resume Ready Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Command": {
+      "main": [
+        [
+          {
+            "node": "Switch Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Mode": {
+      "main": [
+        [
+          {
+            "node": "Extract Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Project": {
+      "main": [
+        [
+          {
+            "node": "Add Project",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Experience": {
+      "main": [
+        [
+          {
+            "node": "Add Experience",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Leadership": {
+      "main": [
+        [
+          {
+            "node": "Add Leadership",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Skill": {
+      "main": [
+        [
+          {
+            "node": "Add Skill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Project": {
+      "main": [
+        [
+          {
+            "node": "Add Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Experience": {
+      "main": [
+        [
+          {
+            "node": "Add Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Leadership": {
+      "main": [
+        [
+          {
+            "node": "Add Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Skill": {
+      "main": [
+        [
+          {
+            "node": "Add Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Add": {
+      "main": [
+        [
+          {
+            "node": "Process Project",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Experience",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Leadership",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Skill",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Education OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Course",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Skills": {
+      "main": [
+        [
+          {
+            "node": "Format Skills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Command": {
+      "main": [
+        [
+          {
+            "node": "Switch Add",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Set Body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Start Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Update Fact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Master Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Entries": {
+      "main": [
+        [
+          {
+            "node": "Format Entries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Skills": {
+      "main": [
+        [
+          {
+            "node": "List Skills Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Entries": {
+      "main": [
+        [
+          {
+            "node": "List Entries Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch List": {
+      "main": [
+        [
+          {
+            "node": "List Skills",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Entries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ID Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Education HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID Check": {
+      "main": [
+        [
+          {
+            "node": "List Facts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No ID Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Facts": {
+      "main": [
+        [
+          {
+            "node": "Format Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Facts": {
+      "main": [
+        [
+          {
+            "node": "List Facts Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Profile": {
+      "main": [
+        [
+          {
+            "node": "Format Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Profile": {
+      "main": [
+        [
+          {
+            "node": "Profile Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Set Body": {
+      "main": [
+        [
+          {
+            "node": "Patch Header",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Header": {
+      "main": [
+        [
+          {
+            "node": "Set Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Education OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Add Education HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Education HTTP": {
+      "main": [
+        [
+          {
+            "node": "Edu Add Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Course": {
+      "main": [
+        [
+          {
+            "node": "Add Course HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Course HTTP": {
+      "main": [
+        [
+          {
+            "node": "Course Add Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Education HTTP": {
+      "main": [
+        [
+          {
+            "node": "Format Education",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Education": {
+      "main": [
+        [
+          {
+            "node": "List Education Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Delete": {
+      "main": [
+        [
+          {
+            "node": "Delete Project HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Experience HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Leadership HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Fact HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Skill HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Education HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Course Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Project HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Experience HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Leadership HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Fact HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Skill HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Education HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Course Delete": {
+      "main": [
+        [
+          {
+            "node": "Delete Course HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Course HTTP": {
+      "main": [
+        [
+          {
+            "node": "Delete Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Update Fact": {
+      "main": [
+        [
+          {
+            "node": "Re-extract Tags OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-extract Tags OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Update Fact HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Fact HTTP": {
+      "main": [
+        [
+          {
+            "node": "Update Fact Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Master Resume": {
+      "main": [
+        [
+          {
+            "node": "Download Master Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Master Resume": {
+      "main": [
+        [
+          {
+            "node": "Upload Master Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Master Resume": {
+      "main": [
+        [
+          {
+            "node": "Master Resume Ready Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "debc2e5e-355d-4417-a509-e8fc47794744",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bd1970b76c6432e0e844f67d72e3c295aa9440877c926325a2ae0fa172064b69"
+  },
+  "nodeGroups": [],
+  "id": "NPxdsLjPKCyyAQ7k",
+  "tags": []
+}

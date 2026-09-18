@@ -1,0 +1,49 @@
+[
+  {
+    "id": "exp_sample_tech_1",
+    "entry_id": "exp_sample_tech",
+    "section": "experience",
+    "text": "Engineered REST APIs using FastAPI and PostgreSQL, improving backend query response times by 35%",
+    "tech_tags": [
+      "FastAPI",
+      "PostgreSQL",
+      "Python",
+      "REST API"
+    ]
+  },
+  {
+    "id": "exp_sample_tech_2",
+    "entry_id": "exp_sample_tech",
+    "section": "experience",
+    "text": "Collaborated with senior engineers in an Agile environment to build responsive frontend components in React",
+    "tech_tags": [
+      "React",
+      "JavaScript",
+      "Agile",
+      "Frontend"
+    ]
+  },
+  {
+    "id": "proj_sample_app_1",
+    "entry_id": "proj_sample_app",
+    "section": "project",
+    "text": "Architected a full-stack project management dashboard utilizing React, Node.js, and PostgreSQL containerized with Docker",
+    "tech_tags": [
+      "React",
+      "Node.js",
+      "PostgreSQL",
+      "Docker"
+    ]
+  },
+  {
+    "id": "proj_sample_app_2",
+    "entry_id": "proj_sample_app",
+    "section": "project",
+    "text": "Implemented JWT authentication and role-based access control ensuring secure multi-tenant isolation",
+    "tech_tags": [
+      "JWT",
+      "Security",
+      "Authentication"
+    ]
+  }
+]

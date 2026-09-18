@@ -1,0 +1,138 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape << header.name >>} \\ \vspace{1pt}
+    \small << header.phone >> $|$ \href{mailto:<< header.email >>}{\underline{<< header.email >>}} $|$
+    \href{<< header.linkedin_url >>}{\underline{<< header.linkedin_display >>}} $|$
+    \href{<< header.github_url >>}{\underline{<< header.github_display >>}}
+\end{center}
+
+\section{Education}
+  \resumeSubHeadingListStart
+<% for edu in education %>
+    \resumeSubheading
+      {<< edu.institution >>}{<< edu.location >>}
+      {<< edu.degree_line >>}{<< edu.dates >>}
+      \resumeItemListStart
+<% for b in edu.bullets %>
+        \resumeItem{<< b >>}
+<% endfor %>
+      \resumeItemListEnd
+<% endfor %>
+  \resumeSubHeadingListEnd
+
+\section{Experience}
+  \resumeSubHeadingListStart
+<% for entry in experience %>
+    \resumeSubheading
+      {<< entry.meta.title >>}{<< entry.meta.dates >>}
+      {<< entry.meta.company >>}{<< entry.meta.location >>}
+      \resumeItemListStart
+<% for b in entry.bullets %>
+        \resumeItem{<< b >>}
+<% endfor %>
+      \resumeItemListEnd
+<% endfor %>
+  \resumeSubHeadingListEnd
+
+\section{Projects}
+    \resumeSubHeadingListStart
+<% for entry in projects %>
+      \resumeProjectHeading
+          {\textbf{<< entry.meta.name >>} $|$ \emph{<< entry.meta.tech_stack >>}}{<< entry.meta.date >>}
+          \resumeItemListStart
+<% for b in entry.bullets %>
+            \resumeItem{<< b >>}
+<% endfor %>
+          \resumeItemListEnd
+<% endfor %>
+    \resumeSubHeadingListEnd
+
+\section{Leadership Experience}
+  \resumeSubHeadingListStart
+<% for entry in leadership %>
+    \resumeSubheading
+      {<< entry.title >>}{<< entry.dates >>}
+      {<< entry.org >>}{<< entry.location >>}
+      \resumeItemListStart
+<% for b in entry.bullets %>
+        \resumeItem{<< b >>}
+<% endfor %>
+      \resumeItemListEnd
+<% endfor %>
+  \resumeSubHeadingListEnd
+
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+<% for category, items in skills.items() %>
+     \textbf{<< category >>}{: << items|join(', ') >>}<% if not loop.last %> \\<% endif %>
+
+<% endfor %>
+    }}
+ \end{itemize}
+
+\end{document}
