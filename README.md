@@ -186,16 +186,20 @@ docker compose restart n8n
 
 ### 4. Import & Connect n8n Workflow
 1. Open `http://localhost:5678` in your browser and set up your initial n8n admin account.
-2. Go to **Workflows** ➔ **Import from File**.
-3. Select `Internify — Telegram Bot.json`.
-4. Configure credentials in n8n:
-   - **Telegram**: Select **Internify — Telegram Account**, paste your Bot Token from `@BotFather`.
-   - **OpenAI**: Select **Internify — OpenAI Account**, paste your OpenAI API key.
-   - **Google Sheets & Google Drive**: Select **Internify — Google Service Account**, upload your Service Account JSON.
-   - **ScrapingAnt**: Select **Internify — ScrapingAnt Account**, paste your ScrapingAnt API Token.
-5. In your Google Sheet nodes (`Lookup`, `Append Row`, `Update Resume Link`), select your created `Internify — Application Tracker` spreadsheet.
-6. In your Google Drive node (`Upload Resume`), select your `Internify Resumes` folder.
-7. Click **Save** and toggle the workflow to **Active**!
+2. Go to **Workflows** ➔ **Import from File** and select `Internify — Telegram Bot.json`.
+3. Configure your 4 credentials in n8n (**Settings** ➔ **Credentials**):
+   - **Telegram API**: Named `Internify — Telegram Account`, paste your Bot Token from `@BotFather`.
+   - **OpenAI API**: Named `Internify — OpenAI Account`, paste your OpenAI API key.
+   - **Google Service Account**: Named `Internify — Google Service Account`, upload your Service Account JSON key.
+   - **ScrapingAnt API**: Named `Internify — ScrapingAnt Account`, paste your ScrapingAnt API Token.
+4. **Link Your Google Sheet & Drive Folder**:
+   - Open each Google Sheet node (`Lookup`, `Append Row`, `Get Row Number`, `Delete Failed Row`, `Update Resume Link`), click **Document**, and select your own `Internify — Application Tracker` spreadsheet (or paste its URL).
+   - Open each Google Drive node (`Upload Resume`, `Upload Master Resume`), click **Folder**, and select your own `Internify Resumes` folder.
+5. **(Recommended) Make Bot Private to You Only**:
+   - By default, anyone who finds your bot username can use your system. To restrict it to yourself:
+   - Find your numeric Telegram ID via `@userinfobot`.
+   - In n8n, you can verify your user ID right after the `Telegram Trigger` node to ensure only messages from your ID are processed.
+6. Click **Save** and toggle the workflow to **Active**!
 
 Message `/start` to your Telegram bot to test!
 

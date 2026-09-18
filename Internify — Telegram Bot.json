@@ -11,15 +11,15 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.5,
       "position": [
-        -352,
-        -304
+        -896,
+        2592
       ],
-      "id": "e23c4c20-c94f-430d-b2b7-9fec864db1bf",
+      "id": "271e12df-916c-41d4-9b77-b98e7f966d89",
       "name": "Telegram Trigger",
       "webhookId": "12ae4438-ee69-43cf-8a33-be5503168621",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -47,10 +47,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        160,
-        0
+        -224,
+        4544
       ],
-      "id": "34df31ba-b6d3-4be8-92a5-e2c48703a0ba",
+      "id": "c848d437-dfbd-4788-94b8-e8b7c9995257",
       "name": "Extract URL"
     },
     {
@@ -62,14 +62,14 @@
       "type": "n8n-nodes-scrapingant.scrapingAnt",
       "typeVersion": 1,
       "position": [
-        736,
-        112
+        512,
+        4608
       ],
-      "id": "405c3ae1-06db-4fe1-a17b-1e09c4a58d53",
+      "id": "b4ef4d90-1841-4352-8d28-98b88fc3c045",
       "name": "Scrape Page",
       "credentials": {
         "scrapingAntApi": {
-          "id": "9bojsY7aYVGlziaJ",
+          "id": "TxP5cIixFTqjexRD",
           "name": "Internify — ScrapingAnt Account"
         }
       }
@@ -80,17 +80,17 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
           "mode": "list",
           "cachedResultName": "Internify — Application Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
           "cachedResultName": "Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit#gid=0"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -216,14 +216,14 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1248,
-        112
+        1152,
+        4608
       ],
-      "id": "107fa029-0c65-4a9e-ada8-4d42189b1d94",
+      "id": "0df4b1ce-6fb7-4681-9ba5-274a2884e7ab",
       "name": "Append Row",
       "credentials": {
         "googleApi": {
-          "id": "gVtly8W6NR77R14Z",
+          "id": "7dcKVVPnfj4WQSVQ",
           "name": "Internify — Google Service Account"
         }
       }
@@ -256,10 +256,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        544,
-        0
+        224,
+        4544
       ],
-      "id": "28d9679b-426f-4765-adc0-1e66068067eb",
+      "id": "e6dbf5ac-f81f-4779-9411-47b2e2c1318b",
       "name": "Duplicate Check",
       "alwaysOutputData": false
     },
@@ -268,17 +268,17 @@
         "authentication": "serviceAccount",
         "documentId": {
           "__rl": true,
-          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
           "mode": "list",
           "cachedResultName": "Internify — Application Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
           "cachedResultName": "Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit#gid=0"
         },
         "filtersUI": {
           "values": [
@@ -293,15 +293,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        352,
-        0
+        0,
+        4544
       ],
-      "id": "5146ebb6-6028-4361-9d58-ecece56f4fc7",
+      "id": "b0d866fa-9d6c-4310-86c7-0863a34ba7ac",
       "name": "Lookup",
       "alwaysOutputData": true,
       "credentials": {
         "googleApi": {
-          "id": "gVtly8W6NR77R14Z",
+          "id": "7dcKVVPnfj4WQSVQ",
           "name": "Internify — Google Service Account"
         }
       }
@@ -338,14 +338,14 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        928,
-        112
+        800,
+        4608
       ],
-      "id": "6cd623be-d422-491e-bed2-4b0dba2962d1",
+      "id": "452b65b5-4d43-4240-9bb3-943643789373",
       "name": "Normalize",
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
@@ -359,15 +359,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        736,
-        -112
+        512,
+        4416
       ],
-      "id": "d7e58cf3-183c-46b9-96c7-ae50ea082274",
+      "id": "2130a0e1-de8b-459f-99a2-817226210b08",
       "name": "Duplicate Message",
       "webhookId": "d155d534-4922-4a18-a28b-c629b6f5d2a7",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -377,17 +377,17 @@
         "authentication": "serviceAccount",
         "documentId": {
           "__rl": true,
-          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
           "mode": "list",
           "cachedResultName": "Internify — Application Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
           "cachedResultName": "Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit#gid=0"
         },
         "filtersUI": {
           "values": []
@@ -397,14 +397,14 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1440,
-        112
+        1376,
+        4608
       ],
-      "id": "dee5c48f-d6bc-49e6-ada4-42af9a3c9a54",
+      "id": "9e106982-9c08-4a5e-89d8-1575dd3bf4f1",
       "name": "Get Row Number",
       "credentials": {
         "googleApi": {
-          "id": "gVtly8W6NR77R14Z",
+          "id": "7dcKVVPnfj4WQSVQ",
           "name": "Internify — Google Service Account"
         }
       }
@@ -423,10 +423,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1632,
-        112
+        1600,
+        4608
       ],
-      "id": "6d2d289e-67e5-471e-bd4a-7bf4d8ee0c8e",
+      "id": "321147aa-2b8e-4979-8f9a-bbc8ad1fd287",
       "name": "Generate Resume"
     },
     {
@@ -458,9 +458,9 @@
       "typeVersion": 2.3,
       "position": [
         1824,
-        112
+        4608
       ],
-      "id": "44d6f97a-ea5a-48ba-befb-098c50138da0",
+      "id": "1f77eb13-6d73-4e71-a067-32c39947d204",
       "name": "Is Resume Generated?",
       "alwaysOutputData": false
     },
@@ -478,15 +478,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        2016,
-        16
+        2048,
+        4512
       ],
-      "id": "e1f24466-7f68-44b5-8678-9d8bb058f587",
+      "id": "c13e1d11-f9b2-4523-bb13-17573ae2f094",
       "name": "Download Resume"
     },
     {
       "parameters": {
-        "name": "={{ $('Generate Resume').item.json.job.company }}_{{ $('Generate Resume').item.json.job.role }}.pdf",
+        "name": "={{ $('Get Row Number').item.json.Company }}_{{ $('Get Row Number').item.json['Job Title'] }}.pdf",
         "driveId": {
           "__rl": true,
           "value": "My Drive",
@@ -496,7 +496,7 @@
         },
         "folderId": {
           "__rl": true,
-          "value": "1Y9zHbGKEaNxVmtjGCRxClJbSM3M4PNzv",
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID_HERE",
           "mode": "id"
         },
         "options": {}
@@ -504,14 +504,14 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2208,
-        16
+        2272,
+        4512
       ],
-      "id": "ce39c37d-61ed-4b00-8ba9-d9b596d77bab",
+      "id": "dfbe3b5f-7dde-40ce-88e7-d164a720c3dc",
       "name": "Upload Resume",
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "Wdb0nMjxmTWdj9X9",
+          "id": "Xrvj1kTsM7WlnLAm",
           "name": "Internify — Google Drive Account"
         }
       }
@@ -525,15 +525,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2208,
-        208
+        2272,
+        4704
       ],
-      "id": "fde4c3d4-1c47-439a-b515-df8e89378f8f",
+      "id": "3e33779f-5b32-48df-9f22-74993b8242cf",
       "name": "Fail Message",
       "webhookId": "a52cb52d-23dc-4ba1-b506-a177546fb073",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -544,31 +544,31 @@
         "operation": "delete",
         "documentId": {
           "__rl": true,
-          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
           "mode": "list",
           "cachedResultName": "Internify — Application Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
           "cachedResultName": "Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit#gid=0"
         },
         "startIndex": "={{ $('Get Row Number').item.json.row_number }}"
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        2016,
-        208
+        2048,
+        4704
       ],
-      "id": "8d2f81cb-1916-4712-adbc-ce9b2bd713db",
+      "id": "90a6b7c9-feee-43bb-a369-c68a12d568e8",
       "name": "Delete Failed Row",
       "credentials": {
         "googleApi": {
-          "id": "gVtly8W6NR77R14Z",
+          "id": "7dcKVVPnfj4WQSVQ",
           "name": "Internify — Google Service Account"
         }
       }
@@ -579,17 +579,17 @@
         "operation": "update",
         "documentId": {
           "__rl": true,
-          "value": "12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is",
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
           "mode": "list",
           "cachedResultName": "Internify — Application Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
           "cachedResultName": "Tracker",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12SHmF8OII8DLtyVWyEqnYjQX_Nz99PH6hqvl9kI09is/edit#gid=0"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID_HERE/edit#gid=0"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -723,14 +723,14 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        2400,
-        16
+        2496,
+        4512
       ],
-      "id": "64110e56-b968-4426-bd0f-87cec9f6cae2",
+      "id": "b81b10c1-db28-4339-8c5b-05cb4919ccaf",
       "name": "Update Resume Link",
       "credentials": {
         "googleApi": {
-          "id": "gVtly8W6NR77R14Z",
+          "id": "7dcKVVPnfj4WQSVQ",
           "name": "Internify — Google Service Account"
         }
       }
@@ -767,14 +767,14 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        880,
-        -1648
+        448,
+        1344
       ],
-      "id": "b83995e9-032c-43bc-8092-f9820fee4819",
+      "id": "d6d25453-c47c-4a31-a167-10664e478b47",
       "name": "Process Project",
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
@@ -808,10 +808,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        160,
-        -672
+        -224,
+        672
       ],
-      "id": "147e6771-fa10-4531-a73b-f0ef55991e3e",
+      "id": "b3bc8185-f14d-4b65-8941-52ec6ecd780a",
       "name": "Extract Command"
     },
     {
@@ -873,10 +873,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -160,
-        -304
+        -448,
+        2592
       ],
-      "id": "93f42fb9-996a-401a-a726-82baf8998af9",
+      "id": "83d797db-8558-4755-bc41-ed178eae0bea",
       "name": "Switch Mode"
     },
     {
@@ -911,14 +911,14 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        880,
-        -1456
+        448,
+        1536
       ],
-      "id": "4b760cc4-390d-45cc-8c62-0e36d8df78bb",
+      "id": "d27f7eb0-25e9-461a-9ede-d74416bd04f1",
       "name": "Process Experience",
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
@@ -955,14 +955,14 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        880,
-        -1264
+        448,
+        1728
       ],
-      "id": "5f35ce15-c133-479a-9ea3-7a11e9f2cf13",
+      "id": "b6c2c23b-a88b-412f-8612-5006ffa21909",
       "name": "Process Leadership",
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
@@ -999,14 +999,14 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
-        880,
-        -1072
+        448,
+        1920
       ],
-      "id": "f7c6ea6c-5bf3-465a-b177-b7404ebbc627",
+      "id": "9f428fad-e907-42cb-93b4-644d6f6ef9c1",
       "name": "Process Skill",
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
@@ -1023,10 +1023,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1200,
-        -1648
+        864,
+        1344
       ],
-      "id": "d8403627-b6f3-42ba-853f-ea18427c844f",
+      "id": "f6c7b781-56a6-4202-b581-c3d9c3f10668",
       "name": "Add Project"
     },
     {
@@ -1041,10 +1041,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1200,
-        -1456
+        864,
+        1536
       ],
-      "id": "d93dca41-9e71-45aa-ac53-78dde30265f4",
+      "id": "a7e59fbc-82d1-4447-8ab6-b0d04738b60c",
       "name": "Add Experience"
     },
     {
@@ -1059,10 +1059,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1200,
-        -1264
+        864,
+        1728
       ],
-      "id": "70b5722f-b3a6-4482-8625-4633392fd4b5",
+      "id": "9fd48770-22d7-497b-a073-f98905d0e3f6",
       "name": "Add Leadership"
     },
     {
@@ -1077,16 +1077,64 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1200,
-        -1072
+        864,
+        1920
       ],
-      "id": "cdaa6b37-0bf8-4042-af0a-3ef0d5c299e9",
+      "id": "c15e4ee3-a7f9-4da1-b41e-7eb40b8b88fb",
       "name": "Add Skill"
     },
     {
       "parameters": {
         "rules": {
           "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sa-edu-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addeducation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addeducation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sa-crs-0001-0001-0001-000000000002",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/addcourse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/addcourse"
+            },
             {
               "conditions": {
                 "options": {
@@ -1182,54 +1230,6 @@
               },
               "renameOutput": true,
               "outputKey": "/addskill"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "sa-edu-0001-0001-0001-000000000001",
-                    "leftValue": "={{ $json.command }}",
-                    "rightValue": "/addeducation",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "/addeducation"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "sa-crs-0001-0001-0001-000000000002",
-                    "leftValue": "={{ $json.command }}",
-                    "rightValue": "/addcourse",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "/addcourse"
             }
           ]
         },
@@ -1238,10 +1238,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        592,
-        -1392
+        224,
+        1376
       ],
-      "id": "4b90c656-9659-4d15-bd34-731a24b01e1f",
+      "id": "5fccfc1a-0689-434a-a5d1-99b644e91e73",
       "name": "Switch Add"
     },
     {
@@ -1252,10 +1252,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1104,
-        -816
+        512,
+        2112
       ],
-      "id": "887d224d-d4c0-4a34-9041-f2bac8f9093a",
+      "id": "c70146e7-8863-405a-ac11-96ad4eff8ccf",
       "name": "List Skills"
     },
     {
@@ -1272,19 +1272,19 @@
                 },
                 "conditions": [
                   {
-                    "id": "0984554f-3823-4dae-b869-54a6897ef41c",
+                    "id": "sc-res-0001-0001-0001-000000000001",
                     "leftValue": "={{ $json.command }}",
-                    "rightValue": "/add",
+                    "rightValue": "/resume",
                     "operator": {
                       "type": "string",
-                      "operation": "startsWith"
+                      "operation": "equals"
                     }
                   }
                 ],
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "/add"
+              "outputKey": "/resume"
             },
             {
               "conditions": {
@@ -1296,9 +1296,9 @@
                 },
                 "conditions": [
                   {
-                    "id": "29fa638f-c216-43cb-b3a9-7d73d941c88a",
+                    "id": "sc-upd-0001-0001-0001-000000000005",
                     "leftValue": "={{ $json.command }}",
-                    "rightValue": "/list",
+                    "rightValue": "/update",
                     "operator": {
                       "type": "string",
                       "operation": "startsWith"
@@ -1308,55 +1308,7 @@
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "=/list"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "sc-del-0001-0001-0001-000000000001",
-                    "leftValue": "={{ $json.command }}",
-                    "rightValue": "/delete",
-                    "operator": {
-                      "type": "string",
-                      "operation": "startsWith"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "/delete"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "sc-set-0001-0001-0001-000000000002",
-                    "leftValue": "={{ $json.command }}",
-                    "rightValue": "/set",
-                    "operator": {
-                      "type": "string",
-                      "operation": "startsWith"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "/set"
+              "outputKey": "/update"
             },
             {
               "conditions": {
@@ -1416,9 +1368,9 @@
                 },
                 "conditions": [
                   {
-                    "id": "sc-upd-0001-0001-0001-000000000005",
+                    "id": "sc-set-0001-0001-0001-000000000002",
                     "leftValue": "={{ $json.command }}",
-                    "rightValue": "/update",
+                    "rightValue": "/set",
                     "operator": {
                       "type": "string",
                       "operation": "startsWith"
@@ -1428,7 +1380,7 @@
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "/update"
+              "outputKey": "/set"
             },
             {
               "conditions": {
@@ -1440,19 +1392,67 @@
                 },
                 "conditions": [
                   {
-                    "id": "sc-res-0001-0001-0001-000000000001",
+                    "id": "0984554f-3823-4dae-b869-54a6897ef41c",
                     "leftValue": "={{ $json.command }}",
-                    "rightValue": "/resume",
+                    "rightValue": "/add",
                     "operator": {
                       "type": "string",
-                      "operation": "equals"
+                      "operation": "startsWith"
                     }
                   }
                 ],
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "/resume"
+              "outputKey": "/add"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "29fa638f-c216-43cb-b3a9-7d73d941c88a",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sc-del-0001-0001-0001-000000000001",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/delete"
             }
           ]
         },
@@ -1461,10 +1461,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        352,
-        -672
+        0,
+        576
       ],
-      "id": "f836bdc1-62f4-4bc2-926c-79391eb48eb0",
+      "id": "1ebf870e-14f3-4146-a7ba-c33222e3bcc0",
       "name": "Switch Command"
     },
     {
@@ -1478,15 +1478,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1472,
-        -1360
+        1152,
+        1664
       ],
-      "id": "a905d7ac-dcd3-4699-90d9-a11497853593",
+      "id": "229757ed-b70b-4160-afc3-f77e395e93c3",
       "name": "Add Success Message",
       "webhookId": "09b05164-ff0d-4b6a-b5ad-014dc98a8d9d",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -1499,10 +1499,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1104,
-        -656
+        512,
+        2304
       ],
-      "id": "024dbce3-c096-424e-86d7-9eebebf4ae2d",
+      "id": "d268b5d0-ec17-4c8f-aa50-a7402c247f9b",
       "name": "List Entries"
     },
     {
@@ -1512,10 +1512,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1296,
-        -816
+        864,
+        2112
       ],
-      "id": "97941cd5-8f64-47a9-b41e-2e95862f151b",
+      "id": "d32179ac-854f-44c3-8372-8b6058a056af",
       "name": "Format Skills"
     },
     {
@@ -1525,10 +1525,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1296,
-        -656
+        864,
+        2304
       ],
-      "id": "0a8380ec-fe17-4531-a381-581db7aed316",
+      "id": "4dac3579-397a-4f26-aa3f-21b182f2a05c",
       "name": "Format Entries"
     },
     {
@@ -1542,15 +1542,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1488,
-        -816
+        1152,
+        2112
       ],
-      "id": "6eff9cfa-00e8-43e3-8590-c4421ee2897f",
+      "id": "3cf24e46-935a-4c3d-ac69-77364ca6ea3e",
       "name": "List Skills Message",
       "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -1566,15 +1566,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1488,
-        -656
+        1152,
+        2304
       ],
-      "id": "23bba58c-080f-4552-81a3-8646e8de3486",
+      "id": "879cd1a2-1199-4296-aab9-c84861f033ee",
       "name": "List Entries Message",
       "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -1641,30 +1641,6 @@
                 },
                 "conditions": [
                   {
-                    "id": "0c8ef074-26d8-4226-8c21-0cee4fd4fdac",
-                    "leftValue": "={{ $json.command }}",
-                    "rightValue": "/listfacts",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "/listfacts"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
                     "id": "sl-edu-0001-0001-0001-000000000001",
                     "leftValue": "={{ $json.command }}",
                     "rightValue": "/listeducation",
@@ -1678,6 +1654,30 @@
               },
               "renameOutput": true,
               "outputKey": "/listeducation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0c8ef074-26d8-4226-8c21-0cee4fd4fdac",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/listfacts",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/listfacts"
             }
           ]
         },
@@ -1686,10 +1686,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        592,
-        -672
+        224,
+        2368
       ],
-      "id": "45b693c3-4cac-4e3c-825a-bbe4316e736c",
+      "id": "c34c9bf9-8973-458a-9a05-297c1754aece",
       "name": "Switch List"
     },
     {
@@ -1720,10 +1720,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1104,
-        -416
+        512,
+        2816
       ],
-      "id": "22f2e96f-ba39-4a89-93f4-a2ec56b7e0a1",
+      "id": "85825b9f-1abe-4d09-8d8e-01cd15b85c92",
       "name": "ID Check"
     },
     {
@@ -1737,15 +1737,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1680,
-        -496
+        1376,
+        2688
       ],
-      "id": "1d453396-4049-4e20-972f-da2b762fcd3f",
+      "id": "dd75d39a-545e-4904-9c40-189e085c7931",
       "name": "List Facts Message",
       "webhookId": "e460a122-965a-49c8-834e-d3ed8eb18b48",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -1759,15 +1759,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1296,
-        -320
+        864,
+        2880
       ],
-      "id": "68fb9dcb-a73a-4e31-9d30-fd14b87ad515",
+      "id": "3eb31ec5-eeca-4c19-8d4d-2eccd1c49339",
       "name": "No ID Message",
       "webhookId": "7bc4ca9a-e754-496f-88a3-42d735066508",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -1789,10 +1789,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1296,
-        -496
+        864,
+        2688
       ],
-      "id": "08f1cb36-14e3-453c-a1b0-49c69b0f40f0",
+      "id": "b7b5e362-f977-4a1d-84d4-abfd56c7326d",
       "name": "List Facts"
     },
     {
@@ -1802,72 +1802,64 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1488,
-        -496
+        1152,
+        2688
       ],
-      "id": "90cfd66b-0e45-47ed-830e-2e6186f6c02b",
+      "id": "ff46a27f-5971-45a2-a952-af13afff8f14",
       "name": "Format Facts"
     },
     {
-      "id": "aa000001-aaaa-aaaa-aaaa-000000000001",
-      "name": "Start Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        800,
-        -2600
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
-        "text": "=👋 *Welcome to Internify\\!*\n\nPaste any job URL and I'll generate a tailored resume automatically\\.\n\n━━━━━━━━━━━━━━━━━━━━\n📄 *MASTER RESUME*\n/resume — generate & download full untailored resume\n\n👤 *PROFILE*\n/myprofile — view your current info\n/setname, /setphone, /setemail\n/setlinkedin, /setgithub\n\n🎓 *EDUCATION*\n/listeducation — view all entries\n/addeducation — add via plain English\n/deleteeducation \\<id\\>\n/addcourse \\<id\\> \\<course\\>, /deletecourse \\<id\\> \\<course\\>\n\n💼 *EXPERIENCE & PROJECTS*\n/addexperience, /addproject, /addleadership\n/listentries — view all entries \\+ IDs\n/listfacts \\<id\\> — view bullets for an entry\n/updatefact \\<fact\\_id\\> \\<new text\\>\n/deleteexperience, /deleteproject, /deleteleadership, /deletefact\n\n🛠 *SKILLS*\n/addskill, /listskills, /deleteskill \\<item\\>\n\n━━━━━━━━━━━━━━━━━━━━\n💡 _First time? Start with /myprofile then /addeducation and /addexperience before generating your first resume\\._",
+        "text": "=👋 *Welcome to Internify\\!*\n\nPaste any job URL and I'll generate a tailored resume automatically\\.\n\n━━━━━━━━━━━━━━━━━━━━\n📄 *MASTER RESUME*\n/resume — generate & download full untailored resume\n\n👤 *PROFILE*\n/myprofile — view your current info\n/setname\n/setphone\n/setemail\n/setlinkedin\n/setgithub\n\n🎓 *EDUCATION*\n/listeducation — view all entries\n/addeducation — add via plain English\n/deleteeducation \\<id\\>\n/addcourse \\<id\\> \\<course\\>\n/deletecourse \\<id\\> \\<course\\>\n\n💼 *EXPERIENCE & PROJECTS*\n/addexperience\n/addproject\n/addleadership\n/listentries — view all entries \\+ IDs\n/listfacts \\<id\\> — view bullets for an entry\n/updatefact \\<fact\\_id\\> \\<new text\\>\n/deleteexperience\n/deleteproject\n/deleteleadership\n/deletefact\n\n🛠 *SKILLS*\n/addskill\n/listskills\n/deleteskill \\<item\\>\n\n━━━━━━━━━━━━━━━━━━━━\n💡 _First time? Start with /myprofile then /addeducation and /addexperience before generating your first resume\\._",
         "additionalFields": {
           "parse_mode": "MarkdownV2"
         }
       },
+      "id": "ad079b90-d465-43da-9d7f-10c66edf36cb",
+      "name": "Start Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        384
+      ],
+      "webhookId": "8eed1117-8eac-4cfa-8ab9-e7ff29f352a2",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000002-aaaa-aaaa-aaaa-000000000002",
+      "parameters": {
+        "url": "http://fastapi-service:8000/admin/skeleton/header",
+        "options": {}
+      },
+      "id": "e0ef57aa-033d-4b44-86cf-c56368fda6c1",
       "name": "Get Profile",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        800,
-        -2400
-      ],
-      "parameters": {
-        "method": "GET",
-        "url": "http://fastapi-service:8000/admin/skeleton/header",
-        "options": {}
-      }
+        224,
+        576
+      ]
     },
     {
-      "id": "aa000003-aaaa-aaaa-aaaa-000000000003",
+      "parameters": {
+        "jsCode": "const h = $input.item.json.header;\nconst lines = [\n  '👤 *Your Profile*\\n',\n  `*Name:* ${h.name}`,\n  `*Phone:* ${h.phone}`,\n  `*Email:* ${h.email}`,\n  `*LinkedIn:* ${h.linkedin_url}`,\n  `*GitHub:* ${h.github_url}`,\n  '',\n  '_Use /setname, /setphone, /setemail, /setlinkedin, /setgithub to update any field._'\n];\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "id": "314869db-0972-45a2-9636-e2be70b081d2",
       "name": "Format Profile",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
-        -2400
-      ],
-      "parameters": {
-        "jsCode": "const h = $input.item.json.header;\nconst lines = [\n  '👤 *Your Profile*\\n',\n  `*Name:* ${h.name}`,\n  `*Phone:* ${h.phone}`,\n  `*Email:* ${h.email}`,\n  `*LinkedIn:* ${h.linkedin_url}`,\n  `*GitHub:* ${h.github_url}`,\n  '',\n  '_Use /setname, /setphone, /setemail, /setlinkedin, /setgithub to update any field._'\n];\nreturn [{ json: { text: lines.join('\\n') } }];"
-      }
+        512,
+        576
+      ]
     },
     {
-      "id": "aa000004-aaaa-aaaa-aaaa-000000000004",
-      "name": "Profile Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1200,
-        -2400
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "={{ $json.text }}",
@@ -1875,35 +1867,36 @@
           "parse_mode": "Markdown"
         }
       },
+      "id": "f7454e56-326a-48b8-8e08-4bbc4bff26c0",
+      "name": "Profile Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        576
+      ],
+      "webhookId": "71018b17-e204-4809-9ab7-1767344ea055",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000005-aaaa-aaaa-aaaa-000000000005",
+      "parameters": {
+        "jsCode": "const command = $json.command;\nconst body = $json.body.trim();\nconst fieldMap = {\n  '/setname': 'name',\n  '/setphone': 'phone',\n  '/setemail': 'email',\n  '/setlinkedin': 'linkedin_url',\n  '/setgithub': 'github_url'\n};\nconst field = fieldMap[command];\nif (!field || !body) {\n  return [{ json: { error: true, text: '⚠️ Usage: ' + command + ' <value>' } }];\n}\nreturn [{ json: { patch: { [field]: body }, field } }];"
+      },
+      "id": "0941497f-427e-4516-935d-8a0fc5894f5e",
       "name": "Build Set Body",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
-        -2200
-      ],
-      "parameters": {
-        "jsCode": "const command = $json.command;\nconst body = $json.body.trim();\nconst fieldMap = {\n  '/setname': 'name',\n  '/setphone': 'phone',\n  '/setemail': 'email',\n  '/setlinkedin': 'linkedin_url',\n  '/setgithub': 'github_url'\n};\nconst field = fieldMap[command];\nif (!field || !body) {\n  return [{ json: { error: true, text: '⚠️ Usage: ' + command + ' <value>' } }];\n}\nreturn [{ json: { patch: { [field]: body }, field } }];"
-      }
+        224,
+        768
+      ]
     },
     {
-      "id": "aa000006-aaaa-aaaa-aaaa-000000000006",
-      "name": "Patch Header",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1000,
-        -2200
-      ],
       "parameters": {
         "method": "PATCH",
         "url": "http://fastapi-service:8000/admin/skeleton/header",
@@ -1911,38 +1904,39 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.patch) }}",
         "options": {}
-      }
+      },
+      "id": "b33ae07a-38d6-43f5-bd8d-ce2330ee3486",
+      "name": "Patch Header",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        512,
+        768
+      ]
     },
     {
-      "id": "aa000007-aaaa-aaaa-aaaa-000000000007",
-      "name": "Set Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1200,
-        -2200
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "=✅ {{ $json.message }}",
         "additionalFields": {}
       },
+      "id": "183b2b36-9521-4755-86fe-ae5230e8fdcf",
+      "name": "Set Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        768
+      ],
+      "webhookId": "388965fd-2133-4a87-8205-c2c87ac916a8",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000008-aaaa-aaaa-aaaa-000000000008",
-      "name": "Process Education OpenAI",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.3,
-      "position": [
-        880,
-        -1900
-      ],
       "parameters": {
         "modelId": {
           "__rl": true,
@@ -1961,6 +1955,7 @@
             }
           ]
         },
+        "builtInTools": {},
         "options": {
           "textFormat": {
             "textOptions": {
@@ -1969,22 +1964,22 @@
           }
         }
       },
+      "id": "93f43b12-a564-4c72-b2f1-3c19e4498d20",
+      "name": "Process Education OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        960
+      ],
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
     },
     {
-      "id": "aa000009-aaaa-aaaa-aaaa-000000000009",
-      "name": "Add Education HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1200,
-        -1900
-      ],
       "parameters": {
         "method": "POST",
         "url": "http://fastapi-service:8000/admin/skeleton/education",
@@ -1992,66 +1987,66 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ institution: $json.output[0].content[0].text.institution, location: $json.output[0].content[0].text.location, degree_line: $json.output[0].content[0].text.degree_line, dates: $json.output[0].content[0].text.dates, courses: $json.output[0].content[0].text.courses, honor_bullets: $json.output[0].content[0].text.honor_bullets }) }}",
         "options": {}
-      }
+      },
+      "id": "81055354-3963-412c-9eb7-4b3cf0b99bfa",
+      "name": "Add Education HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        960
+      ]
     },
     {
-      "id": "aa000010-aaaa-aaaa-aaaa-000000000010",
-      "name": "Edu Add Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1400,
-        -1900
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "=✅ {{ $json.message }}",
         "additionalFields": {}
       },
+      "id": "29b91240-4b71-4904-aa73-e039bd3374af",
+      "name": "Edu Add Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        960
+      ],
+      "webhookId": "9aa279b4-1d93-4aa7-81ef-5acf17f5d38d",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000011-aaaa-aaaa-aaaa-000000000011",
+      "parameters": {
+        "url": "http://fastapi-service:8000/admin/skeleton/education",
+        "options": {}
+      },
+      "id": "f89abc89-88f6-4a57-9bcf-e4f74613a5af",
       "name": "List Education HTTP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1104,
-        -480
-      ],
-      "parameters": {
-        "method": "GET",
-        "url": "http://fastapi-service:8000/admin/skeleton/education",
-        "options": {}
-      }
+        512,
+        2496
+      ]
     },
     {
-      "id": "aa000012-aaaa-aaaa-aaaa-000000000012",
+      "parameters": {
+        "jsCode": "const edu = $input.item.json.education || [];\nconst lines = ['🎓 *Education Entries*\\n'];\nfor (const e of edu) {\n  lines.push(`*${e.institution}*`);\n  lines.push(`  ${e.degree_line}`);\n  lines.push(`  ${e.dates}`);\n  lines.push(`  ID: \\`${e.id}\\``);\n  if (e.courses && e.courses.length > 0) {\n    lines.push(`  Courses (${e.courses.length}): ${e.courses.slice(0, 3).join(', ')}${e.courses.length > 3 ? '...' : ''}`);\n  }\n  lines.push('');\n}\nlines.push('_Use /addcourse <id> <name> or /deletecourse <id> <name>_');\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "id": "2b9d763e-9bcb-45c6-aeb3-78fca8d3dc4f",
       "name": "Format Education",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1296,
-        -480
-      ],
-      "parameters": {
-        "jsCode": "const edu = $input.item.json.education || [];\nconst lines = ['🎓 *Education Entries*\\n'];\nfor (const e of edu) {\n  lines.push(`*${e.institution}*`);\n  lines.push(`  ${e.degree_line}`);\n  lines.push(`  ${e.dates}`);\n  lines.push(`  ID: \\`${e.id}\\``);\n  if (e.courses && e.courses.length > 0) {\n    lines.push(`  Courses (${e.courses.length}): ${e.courses.slice(0, 3).join(', ')}${e.courses.length > 3 ? '...' : ''}`);\n  }\n  lines.push('');\n}\nlines.push('_Use /addcourse <id> <name> or /deletecourse <id> <name>_');\nreturn [{ json: { text: lines.join('\\n') } }];"
-      }
+        864,
+        2496
+      ]
     },
     {
-      "id": "aa000013-aaaa-aaaa-aaaa-000000000013",
-      "name": "List Education Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1488,
-        -480
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "={{ $json.text }}",
@@ -2059,35 +2054,36 @@
           "parse_mode": "Markdown"
         }
       },
+      "id": "10fedf15-548d-40a9-9c06-927c28539cad",
+      "name": "List Education Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        2496
+      ],
+      "webhookId": "7ea3da67-8ed2-41a8-b780-15db3ae87954",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000014-aaaa-aaaa-aaaa-000000000014",
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
+      },
+      "id": "78a46f80-3e44-4601-9a31-e6afad3c4cd2",
       "name": "Parse Course",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        -1840
-      ],
-      "parameters": {
-        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
-      }
+        512,
+        1152
+      ]
     },
     {
-      "id": "aa000015-aaaa-aaaa-aaaa-000000000015",
-      "name": "Add Course HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1104,
-        -1840
-      ],
       "parameters": {
         "method": "POST",
         "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.edu_id }}/courses",
@@ -2101,38 +2097,39 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "22765517-80c6-43f8-b15d-3fa36477e5fb",
+      "name": "Add Course HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        1152
+      ]
     },
     {
-      "id": "aa000016-aaaa-aaaa-aaaa-000000000016",
-      "name": "Course Add Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1296,
-        -1840
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "=✅ {{ $json.message }}",
         "additionalFields": {}
       },
+      "id": "cfb021d5-7f42-480b-a250-22b79621db0d",
+      "name": "Course Add Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        1152
+      ],
+      "webhookId": "edc777a4-b6d2-44fa-bd8f-950c50deafc1",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000017-aaaa-aaaa-aaaa-000000000017",
-      "name": "Switch Delete",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.4,
-      "position": [
-        592,
-        500
-      ],
       "parameters": {
         "rules": {
           "values": [
@@ -2307,51 +2304,47 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "be5bbc82-3cb8-4112-845d-98a6586fd57f",
+      "name": "Switch Delete",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        3568
+      ]
     },
     {
-      "id": "aa000018-aaaa-aaaa-aaaa-000000000018",
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/project/{{ $json.body }}",
+        "options": {}
+      },
+      "id": "faba27c4-d38b-44be-b04c-8cfd5d275898",
       "name": "Delete Project HTTP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        880,
-        400
-      ],
-      "parameters": {
-        "method": "DELETE",
-        "url": "=http://fastapi-service:8000/admin/skeleton/project/{{ $json.body }}",
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        864,
+        3072
+      ]
     },
     {
-      "id": "aa000019-aaaa-aaaa-aaaa-000000000019",
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/experience/{{ $json.body }}",
+        "options": {}
+      },
+      "id": "ba3c6432-b2ec-4e2c-84b6-10fd64a27bba",
       "name": "Delete Experience HTTP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        880,
-        480
-      ],
-      "parameters": {
-        "method": "DELETE",
-        "url": "=http://fastapi-service:8000/admin/skeleton/experience/{{ $json.body }}",
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        864,
+        3264
+      ]
     },
     {
-      "id": "aa000020-aaaa-aaaa-aaaa-000000000020",
-      "name": "Delete Leadership HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        880,
-        560
-      ],
       "parameters": {
         "method": "DELETE",
         "url": "http://fastapi-service:8000/admin/skeleton/leadership",
@@ -2364,37 +2357,33 @@
             }
           ]
         },
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        "options": {}
+      },
+      "id": "4e99799a-9c04-4d90-9739-aef740d4aa40",
+      "name": "Delete Leadership HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        3456
+      ]
     },
     {
-      "id": "aa000021-aaaa-aaaa-aaaa-000000000021",
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/facts/{{ $json.body }}",
+        "options": {}
+      },
+      "id": "29ff94f3-6e32-4d88-ac75-615aed0b1a47",
       "name": "Delete Fact HTTP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        880,
-        640
-      ],
-      "parameters": {
-        "method": "DELETE",
-        "url": "=http://fastapi-service:8000/admin/facts/{{ $json.body }}",
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        864,
+        3648
+      ]
     },
     {
-      "id": "aa000022-aaaa-aaaa-aaaa-000000000022",
-      "name": "Delete Skill HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        880,
-        720
-      ],
       "parameters": {
         "method": "DELETE",
         "url": "http://fastapi-service:8000/admin/skeleton/skills",
@@ -2407,50 +2396,46 @@
             }
           ]
         },
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        "options": {}
+      },
+      "id": "980a8cec-617e-4e4f-b9f1-aa638990b3d4",
+      "name": "Delete Skill HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        3840
+      ]
     },
     {
-      "id": "aa000023-aaaa-aaaa-aaaa-000000000023",
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.body }}",
+        "options": {}
+      },
+      "id": "5e8dd96a-e666-4dda-a883-0781d55972f3",
       "name": "Delete Education HTTP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        880,
-        800
-      ],
-      "parameters": {
-        "method": "DELETE",
-        "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.body }}",
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        864,
+        4032
+      ]
     },
     {
-      "id": "aa000024-aaaa-aaaa-aaaa-000000000024",
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
+      },
+      "id": "dc57292a-96fa-4679-ac03-21e1800e03ae",
       "name": "Parse Course Delete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        880
-      ],
-      "parameters": {
-        "jsCode": "const parts = $json.body.split(' ');\nconst edu_id = parts[0];\nconst course = parts.slice(1).join(' ');\nreturn [{ json: { edu_id, course } }];"
-      }
+        512,
+        4224
+      ]
     },
     {
-      "id": "aa000025-aaaa-aaaa-aaaa-000000000025",
-      "name": "Delete Course HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1080,
-        880
-      ],
       "parameters": {
         "method": "DELETE",
         "url": "=http://fastapi-service:8000/admin/skeleton/education/{{ $json.edu_id }}/courses",
@@ -2463,54 +2448,53 @@
             }
           ]
         },
-        "options": {
-          "continueOnFail": true
-        }
-      }
+        "options": {}
+      },
+      "id": "ab07f542-7d2d-4e70-9041-694de93b129d",
+      "name": "Delete Course HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        4224
+      ]
     },
     {
-      "id": "aa000026-aaaa-aaaa-aaaa-000000000026",
-      "name": "Delete Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1200,
-        640
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "=🗑️ {{ $json.message || $json.error?.message || 'Done.' }}",
         "additionalFields": {}
       },
+      "id": "6b88ac7f-0f61-4ef4-a100-55e1cafceb7a",
+      "name": "Delete Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        3680
+      ],
+      "webhookId": "66bb1a78-2fc5-4c70-a1c2-f3013cad1e7c",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000027-aaaa-aaaa-aaaa-000000000027",
+      "parameters": {
+        "jsCode": "const parts = $json.body.split(' ');\nconst fact_id = parts[0];\nconst new_text = parts.slice(1).join(' ');\nreturn [{ json: { fact_id, new_text } }];"
+      },
+      "id": "033df386-00bc-4b36-b087-1088c5a0ca8c",
       "name": "Parse Update Fact",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
-        -3000
-      ],
-      "parameters": {
-        "jsCode": "const parts = $json.body.split(' ');\nconst fact_id = parts[0];\nconst new_text = parts.slice(1).join(' ');\nreturn [{ json: { fact_id, new_text } }];"
-      }
+        224,
+        192
+      ]
     },
     {
-      "id": "aa000028-aaaa-aaaa-aaaa-000000000028",
-      "name": "Re-extract Tags OpenAI",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.3,
-      "position": [
-        1000,
-        -3000
-      ],
       "parameters": {
         "modelId": {
           "__rl": true,
@@ -2529,6 +2513,7 @@
             }
           ]
         },
+        "builtInTools": {},
         "options": {
           "textFormat": {
             "textOptions": {
@@ -2537,22 +2522,22 @@
           }
         }
       },
+      "id": "785a73c1-0edb-4275-b114-90f915821b05",
+      "name": "Re-extract Tags OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        192
+      ],
       "credentials": {
         "openAiApi": {
-          "id": "I9k2Y1DsKewNepuL",
+          "id": "pwiGrGiYYBx8IMgp",
           "name": "Internify — OpenAI Account"
         }
       }
     },
     {
-      "id": "aa000029-aaaa-aaaa-aaaa-000000000029",
-      "name": "Update Fact HTTP",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1200,
-        -3000
-      ],
       "parameters": {
         "method": "PUT",
         "url": "=http://fastapi-service:8000/admin/facts/{{ $('Parse Update Fact').item.json.fact_id }}",
@@ -2560,48 +2545,58 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ text: $('Parse Update Fact').item.json.new_text, tech_tags: $json.output[0].content[0].text.tech_tags }) }}",
         "options": {}
-      }
+      },
+      "id": "cf8bab89-2d8d-4837-b3dc-c2c342b96cf5",
+      "name": "Update Fact HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        864,
+        192
+      ]
     },
     {
-      "id": "aa000030-aaaa-aaaa-aaaa-000000000030",
-      "name": "Update Fact Reply",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1400,
-        -3000
-      ],
       "parameters": {
         "chatId": "={{ $('Extract Command').item.json.chat_id }}",
         "text": "=✅ {{ $json.message }}",
         "additionalFields": {}
       },
+      "id": "52a98950-cf1c-4f32-a5fb-a6271c51b0df",
+      "name": "Update Fact Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        192
+      ],
+      "webhookId": "76f43858-f421-47f2-aabd-886e6e2a91d0",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
     },
     {
-      "id": "aa000031-aaaa-aaaa-aaaa-000000000031",
-      "name": "Resume Ready Message",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2784,
-        16
-      ],
       "parameters": {
         "chatId": "={{ $('Extract URL').item.json.chat_id }}",
-        "text": "=✅ *Resume Ready\\!*\n\n🏢 *{{ $('Append Row').item.json.Company }}*\n💼 {{ $('Append Row').item.json['Job Title'] }}\n📊 ATS Score: {{ $('Generate Resume').item.json.score }}/100\n🏅 Quality: {{ $('Generate Resume').item.json.resume_status }}\n\n📄 Resume: {{ $('Upload Resume').item.json.webViewLink }}\n\n💡 {{ $('Generate Resume').item.json.summary }}",
+        "text": "=✅ *Resume Ready!*\n\n🏢 *{{ $('Append Row').item.json.Company }}*\n💼 {{ $('Append Row').item.json['Job Title'] }}\n📊 ATS Score: {{ $('Generate Resume').item.json.score }}/100\n🏅 Quality: {{ $('Generate Resume').item.json.resume_status }}\n\n📄 Resume: [View on Google Drive]({{ $('Upload Resume').item.json.webViewLink }})",
         "additionalFields": {
           "parse_mode": "Markdown"
         }
       },
+      "id": "b750eef5-3811-4568-96dc-e5aca9be0d06",
+      "name": "Resume Ready Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2720,
+        4512
+      ],
+      "webhookId": "287a0f78-2827-4412-869e-1f3f5b3f08f3",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
@@ -2617,10 +2612,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        800,
-        -3200
+        224,
+        0
       ],
-      "id": "aa000032-aaaa-aaaa-aaaa-000000000032",
+      "id": "3b3f08dd-1042-4ed9-80cb-bad489912417",
       "name": "Generate Master Resume"
     },
     {
@@ -2637,10 +2632,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1000,
-        -3200
+        512,
+        0
       ],
-      "id": "aa000033-aaaa-aaaa-aaaa-000000000033",
+      "id": "b893e80a-5811-4890-bcd3-bebc07d59eff",
       "name": "Download Master Resume"
     },
     {
@@ -2655,7 +2650,7 @@
         },
         "folderId": {
           "__rl": true,
-          "value": "1Y9zHbGKEaNxVmtjGCRxClJbSM3M4PNzv",
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID_HERE",
           "mode": "id"
         },
         "options": {}
@@ -2663,14 +2658,14 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1200,
-        -3200
+        864,
+        0
       ],
-      "id": "aa000034-aaaa-aaaa-aaaa-000000000034",
+      "id": "e34bf388-747f-4b0e-8984-a275dea7d7f9",
       "name": "Upload Master Resume",
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "Wdb0nMjxmTWdj9X9",
+          "id": "Xrvj1kTsM7WlnLAm",
           "name": "Internify — Google Drive Account"
         }
       }
@@ -2686,17 +2681,52 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1400,
-        -3200
+        1152,
+        0
       ],
-      "id": "aa000035-aaaa-aaaa-aaaa-000000000035",
+      "id": "152cc79e-a257-4535-8be8-5b7110648d2f",
       "name": "Master Resume Ready Message",
+      "webhookId": "30091724-c40c-4c5c-8245-309b0bcbbf07",
       "credentials": {
         "telegramApi": {
-          "id": "GO9SBIMysotJrBA0",
+          "id": "XFeEPNO4Fnw6lkva",
           "name": "Internify — Telegram Account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "754732cc-91dd-4044-b56c-ae29c1e46ba2",
+              "leftValue": "={{ $json.message.from.id }}",
+              "rightValue": "1496546358",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -672,
+        2592
+      ],
+      "id": "05c43fb3-cc74-4734-8c9f-357f0057d6a0",
+      "name": "If"
     }
   ],
   "pinData": {},
@@ -2705,7 +2735,7 @@
       "main": [
         [
           {
-            "node": "Switch Mode",
+            "node": "If",
             "type": "main",
             "index": 0
           }
@@ -2990,6 +3020,20 @@
       "main": [
         [
           {
+            "node": "Process Education OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Course",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Process Project",
             "type": "main",
             "index": 0
@@ -3015,20 +3059,6 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Process Education OpenAI",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Parse Course",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     },
@@ -3047,28 +3077,14 @@
       "main": [
         [
           {
-            "node": "Switch Add",
+            "node": "Generate Master Resume",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Switch List",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Switch Delete",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Build Set Body",
+            "node": "Parse Update Fact",
             "type": "main",
             "index": 0
           }
@@ -3089,14 +3105,28 @@
         ],
         [
           {
-            "node": "Parse Update Fact",
+            "node": "Build Set Body",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Generate Master Resume",
+            "node": "Switch Add",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch Delete",
             "type": "main",
             "index": 0
           }
@@ -3154,14 +3184,14 @@
         ],
         [
           {
-            "node": "ID Check",
+            "node": "List Education HTTP",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "List Education HTTP",
+            "node": "ID Check",
             "type": "main",
             "index": 0
           }
@@ -3524,19 +3554,31 @@
           }
         ]
       ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch Mode",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "debc2e5e-355d-4417-a509-e8fc47794744",
+  "versionId": "61009d1b-0871-4d74-8283-b7ac3d1e890f",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "bd1970b76c6432e0e844f67d72e3c295aa9440877c926325a2ae0fa172064b69"
+    "instanceId": "e27e28757e5bc2b8007f26c6ab27cea5d1c6d45fa3add29d06873d43a9124045"
   },
   "nodeGroups": [],
-  "id": "NPxdsLjPKCyyAQ7k",
+  "id": "gThtrTu62k0Thv2j",
   "tags": []
 }
