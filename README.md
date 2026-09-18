@@ -107,28 +107,110 @@ When you message your bot `/start`, you get the full command menu:
 ```bash
 cp .env.example .env
 ```
-Open `.env` and fill in your `OPENAI_API_KEY`.
+## Prerequisites & Service Setup
 
-### 3. Start Containers
+Before running Internify, you will need credentials for the following services:
+
+### 1. OpenAI API Key
+- Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+- Add it to `.env` as `OPENAI_API_KEY=sk-...`.
+
+### 2. Telegram Bot Token
+1. Open Telegram and search for `@BotFather`.
+2. Send `/newbot`, choose a name and a username for your bot.
+3. Save the **HTTP API Token** provided (e.g. `123456789:ABCdef...`).
+
+### 3. ScrapingAnt API Key (Web Scraping)
+- Sign up for free at [scrapingant.com](https://scrapingant.com) (includes 10,000 free requests per month).
+- Copy your **API Token** from the ScrapingAnt dashboard.
+
+### 4. Google Sheets & Google Drive (Service Account)
+Internify logs applications into a Google Sheet tracker and saves compiled PDF resumes to Google Drive.
+
+1. **Enable APIs in Google Cloud Console**:
+   - Go to [console.cloud.google.com](https://console.cloud.google.com/).
+   - Create a new project (e.g. `internify-tracker`).
+   - Navigate to **APIs & Services** ➔ **Library**.
+   - Search for and enable **Google Sheets API** and **Google Drive API**.
+2. **Create Service Account**:
+   - Navigate to **APIs & Services** ➔ **Credentials** ➔ **Create Credentials** ➔ **Service Account**.
+   - Name it (e.g. `internify-bot`) and click **Create and Continue**. (No special project role needed).
+   - Under the created service account, go to the **Keys** tab ➔ **Add Key** ➔ **Create new key** ➔ select **JSON**.
+   - Download the JSON file (keep it secure, never commit this file).
+3. **Setup Google Sheet & Google Drive Folder**:
+   - Create a new Google Sheet named `Internify — Application Tracker`.
+   - In Google Sheets, click **File** ➔ **Import** ➔ **Upload** and select [`templates/tracker_template.csv`](templates/tracker_template.csv).
+   - Rename the sheet tab to `Tracker`.
+   - Create a dedicated folder in Google Drive (e.g. `Internify Resumes`).
+   - **Important**: Share BOTH the Google Sheet and the Google Drive folder with your service account email (e.g. `internify-bot@your-project.iam.gserviceaccount.com`) as **Editor**.
+
+---
+
+## Quick Start (Local Setup with ngrok)
+
+Because Telegram sends webhook messages over public HTTPS, you need a public tunnel like **ngrok** when running locally.
+
+### 1. Configure Environment
+```bash
+cp .env.example .env
+```
+Open `.env` and set:
+```env
+OPENAI_API_KEY=sk-...
+TZ=Asia/Kuala_Lumpur
+```
+
+### 2. Start Containers
 ```bash
 docker compose up --build -d
 ```
 This boots:
-- **FastAPI Core**: `http://localhost:8000`
+- **FastAPI Backend**: `http://localhost:8000`
 - **n8n Orchestrator**: `http://localhost:5678`
 
-### 4. Import n8n Workflow
-1. Open `http://localhost:5678` in your browser.
+### 3. Start ngrok Tunnel
+In a separate terminal:
+```bash
+ngrok http 5678
+```
+Copy the forwarding HTTPS URL (e.g. `https://your-tunnel.ngrok-free.app`).
+
+Update `.env`:
+```env
+WEBHOOK_URL=https://your-tunnel.ngrok-free.app/
+```
+Restart n8n to apply the webhook URL:
+```bash
+docker compose restart n8n
+```
+
+### 4. Import & Connect n8n Workflow
+1. Open `http://localhost:5678` in your browser and set up your initial n8n admin account.
 2. Go to **Workflows** ➔ **Import from File**.
 3. Select `Internify — Telegram Bot.json`.
-4. Connect your **Telegram**, **OpenAI**, **Google Sheets**, **Google Drive**, and **ScrapingAnt** credentials.
-5. Activate the workflow!
+4. Configure credentials in n8n:
+   - **Telegram**: Select **Internify — Telegram Account**, paste your Bot Token from `@BotFather`.
+   - **OpenAI**: Select **Internify — OpenAI Account**, paste your OpenAI API key.
+   - **Google Sheets & Google Drive**: Select **Internify — Google Service Account**, upload your Service Account JSON.
+   - **ScrapingAnt**: Select **Internify — ScrapingAnt Account**, paste your ScrapingAnt API Token.
+5. In your Google Sheet nodes (`Lookup`, `Append Row`, `Update Resume Link`), select your created `Internify — Application Tracker` spreadsheet.
+6. In your Google Drive node (`Upload Resume`), select your `Internify Resumes` folder.
+7. Click **Save** and toggle the workflow to **Active**!
+
+Message `/start` to your Telegram bot to test!
+
+---
+
+## Production Deployment (Tencent Cloud / VPS)
+
+For 24/7 autonomous operation without running ngrok on your computer, check out our comprehensive guide:
+- 📖 [Tencent Cloud Lighthouse Deployment Guide](docs/tencent_lighthouse_deployment.md) (covers Docker, firewall ports, and Caddy with free automated SSL certificates).
 
 ---
 
 ## Standalone Backend Testing
 
-You can trigger resume generation directly without Telegram:
+You can trigger resume generation directly without n8n or Telegram:
 
 ```bash
 curl -X POST http://localhost:8000/process \

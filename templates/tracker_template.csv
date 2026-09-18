@@ -1,0 +1,3 @@
+Company,Job Title,Location,Job Description,Job Requirements,Job Link,Resume Link,Resume Status,Comment,Status
+Acme Corp,Software Engineer Intern,Remote,"Building scalable APIs and services","Python, Docker, REST APIs",https://example.com/job/123,https://drive.google.com/file/d/sample,Excellent,"Emphasized backend projects matching job requirements",Applied
+TechCorp,Frontend Engineering Intern,"Kuala Lumpur, Malaysia","Developing web and mobile UI components","React, Next.js, Tailwind CSS",https://example.com/job/456,https://drive.google.com/file/d/sample2,Good,"Matched React and Next.js skill tags",Interview
