@@ -84,7 +84,7 @@
 <% endfor %>
   \resumeSubHeadingListEnd
 
-\section{Experience}
+\section{Work Experience}
   \resumeSubHeadingListStart
 <% for entry in experience %>
     \resumeSubheading
@@ -111,6 +111,7 @@
 <% endfor %>
     \resumeSubHeadingListEnd
 
+<% if leadership %>
 \section{Leadership Experience}
   \resumeSubHeadingListStart
 <% for entry in leadership %>
@@ -124,6 +125,7 @@
       \resumeItemListEnd
 <% endfor %>
   \resumeSubHeadingListEnd
+<% endif %>
 
 \section{Technical Skills}
  \begin{itemize}[leftmargin=0.15in, label={}]

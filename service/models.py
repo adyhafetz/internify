@@ -6,11 +6,11 @@ from pydantic import BaseModel, Field
 # ---------- Ingestion ----------
 
 class ProcessRequest(BaseModel):
-    company: str = Field(..., description="Company name from n8n OpenAI normalisation")
-    job_title: str = Field(..., description="Job title from n8n OpenAI normalisation")
-    location: str = Field(..., description="Location from n8n OpenAI normalisation")
-    job_description: str = Field(..., description="Job description from n8n OpenAI normalisation")
-    job_requirements: str = Field(..., description="Requirements/qualifications from n8n OpenAI normalisation")
+    company: str = Field(..., description="Company name")
+    job_title: str = Field(..., description="Job title")
+    location: str = Field(..., description="Location")
+    job_description: str = Field(..., description="Job description summary")
+    job_requirements: str = Field(..., description="Requirements and qualifications")
     job_link: str = Field(..., description="Original job posting URL")
 
 

@@ -1,284 +1,205 @@
 # Internify 🚀
 
-An autonomous AI agent pipeline that tailors your resume for any job application using a grounded fact store, compiles a production-ready LaTeX PDF using **Jake's Resume** format, and integrates seamlessly with **n8n** and **Telegram**.
+> **Autonomous AI Resume Tailoring Agent & Telegram Copilot**  
+> Compiles pixel-perfect, ATS-optimized, 1-page LaTeX resumes grounded strictly in your verified career achievements.
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4.svg?logo=telegram&logoColor=white)](https://telegram.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## Architecture Overview
+## 💡 What is Internify?
+
+When applying to dozens of software engineering roles, manually rewriting bullet points, shuffling technical skills, and reformatting LaTeX for every company is exhausting.
+
+**Internify automates the entire process over Telegram:**
+1. **Send a Job URL** to your Telegram bot.
+2. Internify extracts the tech stack, hard requirements, and ATS keywords.
+3. An **Agentic Retrieval & Generator-Critic Loop** selects and tailors only your real, verified achievements.
+4. Tectonic renders and compiles a clean, **guaranteed 1-page LaTeX PDF** using **Jake's Resume** format.
+5. You receive the tailored PDF in Telegram within seconds, automatically tracked in your local SQLite database (or synced to Google Sheets & Drive).
+
+---
+
+## 🏗️ Architecture
 
 ```
-[ Telegram / Job URL ] ──► [ n8n Workflow ]
-                                  │
-                  ┌───────────────┴───────────────┐
-                  ▼                               ▼
-       [ Admin CRUD Commands ]          [ POST /process ]
-     (/set*, /add*, /delete*, etc.)               │
-                  │                               ▼
-                  ▼                     [ 1. Job Extraction (Instructor) ]
-       [ service/admin.py ]                       │
-       (Manipulates fact store)                   ▼
-                  │                     [ 2. Fact Retrieval (Embeddings) ]
-                  │                               │
-                  │                               ▼
-                  │                     [ 3. Agentic Loop (Generator & Critic) ]
-                  │                               │
-                  │                               ▼
-                  │                     [ 4. LaTeX Render & Tectonic Compile ]
-                  │                               │
-                  ▼                               ▼
-         [ Fact Store JSON ] ──────────► [ Output Tailored PDF ]
+[ Telegram Chat ] ──► [ Python Telegram Bot (Long Polling) ]
+                               │
+            ┌──────────────────┴──────────────────┐
+            ▼                                     ▼
+ [ Conversational FSM & CRUD ]         [ Job URL Processing ]
+  (/set*, /add*, /history, etc.)                  │
+            │                                     ▼
+            ▼                           [ 1. Web Scraping & AI Normalization ]
+ [ Fact Store Management ]                        │
+ (Facts, Experience, Skeleton)                    ▼
+            │                           [ 2. Fact Retrieval (Embeddings + Cosine) ]
+            │                                     │
+            │                                     ▼
+            │                           [ 3. Agentic Loop (Generator & Critic) ]
+            │                                     │
+            │                                     ▼
+            │                           [ 4. LaTeX Render & Tectonic Compile ]
+            │                                     │
+            ▼                                     ▼
+   [ Fact Store JSON ] ───────────────► [ 1-Page Tailored PDF ]
+                                                  │
+                                                  ▼
+                               [ SQLite DB (Default) / Google Cloud Sync ]
 ```
 
 ### Key Highlights
-- **Zero Hallucinations**: Every generated bullet point is strictly grounded in and cited from verified facts in your master fact store.
-- **Dynamic Skill & Course Shuffling**: Automatically selects and shuffles relevant courses and technical skills based on the target job requirements.
-- **Full Telegram CRUD**: Modify your name, contact info, education, courses, experiences, projects, and skills directly via Telegram chat commands.
-- **Self-Healing LaTeX Engine**: LaTeX compilation powered by Tectonic with automated error recovery.
+- **Zero Hallucinations Guarantee**: Every bullet point generated cites a verified `fact_id` from your master fact store. The AI calibrates and highlights your true experience—it never invents jobs or skills.
+- **Strict 1-Page Layout**: Work Experience (internships) and Leadership & Activities are kept distinct, with conditional section rendering that prevents whitespace overflow.
+- **Self-Healing LaTeX Engine**: If Tectonic compilation encounters a LaTeX issue, an LLM diagnostic agent patches the TeX code automatically before retrying.
+- **Zero Infrastructure Friction**: Works out-of-the-box locally with **SQLite**. No domain name, no SSL setup, no webhooks, and no Google Cloud required to start.
 
 ---
 
-## Getting Started: Complete Setup Guide
+## ⚡ Quickstart (Clone & Run in 2 Minutes)
 
-Follow these 5 steps to get Internify running from scratch.
+You only need **Docker** and two API keys: an **OpenAI API Key** and a **Telegram Bot Token**.
 
-### Step 1: Gather API Keys & Credentials
-
-You will need accounts/keys for these services:
-
-1. **Docker**:
-   - Install [Docker Desktop](https://www.docker.com/) (Windows/macOS) or Docker Engine (Linux).
-2. **OpenAI API Key**:
-   - Sign up at [platform.openai.com](https://platform.openai.com/) and create an API key.
-3. **Telegram Bot Token**:
-   - Open Telegram and message [`@BotFather`](https://t.me/BotFather).
-   - Run `/newbot`, name your bot, and copy the **HTTP API Token**.
-4. **ScrapingAnt API Token** (for job page scraping):
-   - Sign up for a free account at [scrapingant.com](https://scrapingant.com) (includes 10,000 free requests/month).
-   - Copy your **API Token** from the dashboard.
-5. **Google Cloud Service Account** (for Sheets tracker and Drive resume uploads):
-   - Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (e.g. `internify`).
-   - Navigate to **APIs & Services** ➔ **Library**, search for and enable:
-     - **Google Sheets API**
-     - **Google Drive API**
-   - Go to **APIs & Services** ➔ **Credentials** ➔ **Create Credentials** ➔ **Service Account**.
-   - After creation, click on the service account ➔ **Keys** tab ➔ **Add Key** ➔ **Create new key** ➔ select **JSON**.
-   - Download the JSON key file.
-6. **Google Sheet & Drive Setup**:
-   - Open the [**Internify Application Tracker Template**](https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing).
-   - Click **File** ➔ **Make a copy** in Google Sheets. (Ensure the active tab is named `Tracker`).
-   - Create a dedicated folder in your Google Drive (e.g. `Internify Resumes`).
-   - **Important**: Click **Share** on both the Google Sheet and the Google Drive folder, and add your Service Account email address (e.g. `internify@project.iam.gserviceaccount.com`) as **Editor**.
-
----
-
-### Step 2: Clone Repository & Configure Environment
-
+### 1. Clone the repository
 ```bash
 git clone https://github.com/adyhafetz/internify.git
 cd internify
+```
 
-# Create your .env file
+### 2. Configure environment
+```bash
 cp .env.example .env
 ```
-
-Open `.env` and fill in your variables:
-
+Open `.env` and fill in your keys:
 ```env
-# Required: OpenAI API Key
-OPENAI_API_KEY=sk-proj-your-key-here
-
-# Timezone
-TZ=Asia/Kuala_Lumpur
-
-# Optional if running locally with ngrok (see Step 4)
-WEBHOOK_URL=http://localhost:5678/
-N8N_HOST=localhost
+OPENAI_API_KEY=sk-...
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
 ```
+*(Tip: Get your Bot Token from [@BotFather](https://t.me/BotFather) on Telegram in 30 seconds).*
 
----
-
-### Step 3: Start Services with Docker Compose
-
-Run the following command to build and start both the **FastAPI Core** and **n8n Orchestrator**:
-
+### 3. Launch with Docker Compose
 ```bash
 docker compose up -d --build
 ```
 
-Verify that both containers are running:
-```bash
-docker compose ps
-```
-- **FastAPI Core Backend**: Accessible at `http://localhost:8000`
-- **n8n Automation Engine**: Accessible at `http://localhost:5678`
+That’s it! Open Telegram, message your bot `/start`, and you're good to go.
 
 ---
 
-### Step 4: Configure n8n & Telegram Webhook
+## 💻 Local Run vs. Cloud VPS
 
-#### A. Expose n8n Webhook for Telegram (If Testing Locally)
-Telegram requires a public **HTTPS** URL to send webhook events. If you are running locally on your computer, use **ngrok**:
+### Do I need a Cloud VPS?
+**No.** Internify uses Telegram **Long Polling**. 
+- It communicates *outbound* to Telegram's secure API.
+- It runs seamlessly on your **local computer (Windows, macOS, Linux)** behind home Wi-Fi or NAT.
+- No public IP address, domain name, or open ports required.
+- If your computer goes to sleep, the bot pauses. When your computer wakes up, it resumes and catches up on any messages automatically.
 
+### Running 24/7 on a VPS (Optional)
+If you prefer the bot to run 24/7 in the cloud while your laptop is closed, deploy to any cheap \$3–\$5/month Linux VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS EC2, etc.):
 ```bash
-# In a separate terminal
-ngrok http 5678
+# On your remote server
+git clone https://github.com/adyhafetz/internify.git
+cd internify && cp .env.example .env
+docker compose up -d
 ```
-Copy the generated HTTPS URL (e.g. `https://xyz.ngrok-free.app`). 
+See our [Cloud VPS Deployment Guide](docs/vps_deployment_guide.md) for details.
 
-Update `.env`:
+---
+
+## 💰 Cost & Model Tuning
+
+Internify is engineered for extreme cost efficiency:
+* **Extractor**: `gpt-4o-mini` (~$0.0005 per run)
+* **Critic**: `gpt-4o-mini` (~$0.0005 per run)
+* **Generator**: `gpt-4o` (~$0.01 per run)
+
+**Total cost per tailored resume is roughly 1 to 2 cents (\$0.01–\$0.02).**
+
+### Running for less than a fraction of a cent (<$0.002):
+Change the generator model in `.env`:
 ```env
-WEBHOOK_URL=https://xyz.ngrok-free.app/
-```
-Then restart n8n:
-```bash
-docker compose restart n8n
-```
-
-*(Note: If deploying on a cloud VPS with a domain, see the [Production Deployment](#production-deployment-cloud-vps) section instead).*
-
-#### B. Import the Workflow into n8n
-1. Open `http://localhost:5678` in your browser and complete the initial account setup.
-2. In n8n, click **Workflows** ➔ **Import from File**.
-3. Select the file [`Internify — Telegram Bot.json`](Internify%20—%20Telegram%20Bot.json) included in this repository.
-
-#### C. Set Up Credentials in n8n
-Inside n8n, go to **Settings** ➔ **Credentials** and configure the 4 accounts:
-- **Telegram Account**: Name it `Internify — Telegram Account` and enter your Bot Token.
-- **OpenAI Account**: Name it `Internify — OpenAI Account` and enter your OpenAI API key.
-- **Google Service Account**: Name it `Internify — Google Service Account` and upload your Service Account JSON file.
-- **ScrapingAnt Account**: Name it `Internify — ScrapingAnt Account` and enter your ScrapingAnt API Token.
-
-#### D. Link Your Sheet and Drive Folder
-In the n8n canvas:
-- Open each Google Sheet node (`Lookup`, `Append Row`, `Get Row Number`, `Delete Failed Row`, `Update Resume Link`), click on **Document**, and select your copied `Internify — Application Tracker` spreadsheet.
-- Open each Google Drive node (`Upload Resume`, `Upload Master Resume`), click on **Folder**, and select your `Internify Resumes` folder.
-
-#### E. (Recommended) Restrict Bot to Your Personal Telegram Account
-By default, anyone who knows your bot's username could interact with it. To lock it exclusively to you:
-1. Message [`@userinfobot`](https://t.me/userinfobot) on Telegram to get your numeric user ID (e.g. `123456789`).
-2. In n8n, add an **If** node right after `Telegram Trigger` checking:
-   `{{ $json.message.from.id }} equals YOUR_NUMERIC_ID`
-3. Connect the **True** output to `Switch Mode`.
-
-#### F. Activate Workflow
-Click **Save** and toggle the workflow from **Inactive** to **Active** (top right corner).
-
----
-
-### Step 5: Test Your Setup
-
-1. Open Telegram, open your bot, and send:
-   ```
-   /start
-   ```
-2. Your bot will reply with the full command menu!
-3. Customize your initial profile using:
-   ```
-   /setname Your Name
-   /setphone +1 234 567 890
-   /setemail your.email@example.com
-   ```
-4. Test full resume export with `/resume` or drop any job URL to test automatic tailoring!
-
----
-
-## Standalone Backend Testing
-
-You can also test the resume generation pipeline directly via curl without n8n or Telegram:
-
-```bash
-curl -X POST http://localhost:8000/process \
-  -H "Content-Type: application/json" \
-  -d '{
-    "company": "Stripe",
-    "job_title": "Software Engineering Intern",
-    "location": "Remote",
-    "job_description": "Looking for an intern experienced in Python, REST APIs, and Docker.",
-    "job_requirements": "- Proficiency with Python and FastAPI\n- Familiarity with containerization\n- Strong database fundamentals",
-    "job_link": "https://stripe.com/jobs"
-  }'
-```
-
-Response:
-```json
-{
-  "resume_status": "Excellent",
-  "score": 88.0,
-  "pdf_path": "/app/output/resume_stripe_20260918.pdf",
-  "pdf_download_url": "http://fastapi-service:8000/files/resume_stripe_20260918.pdf",
-  "summary": "Emphasized FastAPI, Docker, and PostgreSQL backend projects matching Stripe requirements."
-}
+GENERATOR_MODEL=gpt-4o-mini
 ```
 
 ---
 
-## Telegram Bot Commands Reference
+## 📱 Telegram Bot Commands Reference
+
+When you open the bot, click the native **`Menu`** button or type `/` to access all commands with autocompletion:
 
 | Category | Command | Description |
 |---|---|---|
-| **Start** | `/start` | Show welcome message & command cheat-sheet |
-| **Master Resume** | `/resume` | Render & export full untailored master resume PDF |
-| **Profile** | `/myprofile` | View current contact info & links |
-| | `/setname <name>` | Update your full name |
-| | `/setphone <phone>` | Update your phone number |
-| | `/setemail <email>` | Update your email address |
-| | `/setlinkedin <url>` | Update LinkedIn URL & display text |
-| | `/setgithub <url>` | Update GitHub URL & display text |
-| **Education** | `/listeducation` | View all education entries and IDs |
-| | `/addeducation <text>` | Add education details via plain English |
-| | `/deleteeducation <id>` | Remove an education entry by ID |
-| | `/addcourse <id> <name>` | Add a course to an education entry |
-| | `/deletecourse <id> <name>` | Remove a course from an education entry |
-| **Experience** | `/addexperience <text>` | Add work experience via plain English (auto-extracts skills) |
-| | `/deleteexperience <id>` | Delete an experience entry and all its bullets |
-| **Projects** | `/addproject <text>` | Add a project via plain English (auto-extracts skills) |
-| | `/deleteproject <id>` | Delete a project and all its bullets |
-| **Leadership** | `/addleadership <text>` | Add leadership/extracurricular activity |
-| | `/deleteleadership <title>` | Delete a leadership entry by title |
-| **Facts** | `/listfacts <entry_id>` | Inspect all fact bullets for an entry |
-| | `/updatefact <id> <text>` | Edit bullet text (auto re-indexes embeddings) |
-| | `/deletefact <fact_id>` | Remove a single fact bullet |
-| **Skills** | `/listskills` | View master skills list by category |
-| | `/addskill <text>` | Add skills into fixed categories |
-| | `/deleteskill <item>` | Remove a skill from all categories |
-| **Entries** | `/listentries` | View all entry IDs for projects, experiences, and leadership |
-| **Job Tailoring** | *Paste any URL* | Automatically scrapes posting, tailors resume, and returns PDF |
+| **Start** | `/start` | Welcome message & quick overview |
+| | `/help` | Detailed command cheatsheet |
+| **Tracker** | `/history` | View recent applications tracked in SQLite |
+| **Master Resume**| `/resume` | Compile full untailored master resume PDF |
+| **Profile** | `/myprofile` | Interactive contact card with one-click edit buttons |
+| | `/setname [name]` | Update full name (prompted interactively if blank) |
+| | `/setphone [phone]` | Update phone number |
+| | `/setemail [email]` | Update email address |
+| | `/setlinkedin [url]` | Update LinkedIn profile URL |
+| | `/setgithub [url]` | Update GitHub profile URL |
+| **Education** | `/listeducation` | List all education entries & courses |
+| | `/addeducation [text]` | Add education details (AI-extracted from plain English) |
+| | `/deleteeducation` | Delete an education entry (with interactive buttons) |
+| | `/addcourse [id] [name]`| Add relevant coursework to a degree |
+| | `/deletecourse [id] [name]`| Remove coursework from a degree |
+| **Work Experience**| `/addexperience [text]` | Add work experience/internship (auto-extracts bullets & tech tags) |
+| | `/deleteexperience` | Delete experience entry (with interactive buttons) |
+| **Projects** | `/addproject [text]` | Add project (auto-extracts bullets & tech stack) |
+| | `/deleteproject` | Delete project (with interactive buttons) |
+| **Leadership** | `/addleadership [text]` | Add extracurricular or leadership role |
+| | `/deleteleadership` | Delete leadership entry |
+| **Skills & Facts** | `/listskills` | View master technical skills grouped by category |
+| | `/addskill [text]` | Add new skills (automatically categorized) |
+| | `/deleteskill [name]` | Remove a skill |
+| | `/listentries` | View all entry IDs for experiences & projects |
+| | `/listfacts [id]` | View all verified fact bullets for an entry |
+| | `/updatefact [id] [text]`| Edit bullet text (auto re-indexes embeddings) |
+| | `/deletefact [id]` | Delete a fact bullet |
+| **General** | `/cancel` | Cancel any active multi-step prompt |
+| **Tailor** | *Paste any Job URL* | Automatically scrapes, tailors, compiles, and sends PDF |
 
 ---
 
-## Production Deployment (Cloud VPS)
+## ☁️ Optional Cloud Sync (Google Drive & Google Sheets)
 
-To run Internify 24/7 without keeping your computer on, deploy it to any cloud VPS (e.g. Tencent Cloud Lighthouse, DigitalOcean, Hetzner, AWS Lightsail) with Docker and Caddy (for automatic free SSL):
+By default, Internify saves applications in **SQLite** (`output/internify.db`) and delivers PDFs directly to your Telegram chat.
 
-- 📖 **[Tencent Cloud Lighthouse Deployment Guide](docs/tencent_lighthouse_deployment.md)** (Full walk-through with firewall settings, automated HTTPS with Caddy, and zero-downtime updates).
-
----
-
-## Directory Structure
-
-```
-.
-├── Dockerfile                    # Multi-stage build with Python 3.11 & Tectonic LaTeX
-├── docker-compose.yml            # Runs FastAPI backend and n8n together
-├── Internify — Telegram Bot.json # Complete n8n workflow (ready to import)
-├── output/                       # Generated PDFs and rendered .tex files
-├── requirements.txt              # Python dependencies
-├── docs/                         # Deployment & configuration guides
-└── service/
-    ├── admin.py                  # Full CRUD Admin API for resume skeleton & facts
-    ├── clients.py                # Shared singletons for OpenAI and Instructor
-    ├── config.py                 # Tunables (models, thresholds, limits)
-    ├── models.py                 # Pydantic schemas across the pipeline
-    ├── main.py                   # FastAPI entrypoint (/process, /health, /files)
-    ├── agentic/                  # Generator, Critic, and iteration loop
-    ├── extraction/               # Structured job posting extraction
-    ├── fact_store/               # resume_skeleton.json & facts.json
-    ├── latex/                    # Jinja2 template & Tectonic compiler
-    └── retrieval/                # Cosine similarity retrieval over facts
-```
+If you want automated cloud backups:
+1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/).
+2. Run our one-command setup script to authenticate:
+   ```bash
+   python scripts/get_gdrive_token.py
+   ```
+3. Add the generated credentials to `.env`:
+   ```env
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   GOOGLE_REFRESH_TOKEN=...
+   GOOGLE_SHEET_ID=your-google-sheet-id
+   GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
+   ```
+Internify will automatically dual-sync every application to both your local SQLite database and your Google Sheet/Drive.
 
 ---
 
-## License
+## 🔒 Security & Privacy
 
-MIT License. Free to use, customize, and deploy.
+To prevent unauthorized users on Telegram from generating resumes or modifying your fact store:
+1. Message [`@userinfobot`](https://t.me/userinfobot) on Telegram to get your numeric user ID.
+2. In `.env`, set:
+   ```env
+   TELEGRAM_ALLOWED_USER_IDS=123456789
+   ```
+Any messages from other users will be rejected with an `Access Denied` notification.
+
+---
+
+## 📄 License
+
+This project is open-source under the [MIT License](LICENSE).

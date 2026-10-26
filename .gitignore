@@ -1,6 +1,10 @@
 # Environment variables & secrets
 .env
 .env.local
+*.json
+!service/fact_store/facts.json
+!service/fact_store/resume_skeleton.json
+!package.json
 
 # Python artifacts
 __pycache__/
