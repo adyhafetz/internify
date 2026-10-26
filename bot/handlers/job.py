@@ -118,7 +118,7 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job_description=job.job_description,
         job_requirements=job.job_requirements,
         job_link=job_url,
-        status="Processing",
+        status="New",
     )
 
     # 5. Run agentic loop (Retrieval + Generator + Critic)

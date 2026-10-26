@@ -42,23 +42,44 @@ def upload_to_drive(file_path: str, destination_name: str) -> Optional[str]:
     try:
         from googleapiclient.http import MediaFileUpload
 
-        file_metadata = {
-            "name": destination_name,
-        }
-        if config.GOOGLE_DRIVE_FOLDER_ID:
-            file_metadata["parents"] = [config.GOOGLE_DRIVE_FOLDER_ID]
+        clean_folder_id = config.GOOGLE_DRIVE_FOLDER_ID.strip().rstrip("/") if config.GOOGLE_DRIVE_FOLDER_ID else None
+        file_metadata = {"name": destination_name}
+        if clean_folder_id:
+            file_metadata["parents"] = [clean_folder_id]
 
         media = MediaFileUpload(file_path, mimetype="application/pdf", resumable=True)
-        uploaded = (
-            service.files()
-            .create(
-                body=file_metadata,
-                media_body=media,
-                fields="id, webViewLink",
-                supportsAllDrives=True,
+        try:
+            uploaded = (
+                service.files()
+                .create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields="id, webViewLink",
+                    supportsAllDrives=True,
+                )
+                .execute()
             )
-            .execute()
-        )
+        except Exception as upload_err:
+            # If specified folder wasn't found (404), fallback to root My Drive
+            if clean_folder_id and "notFound" in str(upload_err):
+                logger.warning(
+                    "Folder ID '%s' was not found or inaccessible in Google Drive. Uploading to root My Drive instead.",
+                    clean_folder_id,
+                )
+                file_metadata = {"name": destination_name}
+                media = MediaFileUpload(file_path, mimetype="application/pdf", resumable=True)
+                uploaded = (
+                    service.files()
+                    .create(
+                        body=file_metadata,
+                        media_body=media,
+                        fields="id, webViewLink",
+                        supportsAllDrives=True,
+                    )
+                    .execute()
+                )
+            else:
+                raise upload_err
 
         file_id = uploaded.get("id")
         web_link = uploaded.get("webViewLink")
@@ -71,7 +92,7 @@ def upload_to_drive(file_path: str, destination_name: str) -> Optional[str]:
                 supportsAllDrives=True,
             ).execute()
         except Exception as perm_err:
-            logger.debug("Permission sharing notice (might already be inherited): %s", perm_err)
+            logger.debug("Permission sharing notice: %s", perm_err)
 
         logger.info("Successfully uploaded %s to Google Drive: %s", destination_name, web_link)
         return web_link or f"https://drive.google.com/file/d/{file_id}/view"

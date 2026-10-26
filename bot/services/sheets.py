@@ -35,9 +35,13 @@ def _get_worksheet():
         return None
     try:
         sh = client.open_by_key(config.GOOGLE_SHEET_ID)
-        return sh.worksheet(config.GOOGLE_SHEET_NAME)
+        try:
+            return sh.worksheet(config.GOOGLE_SHEET_NAME)
+        except Exception:
+            logger.info("Tab '%s' not found in spreadsheet. Falling back to first sheet tab.", config.GOOGLE_SHEET_NAME)
+            return sh.get_worksheet(0)
     except Exception as e:
-        logger.error("Failed to open worksheet '%s': %s", config.GOOGLE_SHEET_NAME, e)
+        logger.error("Failed to open spreadsheet '%s': %s", config.GOOGLE_SHEET_ID, e)
         return None
 
 
@@ -96,7 +100,12 @@ def append_application(
         else:
             row_vals = list(row_dict.values())
 
-        ws.append_row(row_vals, value_input_option="USER_ENTERED")
+        res = ws.append_row(row_vals, value_input_option="USER_ENTERED")
+        import re
+        updated_range = (res or {}).get("updates", {}).get("updatedRange", "")
+        match = re.search(r"[A-Z]+(\d+)", updated_range)
+        if match:
+            return int(match.group(1))
         return len(ws.col_values(1))
     except Exception as e:
         logger.error("Failed to append row to Google Sheet: %s", e)
