@@ -62,9 +62,19 @@ OPENAI_API_KEY=sk-...
 TELEGRAM_BOT_TOKEN=123456:ABC...
 # (Recommended) Lock bot to your Telegram ID so strangers cannot control your bot:
 TELEGRAM_ALLOWED_USER_IDS=YOUR_TELEGRAM_NUMERIC_ID
-```
 
-*(Optional: Fill in `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` if you want Google Drive & Sheets cloud sync).*
+# (Optional) Bypass anti-bot on Workday/LinkedIn/Lever (Free 10k/mo at scrapingant.com):
+SCRAPINGANT_API_KEY=
+
+# (Optional) Cloud Sync (Google Drive & Sheets)
+# Google Sheets Tracker Template: https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+GOOGLE_SHEET_ID=
+GOOGLE_SHEET_NAME=Tracker
+GOOGLE_DRIVE_FOLDER_ID=
+```
 
 ---
 

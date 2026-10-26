@@ -166,22 +166,62 @@ When you open the bot, click the native **`Menu`** button or type `/` to access 
 
 ---
 
+## 🌐 Job Scraping & Anti-Bot Bypass (ScrapingAnt)
+
+Many modern enterprise career boards (Workday, Greenhouse, Lever, LinkedIn, Intel, etc.) use heavy anti-bot protection (Cloudflare, DataDome) or client-side JavaScript rendering that blocks standard HTTP requests.
+
+Internify includes built-in support for **[ScrapingAnt](https://scrapingant.com/)**:
+* **10,000 Free Credits/Month** (ample for hundreds of job postings per month).
+* Automatically bypasses CAPTCHAs, Cloudflare walls, and renders JavaScript job descriptions.
+
+### Setup (30 seconds):
+1. Sign up for a free account at [scrapingant.com](https://scrapingant.com/).
+2. Copy your API token from the dashboard.
+3. Paste it into your `.env`:
+   ```env
+   SCRAPINGANT_API_KEY=your_scrapingant_api_token
+   ```
+*(Note: If left blank, Internify automatically falls back to built-in direct HTTP scraping with browser user-agent spoofing).*
+
+---
+
 ## ☁️ Optional Cloud Sync (Google Drive & Google Sheets)
 
 By default, Internify saves applications in **SQLite** (`output/internify.db`) and delivers PDFs directly to your Telegram chat.
 
-If you want automated cloud backups:
-1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/).
-2. Run our one-command setup script to authenticate:
-   ```bash
-   python scripts/get_gdrive_token.py
+If you want automated cloud backups to Google Drive and Google Sheets:
+
+### 1. Copy the Official Application Tracker Sheet Template
+We provide a pre-formatted, production-ready Google Sheet tracker complete with automated formulas and dropdown menus:
+👉 **[Open Internify — Application Tracker Template](https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing)**
+
+1. Open the link above, click **File → Make a copy** to save it to your own Google Drive.
+2. Copy the **Spreadsheet ID** from your copied URL:
+   ```text
+   https://docs.google.com/spreadsheets/d/<YOUR_SPREADSHEET_ID>/edit
    ```
+3. Set `GOOGLE_SHEET_ID=<YOUR_SPREADSHEET_ID>` in your `.env`.
+
+#### Template Columns Explained:
+| Column | Purpose | Managed By |
+|---|---|---|
+| **Company**, **Job Title**, **Location** | Extracted from posting | Internify |
+| **Job Description**, **Requirements**, **Job Link** | Scraped source & audit link | Internify |
+| **Status** | Application progress (`New`, `Applied`, `In Review`, `Interviewing`, `Offer`, `Rejected`, `Withdrawn`) | **You** (starts as `New`) |
+| **Resume Status** | AI ATS evaluation score (`Excellent`, `Good`, `Fair`, `Weak`) | Internify |
+| **Resume Link** | One-click web view link to the PDF in Google Drive | Internify |
+| **Comment** | ATS match score & Critic feedback notes | Internify |
+
+### 2. Google OAuth Credentials Setup
+1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/) (Enable **Google Drive API** and **Google Sheets API**).
+2. Authenticate once via OAuth2 or service account to obtain your refresh token.
 3. Add the generated credentials to `.env`:
    ```env
    GOOGLE_CLIENT_ID=...
    GOOGLE_CLIENT_SECRET=...
    GOOGLE_REFRESH_TOKEN=...
    GOOGLE_SHEET_ID=your-google-sheet-id
+   GOOGLE_SHEET_NAME=Tracker
    GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
    ```
 Internify will automatically dual-sync every application to both your local SQLite database and your Google Sheet/Drive.
