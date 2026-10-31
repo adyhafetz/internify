@@ -119,6 +119,10 @@ def create_bot_app():
     app = (
         ApplicationBuilder()
         .token(config.TELEGRAM_BOT_TOKEN)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(60.0)
+        .pool_timeout(30.0)
         .post_init(post_init)
         .build()
     )
@@ -152,8 +156,7 @@ def create_bot_app():
     app.add_handler(CommandHandler("deletefact", delete_fact_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
-    # Inline Keyboard Button Callbacks
-    app.add_handler(CallbackQueryHandler(profile_button_callback, pattern=r"^edit_"))
+    # Inline Keyboard Button Callbacks (Delete confirmations)
     app.add_handler(CallbackQueryHandler(delete_education_callback, pattern=r"^del_edu:"))
     app.add_handler(CallbackQueryHandler(delete_experience_callback, pattern=r"^del_exp:"))
     app.add_handler(CallbackQueryHandler(delete_project_callback, pattern=r"^del_proj:"))

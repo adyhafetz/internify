@@ -201,15 +201,25 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption += f"• ☁️ [Open in Google Drive]({drive_link})\n"
     caption += f"\n💡 *Critic Feedback:*\n_{proc_res.comment[:400]}_"
 
-    with open(pdf_path, "rb") as pdf_file:
-        await update.effective_message.reply_document(
-            document=pdf_file,
-            filename=dest_filename,
-            caption=caption,
-            parse_mode="Markdown",
+    try:
+        with open(pdf_path, "rb") as pdf_file:
+            await update.effective_message.reply_document(
+                document=pdf_file,
+                filename=dest_filename,
+                caption=caption,
+                parse_mode="Markdown",
+                write_timeout=60,
+                read_timeout=60,
+            )
+        await status_msg.delete()
+    except Exception as upload_err:
+        logger.error("Failed to deliver tailored PDF to Telegram: %s", upload_err)
+        msg_text = (
+            f"🎯 *Tailored Resume Ready*, but delivery directly to Telegram encountered a network timeout:\n`{upload_err}`"
         )
-
-    await status_msg.delete()
+        if drive_link:
+            msg_text += f"\n\n☁️ *You can access your compiled PDF on Google Drive:*\n[Open in Drive]({drive_link})"
+        await status_msg.edit_text(msg_text, parse_mode="Markdown")
 
 
 def get_job_url_handler() -> MessageHandler:

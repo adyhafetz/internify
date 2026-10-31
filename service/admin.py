@@ -534,11 +534,13 @@ def update_header(req: UpdateHeaderRequest) -> AdminResponse:
     for field, value in data.items():
         skeleton["header"][field] = value
         updated.append(field)
-        # Mirror URL → display text so they stay in sync
+        # Mirror URL -> clean display text so they stay in sync
         if field == "linkedin_url":
-            skeleton["header"]["linkedin_display"] = value
+            clean_disp = re.sub(r"^https?://(www\.)?", "", value).rstrip("/")
+            skeleton["header"]["linkedin_display"] = clean_disp or value
         elif field == "github_url":
-            skeleton["header"]["github_display"] = value
+            clean_disp = re.sub(r"^https?://(www\.)?", "", value).rstrip("/")
+            skeleton["header"]["github_display"] = clean_disp or value
 
     _save_skeleton_raw(skeleton)
     return AdminResponse(
