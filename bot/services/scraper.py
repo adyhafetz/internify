@@ -21,6 +21,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from bot import config
+from bot.services import ai
 from service import events
 
 logger = logging.getLogger(__name__)
@@ -281,7 +282,7 @@ async def _via_search(ctx: _Ctx) -> Page:
         except _Miss:
             continue
         chosen = _pick(text, embedded)
-        if chosen and _matches(tokens, chosen):
+        if chosen and (_matches(tokens, chosen) or await ai.is_same_job(hint, chosen)):
             host = urlparse(target).netloc.removeprefix("www.")
             return Page(chosen, "search", "the same posting on another site", target, True, f"found on {host}")
     raise _Miss("no other site had a matching posting")
@@ -326,6 +327,14 @@ async def scrape_job_url(url: str) -> Optional[Page]:
             logger.warning("Scout route %s crashed: %s", method, err)
             reason = "something went wrong with it"
         else:
+            if page.method != "pasted" and ai.enabled():
+                events.emit("scout", events.PROGRESS, "Checking it's really a job posting", check=True)
+                real, what = await ai.looks_like_posting(page.text)
+                if not real:
+                    logger.info("Scout route %s returned %s", method, what)
+                    events.emit("scout", events.PROGRESS, f"{label} didn't work", attempt=i, total=len(routes),
+                                method=method, label=label, status="failed", reason=f"it wasn't a job posting, it was {what}")
+                    continue
             events.emit("scout", events.PROGRESS, f"Got the posting from {label}", attempt=i, total=len(routes),
                         method=method, label=label, status="ok", chars=len(page.text), note=page.note,
                         source_url=page.source_url)

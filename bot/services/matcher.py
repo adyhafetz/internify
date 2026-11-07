@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-from bot.services import db
+from bot.services import ai, db
 from bot.services.discovery import Candidate
 from bot.services.scraper import scrape_job_url
 from service import config as service_config
@@ -154,4 +154,6 @@ async def match(cands: list[Candidate], max_keep: int, min_fit: float) -> MatchR
 
     scored.sort(key=lambda x: x.fit, reverse=True)
     kept = [x for x in scored if x.fit >= min_fit][:max_keep]
+    for item in kept:   # a plain-language sentence for each pick (the template reason stays if the AI is off)
+        item.why = await ai.explain_match(item.role, item.company, item.covered, item.missing, item.why)
     return MatchResult(kept, len(cands), len(shortlist), scored[0].fit if scored else None, scored)

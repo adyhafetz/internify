@@ -19,7 +19,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from bot import config
-from bot.services import scraper
+from bot.services import ai, scraper
 from bot.services.watchlist import Source, mark_checked
 from service import events
 
@@ -150,7 +150,13 @@ def extract_job_links(text: str, base_url: str) -> list[tuple[str, str]]:
 
 
 async def _page(src: Source) -> list[Candidate]:
-    links = extract_job_links(await _listing(src.url), src.url)
+    text = await _listing(src.url)
+    links = None
+    if ai.enabled():
+        events.emit("discoverer", events.PROGRESS, f"Reading {src.label} with AI", ai_read=src.label)
+        links = await ai.find_jobs_on_page(text, src.url)
+    if not links:   # AI off, failed or found nothing: fall back to the plain rules
+        links = extract_job_links(text, src.url)
     return [Candidate(title=t, company=src.label, url=u, source=src.label) for t, u in links]
 
 

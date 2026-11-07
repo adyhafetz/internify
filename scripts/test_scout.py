@@ -6,6 +6,7 @@ import httpx
 sys.path.insert(0, os.path.abspath("."))
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 from bot import config
+config.AI_HELPERS = False   # plain-rules behaviour; the AI helpers are covered in test_ai.py
 from bot.services import scraper
 from service import events
 

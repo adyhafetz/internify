@@ -17,13 +17,13 @@
   --canvas: #F8FAFC; --card: #FFFFFF; --ink: #0F172A; --muted: #64748B; --line: #DBE3EF;
   --blue: #2563EB; --indigo: #1E40AF; --sky: #E0F2FE; --coral: #F97316;
   --glow: rgba(37, 99, 235, .16); --glow-coral: rgba(249, 115, 22, .18);
-  --edge: #A9BAD3; --night: #E6F0FD;
+  --edge: #A9BAD3;
   --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 10px 28px rgba(15, 23, 42, .07);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --canvas: #0F172A; --card: #16213A; --ink: #F8FAFC; --muted: #94A3B8; --line: #27344F;
-  --sky: #12284B; --glow: rgba(96, 165, 250, .22); --edge: #3B4C6B; --night: #162B52;
+  --sky: #12284B; --glow: rgba(96, 165, 250, .22); --edge: #3B4C6B;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
 }
 * { box-sizing: border-box; }
@@ -68,11 +68,8 @@ body {
 .menu-list small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 3px; }
 
 /* ---------- the room ---------- */
-.room { position: relative; flex: 1; min-height: 0; margin: 0 20px 16px; border-radius: 26px; border: 1px solid var(--line); overflow: hidden;
-  background: radial-gradient(ellipse 52% 60% at 50% 48%, var(--sky) 0%, transparent 70%), var(--card); box-shadow: var(--shadow); }
+.room { position: relative; flex: 1; min-height: 0; margin: 0 20px 12px; overflow: hidden; }
 .stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.night { position: absolute; display: flex; align-items: center; gap: 7px; color: var(--blue); transform: translate(-50%, -50%); white-space: nowrap; }
-#nightlayer { z-index: 0; }
 .pbar { width: 100%; height: 5px; border-radius: 3px; background: var(--line); margin-top: 9px; overflow: hidden; }
 .pbar i { display: block; height: 100%; width: 0; background: var(--blue); border-radius: 3px; transition: width .6s ease; }
 .room svg.layer { z-index: 5; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
@@ -112,6 +109,15 @@ body {
 .actor.fail { border-color: rgba(249, 115, 22, .65); }
 .actor.fail .bdg { display: grid; background: var(--coral); }
 .actor.recv { animation: recv .75s ease-out; }
+.actor.dormant { background: transparent; border: 1.5px dashed var(--edge); box-shadow: none; transform: translate(-50%, -50%); }
+.actor.dormant .av { background: var(--line); color: var(--muted); animation: none; }
+.actor.dormant .nm, .actor.dormant .rl { color: var(--muted); }
+.actor.dormant .bdg { display: none; }
+.room.compact .actor.dormant { border: 0; } .room.compact .actor.dormant .av { background: transparent; border: 1.5px dashed var(--edge); box-shadow: none; }
+.actor .ai { position: absolute; right: 10px; bottom: -8px; padding: 1px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; background: var(--sky); color: var(--indigo); border: 1px solid var(--card); }
+:root[data-theme="dark"] .actor .ai { color: #BFDBFE; }
+.actor .ai.code { background: var(--line); color: var(--muted); } .actor.dormant .ai { opacity: .6; }
+.room.compact .actor .ai { right: auto; left: 50%; transform: translateX(-50%); bottom: 12px; display: none; }
 @keyframes breathe { 50% { transform: scale(1.07); } }
 @keyframes recv { 0% { box-shadow: 0 0 0 0 var(--glow); } 40% { box-shadow: 0 0 0 10px var(--glow); } 100% { box-shadow: var(--shadow); } }
 .room.compact .actor { flex-direction: column; gap: 5px; padding: 0; border: 0; background: transparent; box-shadow: none; border-radius: 0; text-align: center; }
@@ -158,6 +164,7 @@ body {
   background: var(--card); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 20px 60px rgba(15, 23, 42, .25);
   transform: translateX(calc(100% + 24px)); transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
 .drawer.open { transform: none; }
+.drawer:not(.open) { box-shadow: none; visibility: hidden; transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility 0s .3s; }
 .dh { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 8px; }
 .dh h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.03em; }
 .dh .label { color: var(--muted); }
@@ -181,7 +188,7 @@ body {
 .df a { color: var(--blue); font-weight: 600; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 760px) {
-  .bar { padding: 8px 12px; } .room { margin: 0 10px 10px; border-radius: 20px; }
+  .bar { padding: 8px 12px; } .room { margin: 0 10px 10px; }
   .wordmark { width: 84px; } .live .t { display: none; } .pill { padding: 0 11px; }
 }
 </style>
@@ -209,8 +216,6 @@ body {
 
 <main class="room" id="room" aria-label="Agents at work">
   <div class="stage" id="stage">
-    <svg class="layer" id="nightlayer"></svg>
-    <div class="night label" id="nightlbl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>While you sleep</div>
     <svg class="layer" id="layer"></svg>
     <div class="table" id="table"></div>
     <div id="actors"></div>
@@ -267,7 +272,7 @@ const ACTORS = [
 const RING = ["you", "discoverer", "matcher", "scout", "analyst", "archivist", "scribe", "critic", "publisher"];   // clockwise from the top
 const PIPE = ["scout", "analyst", "archivist", "scribe", "critic", "publisher"], N = RING.length, IDX = Object.fromEntries(RING.map((id, i) => [id, i]));
 const NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
-const room = $("#room"), stage = $("#stage"), night = $("#nightlayer"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
+const room = $("#room"), stage = $("#stage"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
 
 /* ------------------------------------------------------------ what the page knows about the current run */
 let S, animate = true;
@@ -280,7 +285,7 @@ S = fresh();
 
 /* ------------------------------------------------------------ layout */
 const L = { W: 0, H: 0, cx: 0, cy: 0, cw: 0, ch: 0, compact: false, pos: {}, side: {} };
-const SIDE = { you: "below", discoverer: "above", matcher: "below", scout: "below", analyst: "below", archivist: "below", scribe: "below", critic: "below", publisher: "above" };
+const SIDE = { you: "below", discoverer: "above", matcher: "above", scout: "below", analyst: "below", archivist: "below", scribe: "below", critic: "below", publisher: "above" };
 function layout() {
   // The scene is drawn at one fixed size and scaled to fit the window, so nothing ever scrolls.
   const RW = room.clientWidth, RH = room.clientHeight, compact = RW < 760;
@@ -294,13 +299,6 @@ function layout() {
   const at = deg => ({ x: cx + rx * Math.cos(deg * Math.PI / 180), y: cy + ry * Math.sin(deg * Math.PI / 180) });
   RING.forEach((id, i) => { const q = at(-90 + i * 360 / N); L.pos[id] = { x: q.x, y: q.y, w: cw, h: ch, rect: { x: q.x - cw / 2, y: q.y - ch / 2, w: cw, h: ch } }; });
   L.table = compact ? { x: cx, y: cy, w: 196, h: 150 } : { x: cx, y: cy, w: 280, h: 150 };
-  // the two overnight agents sit on a tinted stretch of the ring, so they read as one shift without a box around them
-  night.setAttribute("viewBox", `0 0 ${W} ${H}`); night.textContent = "";
-  const a = at(-90 + 360 / N), b = at(-90 + 2 * 360 / N);
-  night.appendChild(svg("path", { d: `M${a.x.toFixed(1)},${a.y.toFixed(1)} A${rx},${ry} 0 0 1 ${b.x.toFixed(1)},${b.y.toFixed(1)}`, fill: "none", stroke: "var(--night)", "stroke-width": compact ? 88 : ch + 18, "stroke-linecap": "round" }));
-  const lbl = at(-90 + 1.5 * 360 / N), nl = $("#nightlbl");
-  nl.style.left = (cx + (lbl.x - cx) * (compact ? .64 : .7)).toFixed(1) + "px"; nl.style.top = (cy + (lbl.y - cy) * (compact ? .64 : .7)).toFixed(1) + "px";
-  nl.style.fontSize = compact ? "9.5px" : ""; nl.style.flexDirection = compact ? "column" : ""; nl.style.gap = compact ? "2px" : "";
   layer.setAttribute("viewBox", `0 0 ${W} ${H}`);
   place();
 }
@@ -309,11 +307,22 @@ function layout() {
 function buildActors() {
   ACTORS.forEach(a => {
     const d = html("div", "actor idle"); d.id = "a-" + a.id; d.setAttribute("aria-label", `${a.name}: ${a.role}`);
-    d.innerHTML = `<div class="av"><svg viewBox="0 0 24 24">${ICONS[a.id]}</svg><span class="bdg"></span></div><div><div class="nm"></div><div class="rl"></div></div>`;
+    d.innerHTML = `<div class="av"><svg viewBox="0 0 24 24">${ICONS[a.id]}</svg><span class="bdg"></span></div><div><div class="nm"></div><div class="rl"></div></div><span class="ai code">Code</span>`;
     d.querySelector(".nm").textContent = a.name; d.querySelector(".rl").textContent = a.role;
     actorsEl.appendChild(d);
   });
+  syncDormant();
 }
+/* the two overnight agents are asleep (grey, dotted outline) unless a daily check is running; everyone else is always ready */
+const OVERNIGHT = ["discoverer", "matcher"];
+function syncDormant() { const on = !!(S.scan && !S.final && !S.failed); OVERNIGHT.forEach(id => { const d = $("#a-" + id); if (d) d.classList.toggle("dormant", !on); }); }
+/* which AI model each agent uses (from the server), shown as a tag on the card and in what the agent says */
+let MODELS = {};
+function showModels() {
+  ACTORS.forEach(a => { const t = $("#a-" + a.id + " .ai"); if (!t) return; const m = MODELS[a.id];
+    t.textContent = m ? "AI" : "Code"; t.classList.toggle("code", !m); t.title = m ? "Uses " + m : "Plain code, no AI model"; });
+}
+fetch("/api/models").then(r => r.ok ? r.json() : {}).then(m => { MODELS = m || {}; showModels(); placeCallout(); }).catch(() => {});
 function place() {
   ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.width = L.compact ? "" : L.cw + "px"; });
   Object.assign(tableEl.style, { left: L.table.x + "px", top: L.table.y + "px", width: L.table.w + "px", height: L.table.h + "px" });
@@ -402,7 +411,7 @@ function flash(id) { const d = $("#a-" + id); d.classList.remove("recv"); void d
 
 /* ------------------------------------------------------------ seats, speech bubble, centre of the table */
 function setState(id, state) {
-  S.actors[id].state = state;
+  S.actors[id].state = state; syncDormant();
   const d = $("#a-" + id); d.classList.remove("idle", "working", "done", "asking", "fail"); d.classList.add(state);
   d.querySelector(".bdg").textContent = state === "fail" ? "✕" : state === "asking" ? "?" : "✓";
   setProgress();
@@ -415,7 +424,7 @@ function say(id, text, tone) {
 function placeCallout() {
   const c = callout; if (!S.say) { c.classList.remove("show"); return; }
   const p = L.pos[S.say.id]; if (!p) return;
-  c.querySelector(".who").textContent = S.say.id === "you" ? "Telegram · you" : NAME[S.say.id];
+  c.querySelector(".who").textContent = S.say.id === "you" ? "Telegram · you" : NAME[S.say.id] + (MODELS[S.say.id] ? " · " + MODELS[S.say.id].split(" + ")[0].replace(/ \(embeddings\)/, "") : "");
   c.querySelector(".say").textContent = S.say.text;
   c.classList.toggle("coral", S.say.tone === "coral");
   const pad = 10;
@@ -431,6 +440,7 @@ function placeCallout() {
 }
 const pctText = (n) => Math.round(n) + "%";
 function renderTable() {
+  syncDormant();
   const t = tableEl; t.classList.toggle("problem", !!S.failed); t.classList.toggle("small", true); t.textContent = "";
   const inner = html("div", "inner"); t.appendChild(inner);
   const add = (tag, cls, text) => inner.appendChild(html(tag, cls, text));

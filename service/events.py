@@ -144,6 +144,7 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
             if status == "ok": return None if i == 1 else _GOT.get(d.get("method"), f"Got the posting from {label}")
             if status == "skipped": return "Out of time, stopping the search"
         if k == START: return "Opening the job page…"
+        if k == PROGRESS and d.get("check"): return "Checking it's really a job posting…"
         if k == PROGRESS:
             return "That didn't work, trying another way in…" if ("switching" in m.lower() or "failed" in m.lower()) else "Fetching the page…"
         if k == DONE:
@@ -154,6 +155,7 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
         if k == FAIL: return "Couldn't read this page by any route"
     elif a == "discoverer":
         if k == START: return f"Checking your {n('job page', int(d.get('sources', 0)))}…"
+        if k == PROGRESS and d.get("ai_read"): return f"Reading {d['ai_read']} to find the jobs…"
         if k == PROGRESS and d.get("status") == "trying": return f"Checking {d.get('label', 'a source')}…"
         if k == PROGRESS and d.get("status") == "ok":
             return f"{d.get('label', 'A source')}: {n('new job', int(d.get('found', 0)))}"
