@@ -25,7 +25,7 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ## 🖥️ Live Agent Dashboard
 
-While the bot runs, open **http://localhost:8080/live**. It's a single picture: a round table with seven seats, **Telegram** (you) and the six agents. Send a job link in Telegram and watch the work move clockwise: documents fly along the arrows from seat to seat, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), the question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
+While the bot runs, open **http://localhost:8080/live**. It's a single picture that fits your browser window (no scrolling): a round table with seven seats, **Telegram** (you) and the six agents, plus a dashed **While you sleep** desk with two more agents. Send a job link in Telegram and watch the work move around the table: documents fly along the arrows from seat to seat, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
 | Seat | What it does |
 |---|---|
@@ -36,17 +36,43 @@ While the bot runs, open **http://localhost:8080/live**. It's a single picture: 
 | ✏️ Scribe | Writes the resume lines |
 | 🛡 Critic | Checks every line is true, and scores the match |
 | 📦 Publisher | Builds the PDF (and repairs it if needed), files it, and logs it |
+| 🧭 Discoverer | *While you sleep:* visits your job sources each morning and finds new postings |
+| 🎯 Matcher | *While you sleep:* scores the new postings against your experience and the jobs you sent lately, and keeps the best few |
 
 - **Log** (top right): every success (blue ✓) and failure (coral ✕) in this run, with filters, plain-language reasons and a JSON download. Failures such as "the site blocked us (HTTP 403)" or "caught an invented claim" are listed with why.
-- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text.
+- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text, and **The morning scan** (the Discoverer and Matcher at work, then two resumes written without questions).
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the morning scan), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
 - Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
+
+---
+
+## ☀️ The Morning Scan (finds jobs for you)
+
+Once a day the bot looks for jobs on its own, so you don't have to hunt:
+
+1. **Discoverer** visits your *job sources*: career pages or job boards you added, plus the Greenhouse and Lever boards of companies you already sent links for. Greenhouse and Lever are read from their public listings; any other career page goes through ScrapingAnt (if you set a key) or a plain visit.
+2. **Matcher** compares each new posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum fit.
+3. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
+
+A scan **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
+
+Manage it in `/profile` → **🔭 Job watchlist**: add or remove sources, **Scan now**, pause or resume. Settings in `.env`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `SCAN_ENABLED` | `true` | Turn the daily scan on or off |
+| `SCAN_TIME` | `08:00` | Time of day (24h) |
+| `SCAN_TIMEZONE` | `UTC` | e.g. `Asia/Kuala_Lumpur` |
+| `SCAN_MAX_TAILORED` | `3` | Most resumes written per scan |
+| `SCAN_MIN_FIT` | `0.5` | Minimum fit (0 to 1) to be kept |
+
+The scan sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
 
 ---
 

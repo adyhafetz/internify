@@ -27,19 +27,19 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .35);
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { height: 100%; overflow: hidden; }
 body {
   margin: 0; background: var(--canvas); color: var(--ink);
   font: 400 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
 }
 .label { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
 
 /* ---------- top bar ---------- */
-.bar { display: flex; align-items: center; gap: 10px; padding: 16px 28px; }
+.bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 20px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
-.brand img { width: 34px; height: 34px; display: block; }
-.wordmark { width: 118px; height: 31px; background: var(--ink); -webkit-mask: url(/assets/brand/wordmark.svg) no-repeat left center / contain; mask: url(/assets/brand/wordmark.svg) no-repeat left center / contain; }
+.brand img { width: 28px; height: 28px; display: block; }
+.wordmark { width: 100px; height: 26px; background: var(--ink); -webkit-mask: url(/assets/brand/wordmark.svg) no-repeat left center / contain; mask: url(/assets/brand/wordmark.svg) no-repeat left center / contain; }
 .spacer { flex: 1; }
 .live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
 .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: inline-block; }
@@ -47,7 +47,7 @@ body {
 .live.on i { background: var(--blue); animation: ping 1.8s infinite; }
 @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .45); } 80%, 100% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); } }
 .pill {
-  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 500 13px/1 Inter, system-ui, sans-serif;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04); transition: border-color .15s, box-shadow .15s, transform .15s;
 }
@@ -58,18 +58,22 @@ body {
 .count.ok { background: var(--sky); color: var(--indigo); } :root[data-theme="dark"] .count.ok { color: #93C5FD; }
 .count.bad { background: rgba(249, 115, 22, .14); color: #C2410C; } :root[data-theme="dark"] .count.bad { color: #FDBA74; }
 .count.bad.zero { opacity: .45; }
-.iconbtn { width: 38px; padding: 0; justify-content: center; }
+.iconbtn { width: 34px; padding: 0; justify-content: center; }
 .iconbtn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .menu { position: relative; }
-.menu-list { position: absolute; right: 0; top: 46px; z-index: 30; min-width: 220px; padding: 6px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); display: none; }
+.menu-list { position: absolute; right: 0; top: 42px; z-index: 30; min-width: 220px; padding: 6px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); display: none; }
 .menu-list.open { display: block; }
 .menu-list button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); font: 500 14px/1.2 Inter, sans-serif; padding: 11px 12px; border-radius: 10px; cursor: pointer; }
 .menu-list button:hover { background: var(--sky); }
 .menu-list small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 3px; }
 
 /* ---------- the room ---------- */
-.room { position: relative; margin: 0 28px 28px; border-radius: 28px; border: 1px solid var(--line); overflow: hidden;
+.room { position: relative; flex: 1; min-height: 0; margin: 0 20px 16px; border-radius: 26px; border: 1px solid var(--line); overflow: hidden;
   background: radial-gradient(ellipse 52% 60% at 50% 48%, var(--sky) 0%, transparent 70%), var(--card); box-shadow: var(--shadow); }
+.stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.desk { position: absolute; border-radius: 24px; border: 1.5px dashed var(--edge); background: color-mix(in srgb, var(--sky) 45%, transparent); }
+.desk .cap { position: absolute; left: 18px; top: 13px; right: 10px; color: var(--muted); font-size: 10.5px; }
+.room.compact .desk .cap { left: 10px; font-size: 9.5px; letter-spacing: .05em; }
 .room svg.layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .table { position: absolute; border-radius: 50%; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
   display: grid; place-items: center; text-align: center; padding: 8%; transform: translate(-50%, -50%); }
@@ -176,8 +180,8 @@ body {
 .df a { color: var(--blue); font-weight: 600; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 760px) {
-  .bar { padding: 12px 14px; flex-wrap: wrap; } .room { margin: 0 12px 16px; border-radius: 22px; }
-  .wordmark { width: 96px; } .live .t { display: none; }
+  .bar { padding: 8px 12px; } .room { margin: 0 10px 10px; border-radius: 20px; }
+  .wordmark { width: 84px; } .live .t { display: none; } .pill { padding: 0 11px; }
 }
 </style>
 </head>
@@ -194,6 +198,7 @@ body {
       <button data-s="normal" role="menuitem">A normal run<small>Read, match, write, check, send</small></button>
       <button data-s="blocked" role="menuitem">A blocked page<small>The Scout finds another way in</small></button>
       <button data-s="paste" role="menuitem">Nothing works<small>The Scout asks you to paste the text</small></button>
+      <button data-s="scan" role="menuitem">The morning scan<small>New jobs found and matched overnight</small></button>
     </div>
   </div>
   <button class="pill iconbtn" id="themeBtn" aria-label="Switch light or dark">
@@ -202,10 +207,13 @@ body {
 </header>
 
 <main class="room" id="room" aria-label="Agents at work">
-  <svg class="layer" id="layer"></svg>
-  <div class="table" id="table"></div>
-  <div id="actors"></div>
-  <div class="callout" id="callout" role="status" aria-live="polite"><div class="who label"></div><div class="say"></div></div>
+  <div class="stage" id="stage">
+    <div class="desk" id="desk"><div class="cap label">While you sleep</div></div>
+    <svg class="layer" id="layer"></svg>
+    <div class="table" id="table"></div>
+    <div id="actors"></div>
+    <div class="callout" id="callout" role="status" aria-live="polite"><div class="who label"></div><div class="say"></div></div>
+  </div>
 </main>
 
 <div class="scrim" id="scrim"></div>
@@ -231,7 +239,7 @@ const params = new URLSearchParams(location.search);
 const REPLAY = params.get("replay"), SPEED = parseFloat(params.get("speed") || "1");
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ------------------------------------------------------------ the seven seats around the table */
+/* ------------------------------------------------------------ the seats: seven around the table, two at the night desk */
 const ICONS = {
   you: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
   scout: '<circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.4" y2="16.4"/>',
@@ -239,6 +247,8 @@ const ICONS = {
   archivist: '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1.5" y="3" width="21" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/>',
   scribe: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   critic: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>',
+  discoverer: '<circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8"/>',
+  matcher: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   publisher: '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
 };
 const ACTORS = [
@@ -249,14 +259,18 @@ const ACTORS = [
   { id: "scribe", name: "Scribe", role: "Writes the resume" },
   { id: "critic", name: "Critic", role: "Checks every line" },
   { id: "publisher", name: "Publisher", role: "Builds and files the PDF" },
+  { id: "discoverer", name: "Discoverer", role: "Finds new jobs for you" },
+  { id: "matcher", name: "Matcher", role: "Picks the best fits" },
 ];
-const N = ACTORS.length, IDX = Object.fromEntries(ACTORS.map((a, i) => [a.id, i])), NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
-const room = $("#room"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
+const RING = ["you", "scout", "analyst", "archivist", "scribe", "critic", "publisher"], DESK = ["discoverer", "matcher"], PIPE = RING.slice(1);
+const N = RING.length, IDX = Object.fromEntries(RING.map((id, i) => [id, i])), NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
+const room = $("#room"), stage = $("#stage"), deskEl = $("#desk"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
 
 /* ------------------------------------------------------------ what the page knows about the current run */
 let S, animate = true;
 function fresh(runId = null, ts = 0) {
   return { run: runId, t0: ts, url: "", actors: Object.fromEntries(ACTORS.map(a => [a.id, { state: "idle" }])), edges: {}, hot: null,
+    scan: null, jobs: { i: 0, n: 0, done: 0, failed: 0 }, found: 0, kept: 0, top: null,
     log: [], ok: 0, bad: 0, job: {}, stack: 0, reqs: 0, facts: 0, covered: 0, missing: 0, scores: [], blocked: 0, lastUnsupported: 0, say: null, final: null, failed: null };
 }
 S = fresh();
@@ -264,18 +278,19 @@ S = fresh();
 /* ------------------------------------------------------------ layout */
 const L = { W: 0, H: 0, cx: 0, cy: 0, cw: 0, ch: 0, D: 0, compact: false, pos: {} };
 function layout() {
-  const W = room.clientWidth, compact = W < 760;
-  const H = compact ? 790 : Math.max(700, Math.min(790, Math.round(W * 0.57)));
-  room.style.height = H + "px"; room.classList.toggle("compact", compact);
-  const cw = compact ? 72 : 188, ch = compact ? 76 : 74, cy = Math.round(H * (compact ? 0.5 : 0.485));
-  const ry = compact ? Math.min(cy - ch / 2 - 70, (H - cy - ch / 2 - 130) / 0.9) : Math.max(150, Math.min(cy - ch / 2 - 96, (H - cy - ch / 2 - 96) / 0.9));
-  const rx = compact ? W / 2 - cw / 2 - 6 : Math.min(W / 2 - cw / 2 - 30, ry * 1.85);
-  Object.assign(L, { W, H, cx: W / 2, cy, cw, ch, compact, D: compact ? 2 * (rx - cw / 2 - 12) : 2 * Math.min(ry - ch / 2 - 30, rx * .46) });
-  ACTORS.forEach((a, i) => {
-    const ang = (-90 + i * 360 / N) * Math.PI / 180;
-    const x = L.cx + rx * Math.cos(ang), y = cy + ry * Math.sin(ang);
-    L.pos[a.id] = { x, y, w: cw, h: ch, rect: { x: x - cw / 2, y: y - ch / 2, w: cw, h: ch } };
-  });
+  // The scene is drawn at one fixed size and scaled to fit the window, so nothing ever scrolls.
+  const RW = room.clientWidth, RH = room.clientHeight, compact = RW < 760;
+  const W = compact ? 400 : 1120, H = compact ? 800 : 690, k = Math.max(0.2, Math.min(RW / W, RH / H, 1.6));
+  stage.style.width = W + "px"; stage.style.height = H + "px";
+  stage.style.transform = `translate(${((RW - W * k) / 2).toFixed(1)}px, ${((RH - H * k) / 2).toFixed(1)}px) scale(${k.toFixed(4)})`;
+  room.classList.toggle("compact", compact);
+  const cw = compact ? 72 : 168, ch = compact ? 76 : 62;
+  const cx = compact ? 200 : 700, cy = compact ? 470 : 340, rx = compact ? 150 : 330, ry = compact ? 190 : 235;
+  Object.assign(L, { W, H, cx, cy, cw, ch, compact, D: compact ? 2 * (rx - cw / 2 - 12) : 270 });
+  const put = (id, x, y) => { L.pos[id] = { x, y, w: cw, h: ch, rect: { x: x - cw / 2, y: y - ch / 2, w: cw, h: ch } }; };
+  RING.forEach((id, i) => { const ang = (-90 - i * 360 / N) * Math.PI / 180; put(id, cx + rx * Math.cos(ang), cy + ry * Math.sin(ang)); });   // clockwise's mirror image: the flow runs counter-clockwise
+  if (compact) { put("discoverer", 72, 92); put("matcher", 72, 206); Object.assign(deskEl.style, { left: "6px", top: "16px", width: "132px", height: "266px" }); }
+  else { put("discoverer", 140, 125); put("matcher", 140, 300); Object.assign(deskEl.style, { left: "20px", top: "52px", width: "240px", height: "380px" }); }
   layer.setAttribute("viewBox", `0 0 ${W} ${H}`);
   place();
 }
@@ -290,7 +305,7 @@ function buildActors() {
   });
 }
 function place() {
-  ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.minWidth = L.compact ? "" : (L.cw - 8) + "px"; });
+  ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.minWidth = L.compact ? "" : (L.cw - 8) + "px"; });
   Object.assign(tableEl.style, { left: L.cx + "px", top: L.cy + "px", width: L.D + "px", height: L.D + "px" });
   drawBase(); drawEdges(); placeCallout();
 }
@@ -302,17 +317,20 @@ const inside = (p, r, pad) => p.x > r.x - pad && p.x < r.x + r.w + pad && p.y > 
 function edgeGeom(a, b) {
   const A = L.pos[a], B = L.pos[b], p0 = { x: A.x, y: A.y }, p2 = { x: B.x, y: B.y };
   const dx = p2.x - p0.x, dy = p2.y - p0.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
-  const fwd = (IDX[b] - IDX[a] + N) % N === 1, back = (IDX[a] - IDX[b] + N) % N === 1;
+  const onRing = IDX[a] !== undefined && IDX[b] !== undefined;
+  const fwd = onRing && (IDX[b] - IDX[a] + N) % N === 1, back = onRing && (IDX[a] - IDX[b] + N) % N === 1;
   const mid = { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 };
   let sign;
-  if (fwd || back) {   // neighbours on the ring: forward arrows bulge outward, return arrows curve inward
+  if (!onRing) {       // the night desk: a gentle bow toward the table
+    sign = -1;
+  } else if (fwd || back) {   // neighbours on the ring: forward arrows bulge outward, return arrows curve inward
     const out = { x: mid.x - L.cx, y: mid.y - L.cy }, side = Math.sign(nx * out.x + ny * out.y) || 1;
     sign = fwd ? side : -side;
   } else {             // across the table (you <-> the Archivist): arc around the outside; the answer nests inside the question
     const out = { x: mid.x - L.cx, y: mid.y - L.cy };
     sign = Math.sign(nx * out.x + ny * out.y) || 1;
   }
-  const bulge = (fwd || back ? 0.2 : IDX[a] < IDX[b] ? 0.55 : 0.4) * len;
+  const bulge = (!onRing ? 0.1 : fwd || back ? 0.2 : IDX[a] < IDX[b] ? 0.55 : 0.4) * len;
   const c = { x: mid.x + nx * bulge * sign, y: mid.y + ny * bulge * sign };
   let t0 = 0, t1 = 1;
   for (let i = 0; i <= 120; i++) { if (!inside(quad(p0, c, p2, i / 120), A.rect, 5)) { t0 = i / 120; break; } }
@@ -341,8 +359,9 @@ function drawBase() {
 }
 function setProgress() {
   const p = $("#prog"); if (!p) return;
-  const done = ACTORS.filter(a => S.actors[a.id].state === "done").length, circ = 2 * Math.PI * (L.D / 2 + 9);
-  p.setAttribute("stroke-dashoffset", circ * (1 - (S.final ? 1 : done / N)));
+  const circ = 2 * Math.PI * (L.D / 2 + 9);
+  const frac = S.final ? 1 : S.scan ? (S.jobs.n ? (S.jobs.done + S.jobs.failed) / S.jobs.n : 0) : PIPE.filter(id => S.actors[id].state === "done").length / PIPE.length;
+  p.setAttribute("stroke-dashoffset", circ * (1 - frac));
 }
 function drawEdges() {
   const g = $("#edges"); if (!g) return; g.innerHTML = "";
@@ -401,7 +420,7 @@ function placeCallout() {
   const pad = 10;
   c.style.width = L.compact ? (L.W - 2 * pad) + "px" : "";
   const w = c.offsetWidth || 244, h = c.offsetHeight || 70;
-  const side = L.compact ? "dock" : S.say.id === "you" ? "left" : p.y < L.cy - 4 ? "above" : "below";   // the top seat has no room above it; phones dock it at the bottom
+  const side = L.compact ? "dock" : S.say.id === "you" ? "left" : DESK.includes(S.say.id) ? "below" : p.y < L.cy - 4 ? "above" : "below";   // the top seat has no room above it; phones dock it at the bottom
   let left, top;
   if (side === "dock") { left = pad; top = L.H - h - 14; }
   else if (side === "left") { left = Math.max(pad, p.x - p.w / 2 - 16 - w); top = Math.max(pad, p.y - h / 2); c.style.setProperty("--ttop", (p.y - top) + "px"); }
@@ -419,6 +438,23 @@ function renderTable() {
     add("h2", "", "Opportunity, connected."); add("p", "sub", L.compact ? "Send a job link on Telegram." : "Send a job link to your Telegram bot and watch the team work.");
     return;
   }
+  if (S.scan && !S.failed) {
+    const chips = html("div", "chips"), j = S.jobs;
+    if (S.final) {
+      add("div", "lbl label", "Morning scan done"); add("div", "role", `${S.final.tailored || 0} resume${S.final.tailored === 1 ? "" : "s"} ready`);
+      add("div", "company", S.final.note ? S.final.note.slice(0, 90) : "Sent to your Telegram"); inner.appendChild(chips);
+      chips.appendChild(html("span", "chip", `${S.final.found || 0} new jobs`)); if (S.final.shortlisted) chips.appendChild(html("span", "chip", `${S.final.shortlisted} fit`));
+      if (S.final.failed) chips.appendChild(html("span", "chip coral", `${S.final.failed} failed`));
+    } else if (S.job.role) {
+      add("div", "lbl label", `Resume ${j.i} of ${j.n}`); add("div", "role", S.job.role); if (S.job.company) add("div", "company", S.job.company);
+      add("div", "step", `${PIPE.filter(id => S.actors[id].state === "done").length} of ${PIPE.length} steps done`);
+    } else {
+      add("div", "lbl label", "Morning scan");
+      add("div", "role", S.actors.matcher.state === "done" ? S.kept + " of " + S.found + " fit you" : S.actors.matcher.state === "working" ? "Scoring the new jobs" : S.actors.discoverer.state === "done" ? "Found " + S.found + " new jobs" : "Looking for new jobs");
+      if (S.top != null) add("div", "company", `Best fit so far ${pctText(S.top * 100)}`);
+    }
+    return;
+  }
   if (S.failed) { add("div", "lbl label", "This run hit a problem"); add("div", "role", "Couldn't finish"); add("div", "company", S.failed.slice(0, 90)); return; }
   if (S.final) {
     add("div", "lbl label", "Resume ready"); add("div", "role", S.job.role || "Your resume"); if (S.job.company) add("div", "company", S.job.company);
@@ -431,8 +467,8 @@ function renderTable() {
   }
   add("div", "lbl label", "Now tailoring");
   if (S.job.role) { add("div", "role", S.job.role); if (S.job.company) add("div", "company", S.job.company); } else add("div", "role", "A new job posting");
-  const n = ACTORS.filter(a => S.actors[a.id].state === "done").length;
-  add("div", "step", `${n} of ${N} seats done`);
+  const n = PIPE.filter(id => S.actors[id].state === "done").length;
+  add("div", "step", `${n} of ${PIPE.length} steps done`);
 }
 
 /* ------------------------------------------------------------ the log */
@@ -466,6 +502,7 @@ function renderLog() {
 function handoffLabel(ev) {
   const a = ev.agent, t = ev.to, d = ev.data || {}, last = S.scores[S.scores.length - 1];
   if (a === "scout") return "Job posting text";
+  if (a === "discoverer" || (a === "matcher" && t === "scout")) return ev.message;
   if (a === "analyst") return `${S.stack} tools, ${S.reqs} skills wanted`;
   if (a === "archivist") return `${S.facts} matching experiences`;
   if (a === "scribe") return `Draft ${d.iteration || ""} to check`.trim();
@@ -477,6 +514,13 @@ function handoffLabel(ev) {
 /* ------------------------------------------------------------ events -> scene */
 function runEvent(ev) {
   const d = ev.data || {};
+  if (d.state === "started" && d.mode === "scan") {
+    S = fresh(ev.run_id, ev.ts); S.scan = { trigger: d.trigger || "" }; callout.classList.remove("show");
+    ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
+    addLog(ev, "ok", "Morning scan", d.trigger === "manual" ? "You asked for a scan" : "The morning scan started");
+    say("discoverer", "Good morning. I'm checking your job sources.", "");
+    return;
+  }
   if (d.state === "started") {
     S = fresh(ev.run_id, ev.ts); S.url = d.url || ""; callout.classList.remove("show");
     ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
@@ -486,6 +530,29 @@ function runEvent(ev) {
     return;
   }
   if (ev.run_id !== S.run) return;
+  if (d.state === "job_started") {
+    const keep = Object.fromEntries(Object.entries(S.edges).filter(([k]) => /discoverer|matcher/.test(k)));
+    S.edges = keep; S.hot = null; S.job = { company: d.company || "", role: d.role || "" }; S.jobs.i = d.index; S.jobs.n = d.total;
+    S.scores = []; S.blocked = 0; S.covered = S.missing = S.facts = S.stack = S.reqs = 0; S.say = null;
+    PIPE.forEach(id => setState(id, "idle")); drawEdges(); renderTable();
+    addLog(ev, "info", "Matcher", `Writing resume ${d.index} of ${d.total}: ${d.role} at ${d.company}${d.fit != null ? " (" + pctText(d.fit * 100) + " fit)" : ""}`);
+    if (d.index > 1) sendPacket("matcher", "scout", `Job ${d.index} of ${d.total}`);
+    return;
+  }
+  if (d.state === "job_finished") {
+    S.jobs.done++; addLog(ev, "ok", "Run", `Resume ready: ${d.role || "role"} at ${d.company || "company"}${d.score != null ? " · " + pctText(d.score) + " match" : ""}`);
+    setState("you", "done"); sendPacket("publisher", "you", "Resume PDF"); say("you", `Resume ${S.jobs.i} of ${S.jobs.n} is in your chat.`, ""); renderTable(); setProgress();
+    return;
+  }
+  if (d.state === "job_failed") {
+    S.jobs.failed++; addLog(ev, "bad", "Run", "One match couldn't be tailored", d.error || ""); say("you", "I couldn't finish one of the resumes. Details are in your chat.", "coral"); renderTable(); setProgress();
+    return;
+  }
+  if (d.state === "finished" && d.scan) {
+    S.final = d; addLog(ev, "ok", "Morning scan", `Done: ${d.found || 0} new jobs, ${d.shortlisted || 0} fit, ${d.tailored || 0} resumes written`, d.note || "");
+    setState("you", "done"); say("you", d.note ? d.note : "Your morning summary is in your chat.", ""); renderTable(); setProgress();
+    return;
+  }
   if (d.state === "finished") {
     S.final = d; S.job.company = d.company || S.job.company; S.job.role = d.role || S.job.role;
     addLog(ev, "ok", "Run", `Resume ready${d.score != null ? " · " + pctText(d.score) + " match" : ""}`);
@@ -513,6 +580,8 @@ function apply(ev) {
   if (a === "analyst" && k === "progress" && d.company) { S.job.company = d.company; S.job.role = d.role; }
   if (a === "analyst" && k === "done") { S.job.company = d.company || S.job.company; S.job.role = d.role || S.job.role; S.stack = (d.core_tech_stack || []).length; S.reqs = (d.hard_requirements || []).length; }
   if (a === "archivist" && k === "done") { S.facts = (d.facts || []).length; S.covered = (d.covered || []).length; S.missing = (d.missing || []).length; }
+  if (a === "discoverer" && k === "done") S.found = d.found || 0;
+  if (a === "matcher" && k === "done") { S.kept = d.kept || 0; S.top = d.top; }
   if (a === "critic" && k === "done") { S.scores.push(d.score); S.lastUnsupported = (d.unsupported || []).length; S.blocked += S.lastUnsupported; }
 
   let status = "info", why = "";
@@ -527,6 +596,16 @@ function apply(ev) {
     addLog(ev, "info", NAME[a], text);
     addLog(ev, "info", "Telegram", "Waiting for your answer");
     return;
+  }
+
+  // discoverer: one line per source; matcher: one line per pick
+  if (a === "discoverer" && k === "progress" && d.status) {
+    if (d.status === "trying") status = "info"; else if (d.status === "ok") status = "ok"; else { status = "bad"; why = d.reason ? "Reason: " + d.reason : ""; }
+  }
+  if (a === "matcher" && k === "done") {
+    addLog(ev, "ok", NAME[a], text);
+    (d.picks || []).forEach(pk => addLog(ev, "info", NAME[a], `${pk.role} at ${pk.company} · ${pctText(pk.fit * 100)} fit. ${pk.why}`));
+    setState(a, "done"); say(a, text, ""); renderTable(); return;
   }
 
   // scout attempts

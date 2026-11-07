@@ -79,14 +79,8 @@ FAIL_REASONS = {
 }
 
 
-def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0) -> str:
-    """scenario: normal | blocked (page blocked, another route works) | paste (every route fails, user pastes the text)."""
-    def wait(sec: float) -> None:
-        time.sleep(sec / max(speed, 0.1))
-
-    rid = ev.start_run(url=url)
-    wait(0.5)
-
+def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
+    """One resume through the six agents. ask=False is how a morning scan works: it never stops to question you."""
     ev.emit("publisher", ev.PROGRESS, "New URL, not in tracker yet", duplicate=False)
     ev.emit("scout", ev.START, "Opening the job page", url=url)
     total = len(ROUTES)
@@ -127,23 +121,30 @@ def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0)
 
     ev.emit("archivist", ev.START, "Searching 31 verified facts")
     wait(1.6)
-    ev.emit("archivist", ev.ASK, "Asking you about Kubernetes", skills=["Kubernetes"])
-    wait(3.2)                                  # ...you read the question on Telegram and tap Yes
-    ev.emit("archivist", ev.PROGRESS, "Said yes", skill="Kubernetes", answer="yes")
-    wait(3.0)                                  # ...pick where you used it, type one sentence
-    ev.emit("archivist", ev.PROGRESS, "Saved", skill="Kubernetes", saved=True,
-            where="Software Engineer Intern at Acme", text=NEW_FACT[2])
-    wait(1.6)
+    if ask:
+        ev.emit("archivist", ev.ASK, "Asking you about Kubernetes", skills=["Kubernetes"], index=0, total=2)
+        wait(3.2)                                  # ...you read the question on Telegram and tap Yes
+        ev.emit("archivist", ev.PROGRESS, "Said yes", skill="Kubernetes", answer="yes")
+        wait(3.0)                                  # ...pick where you used it, type one sentence
+        ev.emit("archivist", ev.PROGRESS, "Saved", skill="Kubernetes", saved=True,
+                where="Software Engineer Intern at Acme", text=NEW_FACT[2])
+        wait(1.6)
+        ev.emit("archivist", ev.ASK, "Asking you about Terraform", skills=["Terraform"], index=1, total=2)
+        wait(2.6)                                  # ...a second question: you tap No
+        ev.emit("archivist", ev.PROGRESS, "Said no", skill="Terraform", answer="no")
+        wait(1.2)
     covered = ["Python", "FastAPI", "PostgreSQL", "Docker", "REST APIs", "Python backend frameworks",
                "Relational databases", "Docker containerization", "Git workflows",
                "Data structures and algorithms", "CI/CD pipelines", "Kubernetes"]
-    all_facts = [NEW_FACT] + FACTS
+    if not ask:
+        covered = [c for c in covered if c != "Kubernetes"]
+    all_facts = ([NEW_FACT] if ask else []) + FACTS
     ev.emit("archivist", ev.DONE,
-            f"Selected {len(all_facts)} of 32 facts (1 new from you); {len(covered)} requirements covered, 0 not found",
+            f"Selected {len(all_facts)} of 32 facts {'(1 new from you); ' if ask else ''}{len(covered)} requirements covered, {0 if ask else 1} not found",
             total_facts=32,
-            facts=[{"id": i, "entry_id": e, "text": t, "tags": g, "score": sc, "new": i == NEW_FACT[0]}
+            facts=[{"id": i, "entry_id": e, "text": t, "tags": g, "score": sc, "new": ask and i == NEW_FACT[0]}
                    for i, e, t, g, sc in all_facts],
-            covered=covered, missing=[])
+            covered=covered, missing=[] if ask else ["Kubernetes"])
     ev.emit("archivist", ev.HANDOFF, "Ranked facts to tailor from", to="scribe")
     wait(1.0)
 
@@ -184,6 +185,56 @@ def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0)
     wait(0.8)
     ev.emit("publisher", ev.DONE, "Resume filed and tracker updated", sheet_row=14,
             drive_link="https://drive.google.com/", pdf="")
+
+
+def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0) -> str:
+    """scenario: normal | blocked (page blocked, another route works) | paste (every route fails, user pastes the text) | scan."""
+    def wait(sec: float) -> None:
+        time.sleep(sec / max(speed, 0.1))
+
+    if scenario == "scan":
+        return _scan(wait)
+    rid = ev.start_run(url=url)
+    wait(0.5)
+    _tailor(wait, url, scenario, ask=True)
     ev.emit_run("finished", score=88.0, status="Excellent", pdf="", drive_link="https://drive.google.com/",
                 company="Stripe", role="Software Engineering Intern")
+    return rid
+
+
+PICKS = [
+    ("Software Engineering Intern", "Stripe", 0.82, "Matches Python, FastAPI, PostgreSQL, Docker. Missing: Kubernetes."),
+    ("Backend Developer Intern", "Globex", 0.71, "Matches Python, REST APIs, Git. Missing: Kafka."),
+]
+
+
+def _scan(wait) -> str:
+    """The overnight scan: sources checked, jobs matched, two resumes written without any questions."""
+    rid = ev.start_run(url="", mode="scan", trigger="schedule")
+    wait(0.8)
+    ev.emit("discoverer", ev.START, "Checking your 4 job sources", sources=4)
+    for label, ok, n in [("Stripe", True, 12), ("Globex", True, 9), ("Initech", True, 2), ("Hooli", False, 0)]:
+        ev.emit("discoverer", ev.PROGRESS, f"Checking {label}", status="trying", label=label); wait(1.0)
+        if ok:
+            ev.emit("discoverer", ev.PROGRESS, f"{label}: {n} jobs", status="ok", label=label, found=n)
+        else:
+            ev.emit("discoverer", ev.PROGRESS, f"{label} didn't answer", status="failed", label=label, reason="the site blocked us (HTTP 403)")
+        wait(0.4)
+    ev.emit("discoverer", ev.DONE, "Found 23 new jobs", found=23, sources=4)
+    ev.emit("discoverer", ev.HANDOFF, "23 new jobs", to="matcher")
+    wait(1.2)
+    ev.emit("matcher", ev.START, "Scoring 23 jobs", total=23); wait(1.4)
+    ev.emit("matcher", ev.PROGRESS, "Reading the best in detail", reading=6); wait(2.0)
+    ev.emit("matcher", ev.DONE, "Kept 2 of 23", kept=2, total=23, top=0.82,
+            picks=[{"role": r, "company": c, "fit": f, "why": w} for r, c, f, w in PICKS])
+    ev.emit("matcher", ev.HANDOFF, "2 shortlisted", to="scout")
+    wait(1.0)
+    for i, (role, company, fit, _) in enumerate(PICKS, start=1):
+        ev.emit_run("job_started", url=URL + f"-{i}", index=i, total=len(PICKS), company=company, role=role, fit=fit)
+        wait(0.6)
+        _tailor(wait, URL + f"-{i}", "normal", ask=False)
+        ev.emit_run("job_finished", score=88.0 - 6 * i, status="Excellent", pdf="", drive_link="https://drive.google.com/",
+                    company=company, role=role)
+        wait(1.0)
+    ev.emit_run("finished", scan=True, found=23, shortlisted=2, tailored=2, failed=0, note="")
     return rid
