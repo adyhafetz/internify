@@ -128,7 +128,7 @@ body {
 .room.compact .table { padding: 6%; } .room.compact .table .role { font-size: 15px; } .room.compact .table .company { font-size: 12.5px; }
 .room.compact .table h2 { font-size: 14px; } .room.compact .table .sub, .room.compact .table .step { font-size: 11.5px; } .room.compact .table .mark { width: 42px; height: 42px; }
 
-.callout { position: absolute; z-index: 6; width: 380px; padding: 11px 14px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+.callout { position: absolute; z-index: 6; width: 460px; padding: 11px 14px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
   box-shadow: var(--shadow); opacity: 0; transform: translateY(4px); transition: opacity .25s, transform .25s; pointer-events: none; }
 .callout.show { opacity: 1; transform: none; }
 .callout .who { color: var(--blue); margin-bottom: 3px; }
@@ -285,16 +285,16 @@ const SIDE = { you: "below", discoverer: "above", matcher: "above", scout: "belo
 function layout() {
   // The scene is drawn at one fixed size and scaled to fit the window, so nothing ever scrolls.
   const RW = room.clientWidth, RH = room.clientHeight, compact = RW < 760;
-  const W = compact ? 400 : 1100, H = compact ? 840 : 660, k = Math.max(0.2, Math.min(RW / W, RH / H, 1.6));
+  const W = compact ? 400 : 1100, H = compact ? 840 : 650, k = Math.max(0.2, Math.min(RW / W, RH / H, 1.6));
   stage.style.width = W + "px"; stage.style.height = H + "px";
   stage.style.transform = `translate(${((RW - W * k) / 2).toFixed(1)}px, ${((RH - H * k) / 2).toFixed(1)}px) scale(${k.toFixed(4)})`;
   room.classList.toggle("compact", compact);
   const cw = compact ? 72 : 150, ch = compact ? 76 : 58;
-  const cx = W / 2, cy = compact ? 415 : 322, rx = compact ? 150 : 400, ry = compact ? 300 : 228;
+  const cx = W / 2, cy = compact ? 415 : 290, rx = compact ? 150 : 400, ry = compact ? 300 : 224;
   Object.assign(L, { W, H, cx, cy, cw, ch, compact, pos: {}, side: SIDE });
   const at = deg => ({ x: cx + rx * Math.cos(deg * Math.PI / 180), y: cy + ry * Math.sin(deg * Math.PI / 180) });
   RING.forEach((id, i) => { const q = at(-90 + i * 360 / N); L.pos[id] = { x: q.x, y: q.y, w: cw, h: ch, rect: { x: q.x - cw / 2, y: q.y - ch / 2, w: cw, h: ch } }; });
-  L.table = compact ? { x: cx, y: cy, w: 176, h: 140 } : { x: cx, y: cy, w: 280, h: 150 };
+  L.table = compact ? { x: cx, y: cy, w: 186, h: 168 } : { x: cx, y: cy, w: 280, h: 150 };
   layer.setAttribute("viewBox", `0 0 ${W} ${H}`);
   place();
 }
@@ -336,8 +336,11 @@ function edgeGeom(a, b) {
     const away = s => Math.hypot(mid.x + cnx * s * 40 - L.cx, mid.y + cny * s * 40 - L.cy);
     sign = (away(1) >= away(-1) ? 1 : -1) * (a < b ? 1 : -1);
     const T = L.table, hits = c => { for (let i = 1; i < 40; i++) { const q = quad(p0, c, p2, i / 40); if (Math.abs(q.x - T.x) < T.w / 2 + 16 && Math.abs(q.y - T.y) < T.h / 2 + 16) return true; } return false; };
-    bulge = (a < b ? 0.3 : 0.18) * len;   // the answer nests inside the question; both are pushed out until they clear the card in the middle
-    for (let f = bulge; f <= 0.75 * len; f += 0.04 * len) { bulge = f; if (!hits({ x: mid.x + nx * f * sign, y: mid.y + ny * f * sign })) break; }
+    // The inner arrow is pushed out until it clears the card in the middle; the other one runs a clear gap outside it,
+    // so a question and its answer are always two separate lines.
+    let inner = 0.16 * len;
+    for (let f = inner; f <= 0.6 * len; f += 0.04 * len) { inner = f; if (!hits({ x: mid.x + nx * f * sign, y: mid.y + ny * f * sign })) break; }
+    bulge = a < b ? inner + Math.max(0.12 * len, 44) : inner;
   }
   const c = { x: mid.x + nx * bulge * sign, y: mid.y + ny * bulge * sign };
   let t0 = 0, t1 = 1;
@@ -419,7 +422,7 @@ function placeCallout() {
   c.querySelector(".who").textContent = S.say.id === "you" ? "Telegram · you" : NAME[S.say.id];
   c.querySelector(".say").textContent = S.say.text;
   c.classList.toggle("coral", S.say.tone === "coral");
-  const pad = 10, w = L.compact ? L.W - 2 * pad : 380;
+  const pad = 10, w = L.compact ? L.W - 2 * pad : 460;
   c.style.width = w + "px";
   const h = c.offsetHeight || 70;
   c.style.left = Math.round((L.W - w) / 2) + "px"; c.style.top = (L.H - h - 10) + "px";
