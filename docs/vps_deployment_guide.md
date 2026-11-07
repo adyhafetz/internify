@@ -100,3 +100,18 @@ INFO - Application started.
 
 Your Internify bot is now running live 24/7! Open your Telegram app and send `/start`.
 
+
+---
+
+## 5. Website and live dashboard on your own domain (optional)
+
+The bot also serves a small website: a home page, privacy policy and terms (public) and a live agent dashboard at
+`/live` (private, needs `DASHBOARD_KEY`). Put it on your domain through a Cloudflare Tunnel, which needs no open ports:
+
+1. Close everything except SSH: `sudo ufw allow OpenSSH && sudo ufw --force enable`
+2. Set `DASHBOARD_KEY` (and `TELEGRAM_ALLOWED_USER_IDS`) in `.env`.
+3. Follow [`domain_setup.md`](domain_setup.md) to create the tunnel, then:
+   `docker compose --profile tunnel up -d --build`
+
+**Before pulling updates on a server where you already use the bot:** the bot edits `service/fact_store/*.json`.
+Back them up (`cp -r service/fact_store ~/fact_store_backup`), run `git stash`, pull, then copy your files back.
