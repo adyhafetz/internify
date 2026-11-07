@@ -75,7 +75,7 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
         except Exception as err:   # nothing in a scan may take the bot down
             logger.exception("Scan failed")
             events.emit_run("failed", error=f"The scan stopped: {err}")
-            await bot.send_message(chat_id, f"⚠️ The morning scan stopped.\nReason: {err}")
+            await bot.send_message(chat_id, f"⚠️ The daily job check stopped.\nReason: {err}")
             return summary
         events.emit_run("finished", scan=True, found=summary.found, shortlisted=summary.kept, tailored=summary.tailored,
                         failed=summary.failed, note=summary.note)
@@ -87,10 +87,10 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
 
 def _digest(s: ScanSummary) -> str:
     if s.note:
-        return f"☀️ <b>Morning scan</b>\n{s.note}"
-    lines = ["☀️ <b>Morning scan done</b>",
-             f"• Looked at {s.sources} source{'s' if s.sources != 1 else ''} and found {s.found} new job{'s' if s.found != 1 else ''}",
-             f"• {s.kept} fit well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
+        return f"☀️ <b>Daily job check</b>\n{s.note}"
+    lines = ["☀️ <b>Daily job check done</b>",
+             f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''} and found {s.found} new job{'s' if s.found != 1 else ''}",
+             f"• {s.kept} matched well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
     if s.failed:
         lines.append(f"• {s.failed} couldn't be tailored (see the messages above)")
     return "\n".join(lines)
@@ -101,18 +101,18 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     sources = watchlist.list_sources()
     s.sources = len(sources)
     if not sources:
-        events.emit("discoverer", events.FAIL, "No sources yet", why="No job sources yet. Add one in /profile.")
-        s.note = ("I have nowhere to look yet. Open /profile, tap Job watchlist, and add a career page or a job-board link. "
+        events.emit("discoverer", events.FAIL, "No job pages yet", why="No job pages yet. Add one in /profile.")
+        s.note = ("I have nowhere to look yet. Open /profile, tap Job pages I check, and add a career page or a job-board link. "
                   "Job boards on Greenhouse or Lever work best.")
         return
 
     # 1. Discoverer: find links
-    events.emit("discoverer", events.START, f"Checking {len(sources)} sources", sources=len(sources))
+    events.emit("discoverer", events.START, f"Checking {len(sources)} job pages", sources=len(sources))
     candidates, results = await discover(sources)
     answered = [r for r in results if r.ok]
     if not answered:
-        events.emit("discoverer", events.FAIL, "No source answered", why="None of your sources answered")
-        s.note = "None of your job sources answered today. I'll try again tomorrow."
+        events.emit("discoverer", events.FAIL, "No job page answered", why="None of your job pages answered")
+        s.note = "None of your job pages answered today. I'll try again tomorrow."
         return
     fresh = []
     for c in candidates:
@@ -125,7 +125,7 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     s.found = len(fresh)
     events.emit("discoverer", events.DONE, f"Found {len(fresh)} new jobs", found=len(fresh), sources=len(sources))
     if not fresh:
-        s.note = f"Checked {len(sources)} source{'s' if len(sources) != 1 else ''}: nothing new since last time."
+        s.note = f"Checked {len(sources)} job page{'s' if len(sources) != 1 else ''}: nothing new since last time."
         return
     events.emit("discoverer", events.HANDOFF, f"{len(fresh)} new jobs", to="matcher")
 
@@ -143,17 +143,17 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         if not watchlist.seen(c.url) and c.url not in kept_urls:
             watchlist.mark_seen(c.url, c.title, c.company, "low-fit")
     if not result.kept:
-        best = f" The best fit was {round(result.top * 100)}%." if result.top is not None else ""
-        s.note = f"Found {len(fresh)} new job{'s' if len(fresh) != 1 else ''}, but none fit well enough to tailor a resume.{best}"
+        best = f" The best match was {round(result.top * 100)}%." if result.top is not None else ""
+        s.note = f"Found {len(fresh)} new job{'s' if len(fresh) != 1 else ''}, but none matched well enough to write a resume for.{best}"
         return
-    events.emit("matcher", events.HANDOFF, f"{s.kept} shortlisted", to="orchestrator")
+    events.emit("matcher", events.HANDOFF, f"{s.kept} picked", to="scout")
 
     # 3. The shortlisted jobs go through the same agents as a link you send yourself, one after another
     for i, pick in enumerate(result.kept, start=1):
         watchlist.mark_seen(pick.cand.url, pick.role, pick.company, "shortlisted", pick.fit, pick.why)
         events.emit_run("job_started", url=pick.cand.url, index=i, total=s.kept, company=pick.company, role=pick.role, fit=round(pick.fit, 2))
-        intro = (f"🌅 <b>Morning match: {_h(pick.role)} at {_h(pick.company)}</b>\n\n"
-                 f"• Fit: <b>{round(pick.fit * 100)}%</b>. {_h(pick.why)}\n"
+        intro = (f"🌅 <b>Daily match: {_h(pick.role)} at {_h(pick.company)}</b>\n\n"
+                 f"• Match: <b>{round(pick.fit * 100)}%</b>. {_h(pick.why)}\n"
                  f"• <a href=\"{_h(pick.cand.url)}\">Open the job</a>\n")
         outcome = await tailor_job(pick.cand.url, ScanReporter(bot, chat_id), bot=bot, chat_id=chat_id, loop=loop,
                                    interactive=False, intro=intro)

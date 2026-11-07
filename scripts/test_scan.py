@@ -97,7 +97,7 @@ for s_ in watchlist.list_sources(): watchlist.remove_source(s_.id)
 b, s, _ = scan(); assert "nowhere to look" in b.sent[-1] and s.note
 # all sources fail
 watchlist.add_source("https://jobs.lever.co/ghost")
-b, s, _ = scan(); assert "None of your job sources answered" in b.sent[-1]
+b, s, _ = scan(); assert "None of your job pages answered" in b.sent[-1]
 # normal: one board, two jobs, one fits
 GH["jobs"] = [{"title": "Backend Intern", "absolute_url": "https://boards.greenhouse.io/acme-corp/jobs/1", "content": "x" * 500},
               {"title": "bad Chef", "absolute_url": "https://boards.greenhouse.io/acme-corp/jobs/bad", "content": "x" * 500}]

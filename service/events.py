@@ -24,8 +24,6 @@ AGENTS: dict[str, dict[str, str]] = {
     "scribe":    {"name": "Scribe",    "role": "Writes tailored bullets",        "emoji": "✍️"},
     "critic":    {"name": "Critic",    "role": "Checks claims and scores fit",   "emoji": "🛡️"},
     "publisher": {"name": "Publisher", "role": "Builds PDF, files it, logs it",  "emoji": "📎"},
-    # The coordinator: plans each job, sends work where it belongs, and decides when a draft goes back
-    "orchestrator": {"name": "Orchestrator", "role": "Directs the team", "emoji": "🧭"},
     # The morning scan: these two work before the six above, on a schedule
     "discoverer": {"name": "Discoverer", "role": "Finds new jobs for you",       "emoji": "🔎"},
     "matcher":    {"name": "Matcher",    "role": "Picks the best fits",          "emoji": "🎯"},
@@ -154,26 +152,21 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
                 return f"{_READ.get(d.get('method'), 'Read the posting from ' + str(d.get('label')))} ({chars} characters)"
             return f"Read the whole posting ({chars} characters)"
         if k == FAIL: return "Couldn't read this page by any route"
-    elif a == "orchestrator":
-        if k == START: return "Checking the tracker and planning the steps…"
-        if k == PROGRESS and d.get("sendback"):
-            return f"Draft {d.get('iteration')} scored {round(float(d.get('score', 0)))}%, the bar is {round(float(d.get('threshold', 0)))}%. Sending it back to the Scribe"
-        if k == DONE: return "All steps done. Sending you the resume"
     elif a == "discoverer":
-        if k == START: return f"Checking your {n('job source', int(d.get('sources', 0)))}…"
+        if k == START: return f"Checking your {n('job page', int(d.get('sources', 0)))}…"
         if k == PROGRESS and d.get("status") == "trying": return f"Checking {d.get('label', 'a source')}…"
         if k == PROGRESS and d.get("status") == "ok":
             return f"{d.get('label', 'A source')}: {n('new job', int(d.get('found', 0)))}"
         if k == PROGRESS and d.get("status") == "failed":
             return f"{d.get('label', 'A source')} didn't answer: {d.get('reason', 'unknown reason')}"
-        if k == DONE: return f"Found {n('new job', int(d.get('found', 0)))} across {n('source', int(d.get('sources', 0)))}"
+        if k == DONE: return f"Found {n('new job', int(d.get('found', 0)))} across {n('job page', int(d.get('sources', 0)))}"
         if k == FAIL: return d.get("why") or "Couldn't find any jobs"
     elif a == "matcher":
-        if k == START: return f"Scoring {n('new job', int(d.get('total', 0)))} against your experience…"
-        if k == PROGRESS and d.get("reading"): return f"Reading the {int(d['reading'])} best in detail…"
+        if k == START: return f"Comparing {n('new job', int(d.get('total', 0)))} with your experience…"
+        if k == PROGRESS and d.get("reading"): return f"Reading the {int(d['reading'])} most promising ones closely…"
         if k == DONE:
-            top = f" · best fit {round(float(d['top']) * 100)}%" if d.get("top") is not None else ""
-            return f"Kept {int(d.get('kept', 0))} of {int(d.get('total', 0))}{top}"
+            top = f" · best match {round(float(d['top']) * 100)}%" if d.get("top") is not None else ""
+            return f"Picked {int(d.get('kept', 0))} of {int(d.get('total', 0))}{top}"
         if k == FAIL: return d.get("why") or "Couldn't score the jobs"
     elif a == "analyst":
         if k == START: return "Working out exactly what the job wants…"

@@ -209,7 +209,7 @@ def command(args, text="/experience"):
 ctx = types.SimpleNamespace(user_data={})
 # C1 edit a bullet point: open list -> open job -> tap ✏️ 2 -> type the new text
 text, markup = tap(ctx, "xp:l")
-assert "Your profile" in text and [b.text for b in buttons(markup)][0] == "👤 Contact details" and [b.text for b in buttons(markup)][-3].startswith("🔧 Skills") and [b.text for b in buttons(markup)][-2].startswith("🔭 Job watchlist") and [b.text for b in buttons(markup)][-1] == "➕ Add something"
+assert "Your profile" in text and [b.text for b in buttons(markup)][0] == "👤 Contact details" and [b.text for b in buttons(markup)][-3].startswith("🔧 Skills") and [b.text for b in buttons(markup)][-2].startswith("🔭 Job pages I check") and [b.text for b in buttons(markup)][-1] == "➕ Add something"
 text, markup = tap(ctx, find(markup, "💼"))
 assert "1. Built REST APIs with FastAPI" in text and "2. Containerized with Docker" in text
 text, markup = tap(ctx, find(markup, "✏️ 2"))
