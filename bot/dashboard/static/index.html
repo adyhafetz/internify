@@ -97,7 +97,7 @@ body {
 
 /* panels */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .agents { grid-template-columns: repeat(3, 1fr); row-gap: 14px; } }
+@media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } .grid { grid-template-columns: 1fr; } .agents { grid-template-columns: repeat(3, 1fr); row-gap: 14px; } }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
 .panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--c); }
@@ -159,6 +159,84 @@ body {
 .final { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ok) 12%, var(--panel)); border: 1px solid var(--ok); font-weight: 600; }
 .final.show { display: block; animation: slide .4s ease both; }
 .final.err { background: color-mix(in srgb, var(--bad) 10%, var(--panel)); border-color: var(--bad); }
+
+/* ===== story view ===== */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: stretch; margin-bottom: 14px; }
+@media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.headline { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 18px; }
+.headline h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.3px; }
+.headline p { margin: 0 0 12px; color: var(--muted); }
+.stepper { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.stepper i { height: 6px; border-radius: 3px; background: var(--line); transition: background .3s; }
+.stepper i.on { background: var(--c); } .stepper i.now { background: var(--c); animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.stepn { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 172px); gap: 10px; }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tile { min-width: 0; padding: 10px 6px; } .tile .big { font-size: 24px; } }
+@media (max-width: 700px) { .fix { grid-template-columns: 1fr; } .fix span { display: none; } .urlbar { flex-basis: 100%; } }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 14px; text-align: center; min-width: 120px; display: flex; flex-direction: column; justify-content: center; }
+.tile .big { font-size: 30px; font-weight: 750; letter-spacing: -.5px; line-height: 1.1; }
+.tile .big small { font-size: 16px; font-weight: 600; color: var(--muted); }
+.tile .cap { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.tile .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile.good .big { color: var(--ok); } .tile.bad .big { color: var(--bad); } .tile.mid .big { color: var(--warn); }
+.focus { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px; margin-bottom: 14px; min-height: 300px; animation: fade .35s ease both; }
+@keyframes fade { from { opacity: .0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.fhead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.fav { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: color-mix(in srgb, var(--c) 18%, var(--panel)); border: 2px solid var(--c); flex: none; }
+.ftitle { font-size: 18px; font-weight: 700; letter-spacing: -.2px; }
+.fsub { color: var(--muted); font-size: 14px; }
+.fsub b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.bigchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.bigchips .chip { font-size: 14px; padding: 5px 14px; }
+.sect { font-size: 12.5px; font-weight: 650; color: var(--muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+.rolecard { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.skel { display: grid; gap: 8px; margin-top: 4px; }
+.skel i { height: 11px; border-radius: 6px; background: linear-gradient(90deg, var(--line), var(--bg), var(--line)); background-size: 200% 100%; animation: shimmer 1.3s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.fraw { max-height: 230px; }
+.match { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
+@media (max-width: 700px) { .match { gap: 36px; } }
+.match svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.mline { stroke: var(--c-archivist); stroke-opacity: .55; stroke-width: 1.8; fill: none; }
+.mcol h3 { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.mcard { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 11px; margin-bottom: 10px; font-size: 13.5px; animation: slide .4s ease both; }
+.need { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 4px 11px; margin-bottom: 5px; font-size: 13.5px; background: var(--bg); animation: slide .4s ease both; }
+.need.ok { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok) 11%, var(--panel)); }
+.need.miss { border-color: color-mix(in srgb, var(--warn) 65%, var(--line)); background: color-mix(in srgb, var(--warn) 14%, var(--panel)); }
+.need b { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); }
+.line { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 8px; background: var(--bg); font-size: 14px; animation: slide .4s ease both; display: flex; gap: 10px; align-items: flex-start; }
+.line .st { flex: none; font-size: 12px; font-weight: 650; padding: 1px 8px; border-radius: 999px; margin-top: 1px; }
+.line .st.ok { background: color-mix(in srgb, var(--ok) 16%, var(--panel)); color: var(--ok); }
+.line .st.wait { background: var(--line); color: var(--muted); }
+.line .st.no { background: color-mix(in srgb, var(--bad) 14%, var(--panel)); color: var(--bad); }
+.line.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--panel)); }
+.catch { border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); border-radius: 12px; padding: 11px 14px; margin-bottom: 12px; animation: slide .4s ease both; }
+.catch b { color: var(--bad); }
+.fix { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 12px; }
+.fix div.b, .fix div.a { border-radius: 10px; padding: 8px 11px; font-size: 13.5px; }
+.fix div.b { border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--panel)); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 60%, transparent); }
+.fix div.a { border: 1px solid var(--ok); background: color-mix(in srgb, var(--ok) 9%, var(--panel)); }
+.fix span { color: var(--muted); font-size: 20px; }
+.pubsteps { display: grid; gap: 12px; }
+.pubstep { display: flex; gap: 12px; align-items: center; font-size: 16px; }
+.pubstep .sicon { width: 30px; height: 30px; font-size: 15px; }
+.pubstep small { display: block; color: var(--muted); font-size: 12.5px; }
+.pubstep.done .sicon { background: var(--ok); color: #fff; } .pubstep.doing .sicon { background: var(--c-publisher); color: #fff; animation: pulse 1.4s infinite; --c: var(--c-publisher); }
+.pubstep.fail .sicon { background: var(--bad); color: #fff; }
+.pubstep a { color: var(--accent); font-weight: 600; }
+.finish { text-align: center; padding: 10px 0 4px; }
+.finish h2 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.4px; }
+.finish p { color: var(--muted); margin: 0 0 16px; }
+.facts3 { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.facts3 div { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; min-width: 130px; }
+.facts3 b { display: block; font-size: 26px; letter-spacing: -.5px; }
+.facts3 span { font-size: 12px; color: var(--muted); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; text-decoration: none; display: inline-block; margin: 0 4px; }
+details.tech { margin-top: 14px; }
+details.tech > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 2px; user-select: none; }
+details.tech[open] > summary { margin-bottom: 8px; }
+.agents .bubble { font-size: 12.5px; }
 </style>
 </head>
 <body>
@@ -172,11 +250,28 @@ body {
     <button class="btn" id="demo2" title="Show the Scout recovering from a blocked page">Demo: blocked page</button>
   </div>
 
+  <div class="hero">
+    <div class="headline" style="--c: var(--accent)">
+      <h1 id="h1">Waiting for a job link</h1>
+      <p id="hp">Send a job link to your Telegram bot and watch the agents work.</p>
+      <div class="stepper" id="stepper"></div>
+      <div class="stepn" id="stepn"></div>
+    </div>
+    <div class="tiles">
+      <div class="tile" id="t-match"><div class="big">—</div><div class="cap">Job match</div><div class="sub">&nbsp;</div></div>
+      <div class="tile" id="t-need"><div class="big">—</div><div class="cap">Requirements matched</div><div class="sub">&nbsp;</div></div>
+      <div class="tile" id="t-block"><div class="big">0</div><div class="cap">Invented claims blocked</div><div class="sub">&nbsp;</div></div>
+    </div>
+  </div>
+
   <div class="stage">
     <div class="agents" id="agents"></div>
     <svg class="edges" id="edges"></svg>
   </div>
 
+  <section class="focus" id="focus"></section>
+
+  <details class="tech" id="tech"><summary>Show technical details</summary>
   <div class="grid">
     <section class="panel" style="--c: var(--c-scout)">
       <h2><span class="dot"></span>Job posting <span class="empty" style="font-weight:400;text-transform:none;letter-spacing:0">Scout &amp; Analyst</span></h2>
@@ -204,6 +299,7 @@ body {
     <h2>Activity log</h2>
     <div class="logrows" id="log"></div>
   </section>
+  </details>
 </div>
 
 <script>
@@ -230,8 +326,12 @@ let edges = {};               // "a>b" -> count
 let st;                       // per-run view state
 
 function resetState() {
+  if (st && st.dwellTimer) clearTimeout(st.dwellTimer);
   edges = {};
-  st = { raw:"", terms:[], draftIdx:0, scores:[], threshold:85, steps:{}, rawEl:null };
+  st = { raw:"", terms:[], draftIdx:0, scores:[], threshold:85, steps:{}, rawEl:null,
+    focus:"idle", fv:0, lastFv:-1, drafts:[], critics:[], blocked:0, covered:[], missing:[], facts:[], totalFacts:0,
+    cap:{}, pub:{}, typed:false, final:null, failed:null, seen:{}, pendingFocus:null, dwellTimer:null, focusSince:0 };
+  focusTimer && clearTimeout(focusTimer);
   $("url").textContent = "Waiting for a job link from Telegram…";
   $("job").innerHTML = '<div class="empty">Nothing read yet.</div>';
   $("facts").innerHTML = '<div class="empty">Waiting for the Analyst.</div>';
@@ -242,6 +342,7 @@ function resetState() {
   for (const a of AGENT_ORDER) setAgent(a, "idle", "Standing by");
   drawEdges();
   hideCursor();
+  renderHero(); renderFocus(true);
 }
 
 /* ---------------- agents ---------------- */
@@ -337,6 +438,9 @@ function highlight(text) {
   return h;
 }
 function typeRaw() {
+  st.rawShown = st.raw; renderJob(); startFocusTyping(); return;
+}
+function typeRawOld() {
   st.rawShown = st.raw;
   if (!animate) { renderJob(); return; }
   let n = 0; const total = st.raw.length, myRun = currentRun, step = Math.max(8, Math.ceil(total / 60));
@@ -414,18 +518,23 @@ function logRow(ev) {
 /* ---------------- event reducer ---------------- */
 function apply(ev) {
   if (ev.kind === "run") {
+    if (ev.data.state !== "started" && ev.run_id !== currentRun) return;
     if (ev.data.state === "started") {
       currentRun = ev.run_id; t0 = ev.ts; resetState();
       $("url").textContent = ev.data.url || "(no url)";
+      st.focus = "scout"; st.fv++; renderHero(); renderFocus();
     } else if (ev.data.state === "finished") {
       const d = ev.data, f = $("final");
+      const run = currentRun, secs = ev.ts - t0, showFinal = () => { if (run !== currentRun) return; st.final = Object.assign({ secs }, d); st.fv++; renderHero(); renderFocus(); };
+      if (animate) setTimeout(showFinal, 2200); else showFinal();
       f.className = "final show"; f.innerHTML = `🎯 Done: ${esc(d.company || "")} ${esc(d.role || "")} · ATS ${Number(d.score).toFixed(0)}/100 (${esc(d.status)}) · PDF delivered to Telegram`;
     } else if (ev.data.state === "failed") {
       const f = $("final"); f.className = "final show err"; f.textContent = "❌ " + (ev.data.error || "Run failed");
+      st.failed = ev.data.error || "Run failed"; st.fv++;
     }
-    logRow(ev); return;
+    logRow(ev); renderHero(); renderFocus(); return;
   }
-  if (ev.run_id !== currentRun) { currentRun = ev.run_id; t0 = ev.ts; resetState(); }
+  if (ev.run_id !== currentRun) return;   // stay on one run; only a new "started" event switches (handled above)
   const a = ev.agent, d = ev.data || {};
   logRow(ev);
 
@@ -434,7 +543,7 @@ function apply(ev) {
   else if (ev.kind === "done") setAgent(a, "done", ev.message);
   else if (ev.kind === "fail") setAgent(a, "fail", ev.message);
   else if (ev.kind === "handoff") {
-    handoff(a, ev.to, ev.message);
+    handoff(a, ev.to, handoffLabel(ev));
     if (AGENTS[ev.to] && $("ag-"+ev.to).dataset.state === "idle") setAgent(ev.to, "waiting", "Waiting for " + AGENTS[a].name);
     if (a === "critic" && ev.to === "scribe") setAgent("critic", "working", "Sent notes back to Scribe");
     if (a === "scribe" && ev.to === "critic") setAgent("scribe", "done", "Draft sent to Critic");
@@ -486,7 +595,277 @@ function apply(ev) {
       setStep("sheet", "done", d.sheet_row ? `Row ${d.sheet_row} added to the sheet` : "Saved in the local tracker");
     }
   }
+  story(ev);
 }
+
+
+/* =====================================================================
+   Story view: plain-language captions, stat tiles, and the focus card
+   ===================================================================== */
+const pct = (n) => Math.round(Number(n) || 0);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const GROUP = { scout:"scout", analyst:"analyst", archivist:"archivist", scribe:"draft", critic:"draft", publisher:"publish" };
+const TITLES = {
+  idle: "Waiting for a job link", scout: "Reading the job posting", analyst: "Understanding what the job wants",
+  archivist: "Matching the job to your real experience", draft: "Writing and checking your resume",
+  publish: "Building and filing your resume", final: "Your resume is ready",
+};
+const AV = { idle:"🤖", scout:"🔭", analyst:"🧠", archivist:"📚", draft:"✍️", publish:"📎", final:"🎯" };
+const AVC = { idle:"accent", scout:"scout", analyst:"analyst", archivist:"archivist", draft:"scribe", publish:"publisher", final:"publisher" };
+let focusTimer = null;
+
+function caption(ev) {
+  const a = ev.agent, k = ev.kind, d = ev.data || {}, m = ev.message || "";
+  if (a === "scout") {
+    if (k === "start") return "Opening the job page…";
+    if (k === "progress") return /switching|failed/i.test(m) ? "That didn't work, trying another way in…" : "Fetching the page…";
+    if (k === "done") return `Read the whole posting (${Number(d.chars || 0).toLocaleString()} characters)`;
+    if (k === "fail") return "Couldn't read this page. It may be blocking automated visitors";
+  }
+  if (a === "analyst") {
+    if (k === "start") return "Working out exactly what the job wants…";
+    if (k === "progress" && d.company) return `This is a ${d.role} role at ${d.company}`;
+    if (k === "done") return `The job wants ${plural((d.core_tech_stack||[]).length, "tool")} and ${plural((d.hard_requirements||[]).length, "skill")}`;
+    if (k === "fail") return "Couldn't understand this posting";
+  }
+  if (a === "archivist") {
+    const n = /(\d+)/.exec(m);
+    if (k === "start") return `Searching your ${n ? n[1] + " " : ""}saved experiences…`;
+    if (k === "done") { const c = (d.covered||[]).length, t = c + (d.missing||[]).length; return `Found ${d.facts.length} that fit · ${c} of ${t} needs matched`; }
+    if (k === "fail") return "Your experience bank is empty. Add some in Telegram first";
+  }
+  if (a === "scribe") {
+    if (k === "start") return (d.iteration||1) > 1 ? "Rewriting after the Critic's feedback…" : "Writing resume lines from your real experience…";
+    if (k === "done") return `Draft ${d.iteration} written · ${plural(d.bullets.length, "line")}`;
+    if (k === "fail") return "Couldn't write the resume";
+  }
+  if (a === "critic") {
+    if (k === "start") return "Checking every line is true…";
+    if (k === "done") { const n = (d.unsupported||[]).length;
+      return n ? `Caught ${plural(n, "invented claim")} · match ${pct(d.score)}%` : `Every line verified ✓ · match ${pct(d.score)}%`; }
+  }
+  if (a === "publisher") {
+    if (d.duplicate === true) return "This job is already in your tracker";
+    if (d.duplicate === false) return "Checked: new job, not applied to before";
+    if (k === "start") return "Building your 1-page PDF…";
+    if (d.repair_attempt) return "Spotted a formatting error and fixed it by itself";
+    if (m === "PDF compiled") return "PDF built ✓";
+    if (/^Uploading/.test(m)) return "Saving to Google Drive…";
+    if (/^Uploaded/.test(m)) return "Saved to Google Drive ✓";
+    if (/not configured/.test(m)) return "Google Drive not set up, kept a local copy";
+    if (k === "done") return "Resume ready, saved and logged ✓";
+    if (k === "fail") return "Couldn't build the PDF";
+  }
+  return null;
+}
+
+function handoffLabel(ev) {
+  const a = ev.agent, t = ev.to, d = ev.data || {}, last = st.critics[st.critics.length - 1];
+  if (a === "scout") return "Job posting text";
+  if (a === "analyst") return `${(st.job && st.job.stack ? st.job.stack.length : 0)} tools, ${(st.job && st.job.reqs ? st.job.reqs.length : 0)} skills wanted`;
+  if (a === "archivist") return `${st.facts.length} matching experiences`;
+  if (a === "scribe") return `Draft ${d.iteration || ""} to check`.trim();
+  if (a === "critic" && t === "scribe") return last && last.unsupported.length ? "Please remove the invented claim" : "Please improve the match";
+  if (a === "critic" && t === "publisher") return last ? `Approved · ${pct(last.score)}% match` : "Approved";
+  return ev.message;
+}
+
+const DWELL_MS = 3200;   // each view stays up at least this long so people can read it
+function requestFocus(g) {
+  const now = Date.now();
+  if (g === st.focus) { st.pendingFocus = null; return; }
+  const held = animate && st.focusSince && now - st.focusSince < DWELL_MS && st.focus !== "idle";
+  if (!held) { applyFocus(g); return; }
+  st.pendingFocus = g;
+  if (!st.dwellTimer) st.dwellTimer = setTimeout(() => {
+    st.dwellTimer = null;
+    if (st.pendingFocus) { const g2 = st.pendingFocus; st.pendingFocus = null; applyFocus(g2); st.fv++; renderHero(); renderFocus(); }
+  }, DWELL_MS - (now - st.focusSince));
+}
+function applyFocus(g) { st.focus = g; st.focusSince = Date.now(); }
+function story(ev) {
+  const a = ev.agent, k = ev.kind, d = ev.data || {};
+  if (!a) return;
+  const c = caption(ev);
+  if (c && k !== "handoff") { $("bb-" + a).textContent = c; st.cap[GROUP[a]] = c; }
+
+  if (a === "archivist" && k === "done") { st.covered = d.covered || []; st.missing = d.missing || []; st.facts = d.facts || []; st.totalFacts = d.total_facts || 0; }
+  if (a === "scribe" && k === "done") st.drafts.push({ it: d.iteration, bullets: d.bullets });
+  if (a === "critic" && k === "done") { st.critics.push({ it: d.iteration, score: d.score, unsupported: d.unsupported || [], notes: d.notes }); st.blocked += (d.unsupported || []).length; st.threshold = d.threshold || st.threshold; }
+  if (a === "publisher") {
+    if (k === "start") st.pub.pdf = { s: "doing", t: "Rendering the PDF" };
+    if (d.repair_attempt) st.pub.pdf = { s: "doing", t: "Found a formatting error. The agent is fixing its own file" };
+    if (ev.message === "PDF compiled") st.pub.pdf = { s: "done", t: d.pdf ? `<a href="/pdf/${encodeURIComponent(d.pdf)}" target="_blank">Open the PDF</a>` : "" };
+    if (k === "fail") st.pub.pdf = { s: "fail", t: ev.message };
+    if (/^Uploading/.test(ev.message)) st.pub.drive = { s: "doing", t: "Uploading…" };
+    if (/^Uploaded/.test(ev.message)) st.pub.drive = { s: "done", t: d.drive_link ? `<a href="${esc(d.drive_link)}" target="_blank">Open in Google Drive</a>` : "" };
+    if (/not configured/.test(ev.message)) st.pub.drive = { s: "skip", t: "Google Drive isn't set up, so a local copy was kept" };
+    if (k === "done") { st.pub.sheet = { s: "done", t: d.sheet_row ? `Row ${d.sheet_row} in your tracker sheet` : "Saved in your local tracker" }; if (d.pdf) st.pub.pdf = { s: "done", t: `<a href="/pdf/${encodeURIComponent(d.pdf)}" target="_blank">Open the PDF</a>` }; }
+  }
+
+  // which agent group is the star of the stage right now
+  const isDupNote = a === "publisher" && d.duplicate !== undefined;
+  if (!isDupNote && (k === "start" || k === "fail" || k === "done" || (a === "analyst" && k === "progress"))) requestFocus(GROUP[a]);
+  if (k === "done" && GROUP[a] === st.focus) st.focusSince = Date.now();   // the dwell clock starts when the content appears
+  st.fv++;
+  renderHero(); renderFocus();
+}
+
+/* ---------- headline, stepper, stat tiles ---------- */
+function setTile(id, big, cls, cap, sub) {
+  const el = $(id); el.className = "tile " + (cls || "");
+  el.querySelector(".big").innerHTML = big;
+  if (cap) el.querySelector(".cap").textContent = cap;
+  el.querySelector(".sub").innerHTML = sub || "&nbsp;";
+}
+function renderHero() {
+  const j = st.job || {};
+  if (st.failed) { $("h1").textContent = "This run hit a problem"; $("hp").textContent = st.failed; }
+  else if (st.final) { $("h1").textContent = `Your resume for ${j.company || "this job"} is ready`; $("hp").textContent = `${j.role || ""}${st.final.secs ? " · built in " + Math.round(st.final.secs) + " seconds" : ""}`; }
+  else if (j.company) { $("h1").textContent = `Tailoring your resume for ${j.company}`; $("hp").textContent = j.role || ""; }
+  else if (st.focus !== "idle") { $("h1").textContent = "Reading a new job posting"; $("hp").textContent = "Six AI agents are on it."; }
+  else { $("h1").textContent = "Waiting for a job link"; $("hp").textContent = "Send a job link to your Telegram bot and watch the agents work."; }
+
+  let furthest = -1;
+  $("stepper").innerHTML = AGENT_ORDER.map((k, i) => {
+    const state = $("ag-" + k) ? $("ag-" + k).dataset.state : "idle";
+    if (state === "working" || state === "done" || state === "fail") furthest = Math.max(furthest, i);
+    return `<i style="--c: var(--c-${k})" class="${state === "done" ? "on" : state === "working" ? "now" : ""}"></i>`;
+  }).join("");
+  $("stepn").textContent = st.final ? "All 6 steps complete" : furthest < 0 ? "Not started" : `Step ${furthest + 1} of 6 · ${AGENTS[AGENT_ORDER[furthest]].name}: ${AGENTS[AGENT_ORDER[furthest]].role.toLowerCase()}`;
+
+  const last = st.critics[st.critics.length - 1];
+  if (last) {
+    const trail = st.critics.map(x => pct(x.score) + "%").join(" → ");
+    setTile("t-match", `${pct(last.score)}<small>%</small>`, last.score >= st.threshold ? "good" : last.score >= 60 ? "mid" : "bad", "Job match", st.critics.length > 1 ? trail : `Pass mark ${pct(st.threshold)}%`);
+  } else setTile("t-match", "—", "", "Job match", "&nbsp;");
+  const total = st.covered.length + st.missing.length;
+  if (total) setTile("t-need", `${st.covered.length}<small> of ${total}</small>`, st.missing.length ? "mid" : "good", "Requirements matched", st.missing.length ? "Not found: " + esc(st.missing.slice(0, 2).join(", ")) : "All covered");
+  else setTile("t-need", "—", "", "Requirements matched", "&nbsp;");
+  setTile("t-block", String(st.blocked), st.blocked ? "good" : "", "Invented claims blocked", st.blocked ? "Nothing made up reaches your resume" : "Checked on every draft");
+}
+
+/* ---------- focus card ---------- */
+function typeLine(id, text, onDone) {}
+function startFocusTyping() { if (st.focus === "scout") { st.typed = false; st.fv++; renderFocus(); } }
+
+function bulletFlagged(w, b) { return w.some(x => x.includes(b.text.slice(0, 30)) || x.includes(b.fact_id)); }
+
+const an = (key, i) => { if (st.seen[key]) return 'style="animation:none"'; st.seen[key] = 1; return `style="animation-delay:${animate ? i * 80 : 0}ms"`; };
+function viewBody(f) {
+  const j = st.job || {};
+  if (f === "idle") return `<p class="fsub" style="font-size:15px;max-width:640px">Send a job link to your Telegram bot. Six AI agents will read it, match it to <b>your real experience</b>, write the resume, check that nothing is made up, and file it. Or press <b>Demo run</b> above to see it without a link.</p>`;
+
+  if (f === "scout") {
+    if (!st.raw) return `<div class="rawwrap"><div class="skel"><i style="width:90%"></i><i style="width:76%"></i><i style="width:84%"></i><i style="width:55%"></i><i style="width:80%"></i></div><div class="cursor on" id="fcursor" style="left:60%;top:30px"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
+    return `<div class="rawwrap"><pre class="raw fraw" id="fraw"></pre><div class="cursor" id="fcursor"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
+  }
+  if (f === "analyst") {
+    if (!(j.stack || []).length && !(j.reqs || []).length) return `<div class="skel"><i style="width:60%"></i><i style="width:80%"></i><i style="width:45%"></i></div>` + (j.company ? `<div class="rolecard" style="margin-top:14px">${esc(j.role)} at ${esc(j.company)}</div>` : "");
+    return `<div class="rolecard">${esc(j.role)} at ${esc(j.company)}</div>
+      <div class="sect">Tools and technologies (${(j.stack||[]).length})</div><div class="bigchips">${(j.stack||[]).map(t => `<span class="chip kw">${esc(t)}</span>`).join("")}</div>
+      <div class="sect">Skills they expect (${(j.reqs||[]).length})</div><div class="bigchips">${(j.reqs||[]).map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>`;
+  }
+  if (f === "archivist") {
+    if (!st.facts.length) return `<div class="skel"><i style="width:70%"></i><i style="width:55%"></i><i style="width:82%"></i></div>`;
+    const needs = [...st.missing.map(t => ({ t, ok: false })), ...st.covered.map(t => ({ t, ok: true }))];   // gaps first: they are the interesting part
+    return `<div class="match" id="match"><svg id="msvg"></svg>
+      <div class="mcol"><h3>Your experience · ${st.facts.length} of ${st.totalFacts} match</h3>${st.facts.map((x, i) =>
+        `<div class="mcard" data-i="${i}" data-tags='${esc(JSON.stringify(x.tags))}' ${an("m" + x.id, i)}>${esc(x.text)}</div>`).join("")}</div>
+      <div class="mcol"><h3>What the job needs · ${st.covered.length} of ${needs.length} matched</h3>${needs.map((n, i) =>
+        `<div class="need ${n.ok ? "ok" : "miss"}" data-term="${esc(n.t)}" ${an("n" + n.t, 4 + i)}>${n.ok ? "✓" : "?"} ${esc(n.t)}<b>${n.ok ? "" : "not in your experience"}</b></div>`).join("")}</div></div>`;
+  }
+  if (f === "draft") {
+    const di = st.drafts.length - 1, dr = st.drafts[di], cr = st.critics.find(x => dr && x.it === dr.it);
+    if (!dr) return `<div class="skel"><i style="width:88%"></i><i style="width:72%"></i><i style="width:80%"></i></div>`;
+    let h = "";
+    const bad = cr ? cr.unsupported : [];
+    const prev = st.drafts[di - 1], prevCr = prev && st.critics.find(x => x.it === prev.it);
+    if (prev && prevCr && prevCr.unsupported.length) {
+      const fixes = prev.bullets.filter(b => bulletFlagged(prevCr.unsupported, b)).map(b => {
+        const now = dr.bullets.find(x => x.fact_id === b.fact_id);
+        return `<div class="fix" ${an("fix" + dr.it + b.fact_id, 0)}><div class="b">${esc(b.text)}</div><span>→</span><div class="a">${now && now.text !== b.text ? esc(now.text) : "Removed"}</div></div>`;
+      }).join("");
+      if (fixes) h += `<div class="sect">The Scribe fixed it after the Critic's feedback</div>${fixes}`;
+    }
+    if (cr && bad.length) {
+      const lines = dr.bullets.filter(b => bulletFlagged(bad, b)).map(b => `“${esc(b.text)}”`).join(" ");
+      h += `<div class="catch" ${an("catch" + dr.it, 0)}>🛡️ <b>Caught ${plural(bad.length, "invented claim")}.</b> ${lines || ""} This isn't in your real experience, so it goes back to the Scribe to be fixed.</div>`;
+    }
+    h += `<div class="sect">Draft ${dr.it} · ${plural(dr.bullets.length, "line")}${cr ? ` · match ${pct(cr.score)}%` : ""}</div>` +
+      dr.bullets.map((b, i) => {
+        const flagged = cr && bulletFlagged(bad, b);
+        const chip = !cr ? `<span class="st wait">checking…</span>` : flagged ? `<span class="st no">✕ not in your record</span>` : `<span class="st ok">✓ true to your record</span>`;
+        return `<div class="line ${flagged ? "bad" : ""}" ${an("l" + dr.it + b.fact_id, i)}>${chip}<span>${esc(b.text)}</span></div>`;
+      }).join("");
+    return h;
+  }
+  if (f === "publish") {
+    const row = (key, label, wait) => { const p = st.pub[key] || { s: "", t: wait };
+      return `<div class="pubstep ${p.s === "skip" ? "done" : p.s}"><span class="sicon">${p.s === "done" || p.s === "skip" ? "✓" : p.s === "fail" ? "✕" : p.s === "doing" ? "…" : "·"}</span><div>${label}<small>${p.t || ""}</small></div></div>`; };
+    return `<div class="pubsteps">${row("pdf", "Build a 1-page PDF", "")}${row("drive", "Save it to Google Drive", "")}${row("sheet", "Log it in your application tracker", "")}</div>`;
+  }
+  if (f === "final") {
+    const d = st.final || {}, last = st.critics[st.critics.length - 1], total = st.covered.length + st.missing.length;
+    return `<div class="finish"><p style="font-size:16px">${esc(j.role || "")}${j.company ? " at " + esc(j.company) : ""} · also delivered to your Telegram</p>
+      <div class="facts3"><div><b>${last ? pct(last.score) + "%" : "—"}</b><span>Job match</span></div>
+        <div><b>${total ? st.covered.length + " of " + total : "—"}</b><span>Requirements matched</span></div>
+        <div><b>${st.blocked}</b><span>Invented claims blocked</span></div>
+        <div><b>${st.drafts.length}</b><span>${st.drafts.length === 1 ? "Draft" : "Drafts"} written</span></div></div>
+      <div>${d.pdf ? `<a class="btn primary" href="/pdf/${encodeURIComponent(d.pdf)}" target="_blank">Open the PDF</a>` : ""}${d.drive_link ? `<a class="btn primary" href="${esc(d.drive_link)}" target="_blank">Open in Google Drive</a>` : ""}</div></div>`;
+  }
+  return "";
+}
+
+function renderFocus(force) {
+  const f = st.final ? "final" : st.focus, sig = f + "|" + st.fv;
+  if (!force && sig === st.lastSig) return;
+  st.lastSig = sig;
+  const el = $("focus"), ac = AVC[f] || "accent";
+  const sub = f === "final" ? "" : (f === "idle" ? "" : (st.cap[f] || ""));
+  const html = `<div class="fhead" style="--c: var(--${ac === "accent" ? "accent" : "c-" + ac})"><div class="fav">${AV[f]}</div><div><div class="ftitle">${TITLES[f]}</div><div class="fsub">${esc(sub)}</div></div></div>` + viewBody(f);
+  if (st.lastView !== f) { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; st.lastView = f; }
+  el.innerHTML = html;
+  if (f === "scout") focusRaw();
+  if (f === "archivist") requestAnimationFrame(drawMatch);
+}
+
+/* the cursor reading the page */
+function focusRaw() {
+  const raw = $("fraw"); if (!raw || !st.raw) return;
+  const done = () => { raw.innerHTML = highlight(st.raw); hideFocusCursor(); };
+  if (st.typed || !animate) { st.typed = true; done(); return; }
+  st.typed = true;
+  let n = 0; const total = st.raw.length, step = Math.max(10, Math.ceil(total / 70)), myRun = currentRun;
+  const tick = () => {
+    if (myRun !== currentRun) return;
+    const r = $("fraw"); if (!r) return;
+    n = Math.min(total, n + step); r.textContent = st.raw.slice(0, n); r.scrollTop = r.scrollHeight;
+    const cur = $("fcursor"); if (cur) { cur.classList.add("on"); const lines = r.textContent.split("\n").length;
+      cur.style.left = (30 + (lines * 53) % 55) + "%"; cur.style.top = Math.min(r.clientHeight - 16, 8 + lines * 18) + "px"; }
+    if (n < total) focusTimer = setTimeout(tick, 30); else { r.innerHTML = highlight(st.raw); setTimeout(hideFocusCursor, 400); }
+  };
+  tick();
+}
+function hideFocusCursor() { const c = $("fcursor"); if (c) c.classList.remove("on"); }
+
+/* lines from each job need to the best-matching experience */
+function drawMatch() {
+  const box = $("match"), svg = $("msvg"); if (!box || !svg) return;
+  const br = box.getBoundingClientRect(); svg.setAttribute("viewBox", `0 0 ${br.width} ${br.height}`);
+  const cards = [...box.querySelectorAll(".mcard")].map(e => ({ e, tags: JSON.parse(e.dataset.tags || "[]").map(t => t.toLowerCase()) }));
+  let html = "";
+  box.querySelectorAll(".need.ok").forEach(n => {
+    const term = n.dataset.term.toLowerCase();
+    const hit = cards.find(c => c.tags.some(t => t === term || (t.length > 2 && term.includes(t))));
+    if (!hit) return;
+    const a = hit.e.getBoundingClientRect(), b = n.getBoundingClientRect();
+    const x1 = a.right - br.left, y1 = a.top - br.top + a.height / 2, x2 = b.left - br.left, y2 = b.top - br.top + b.height / 2, mx = (x1 + x2) / 2;
+    html += `<path class="mline" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" ${animate ? 'pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"><animate attributeName="stroke-dashoffset" from="1" to="0" dur=".7s" begin=".4s" fill="freeze"/></path>' : "/>"}`;
+  });
+  svg.innerHTML = html;
+}
+window.addEventListener("resize", () => { if (st.focus === "archivist") drawMatch(); });
 
 /* ---------------- transport ---------------- */
 function setLive(on, txt) { $("live").classList.toggle("on", on); $("livetxt").textContent = txt; }
