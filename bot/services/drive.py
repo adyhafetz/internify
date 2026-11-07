@@ -84,16 +84,7 @@ def upload_to_drive(file_path: str, destination_name: str) -> Optional[str]:
         file_id = uploaded.get("id")
         web_link = uploaded.get("webViewLink")
 
-        # Attempt to make it viewable by anyone with the link
-        try:
-            service.permissions().create(
-                fileId=file_id,
-                body={"type": "anyone", "role": "reader"},
-                supportsAllDrives=True,
-            ).execute()
-        except Exception as perm_err:
-            logger.debug("Permission sharing notice: %s", perm_err)
-
+        # The file stays private to your Google account (a resume holds your phone and email): open the link while signed in.
         logger.info("Successfully uploaded %s to Google Drive: %s", destination_name, web_link)
         return web_link or f"https://drive.google.com/file/d/{file_id}/view"
     except Exception as e:

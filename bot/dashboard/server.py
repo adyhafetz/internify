@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import html as _html
 import json
 import logging
 import os
@@ -74,19 +75,29 @@ def healthz():
     return {"status": "ok"}
 
 
+def _site_page(name: str) -> HTMLResponse:
+    """A public page, with {{CONTACT}} replaced by the owner's contact address (or the GitHub issues page)."""
+    with open(os.path.join(SITE_DIR, name), encoding="utf-8") as f:
+        html = f.read()
+    email = bot_config.CONTACT_EMAIL
+    contact = (f'<a href="mailto:{_html.escape(email)}">{_html.escape(email)}</a>, or open an issue at '
+               if email else "open an issue at ") + '<a href="https://github.com/adyhafetz/internify/issues">github.com/adyhafetz/internify/issues</a>'
+    return HTMLResponse(html.replace("{{CONTACT}}", contact))
+
+
 @app.get("/")
 def home():
-    return FileResponse(os.path.join(SITE_DIR, "index.html"))
+    return _site_page("index.html")
 
 
 @app.get("/privacy")
 def privacy():
-    return FileResponse(os.path.join(SITE_DIR, "privacy.html"))
+    return _site_page("privacy.html")
 
 
 @app.get("/terms")
 def terms():
-    return FileResponse(os.path.join(SITE_DIR, "terms.html"))
+    return _site_page("terms.html")
 
 
 @app.get("/site/style.css")

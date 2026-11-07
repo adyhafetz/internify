@@ -32,6 +32,8 @@ GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
 DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "true").strip().lower() in ("1", "true", "yes")
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1").strip()
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
+# Shown on the privacy page as the way to reach the person running this site (leave empty to point to GitHub issues).
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "").strip()
 # Key that protects the live dashboard when it is reachable from the internet (empty = open, fine on localhost).
 # Open https://<your-domain>/live?key=<DASHBOARD_KEY> once; the browser then remembers it.
 DASHBOARD_KEY = os.getenv("DASHBOARD_KEY", "").strip()

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import shutil
 
 from service import config
 from service.clients import openai_client
@@ -13,13 +14,26 @@ def _text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def ensure_data_file(path: str, sample_name: str) -> None:
+    """Your saved experience lives in output/data/ (not in the code folder, so updating the code never touches it).
+    The first time, it starts as a copy of the sample that ships with the code."""
+    sample = os.path.join(os.path.dirname(__file__), sample_name)
+    if os.path.exists(path) or os.path.abspath(sample) == os.path.abspath(path) or not os.path.exists(sample):
+        return
+    if os.path.dirname(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    shutil.copyfile(sample, path)
+
+
 def load_facts(path: str = config.FACT_STORE_PATH) -> list[FactBullet]:
+    ensure_data_file(path, "facts.json")
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     return [FactBullet(**item) for item in raw]
 
 
 def load_skeleton(path: str = config.SKELETON_PATH) -> ResumeSkeleton:
+    ensure_data_file(path, "resume_skeleton.json")
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     return ResumeSkeleton(**raw)

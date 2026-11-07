@@ -1,59 +1,166 @@
-# Put Internify on your own domain (Cloudflare)
+# Go live on your own subdomain (Cloudflare, Google, a clean server)
 
-Goal: everything lives under one address, for example `https://internify.adyhafetz.dev`:
+You bought `adyhafetz.dev` and want to keep the main address free for your portfolio. So everything for Internify
+lives on one subdomain, `internify.adyhafetz.dev`, and the main domain is never touched.
 
 | Address | Who can open it | What it is |
 |---|---|---|
-| `/` | everyone | Home page |
-| `/privacy`, `/terms` | everyone | The pages Google asks for |
-| `/live` | only you (key) | The live agent dashboard |
+| `https://internify.adyhafetz.dev/` | everyone | Home page |
+| `https://internify.adyhafetz.dev/privacy` and `/terms` | everyone | The pages Google asks for |
+| `https://internify.adyhafetz.dev/live?key=...` | only you | The live agent dashboard |
 
-The bot's own web server serves all of it, so there is nothing else to host. A Cloudflare Tunnel connects your
-domain to the server without opening any port.
+The bot's own web server serves all of it. A Cloudflare Tunnel connects the subdomain to your server, so no port
+has to be opened. Menu names in Cloudflare and Google change now and then; the idea of each step stays the same.
 
-## 1. Set a dashboard key
+Do the parts in order: **1** clean the server, **2** the subdomain, **3** Google, **4** the refresh token.
 
-```bash
-openssl rand -hex 16
-```
+---
 
-Put the result in `.env` on the server as `DASHBOARD_KEY=...`. Without it, `/live` is open to the internet.
+## 1. Clean the server and start fresh
 
-## 2. Create the tunnel (Cloudflare dashboard)
-
-1. Cloudflare dashboard, **Zero Trust**, **Networks**, **Tunnels**, **Create a tunnel**, type **Cloudflared**.
-2. Name it `internify`. Copy the **tunnel token** it shows.
-3. Add a **public hostname**: subdomain `internify`, domain `adyhafetz.dev`, service type **HTTP**, URL `telegram-bot:8080`.
-   Cloudflare creates the DNS record for you.
-4. Put the token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN=...`.
-
-(Menu names change now and then. The idea stays the same: a tunnel whose hostname points to `telegram-bot:8080`.)
-
-## 3. Start it on the server
+Run these on the server (SSH in first). Lines starting with `#` are comments.
 
 ```bash
-git pull
-docker compose --profile tunnel up -d --build
+# 1. Keep a copy of anything you may want (your .env and saved experience)
+mkdir -p ~/backup
+cd ~/internify 2>/dev/null && cp .env ~/backup/env.old; cp -r service/fact_store ~/backup/ ; cp -r output ~/backup/output; cd ~
+
+# 2. Stop and remove the old containers
+cd ~/internify 2>/dev/null && docker compose --profile tunnel down --remove-orphans; cd ~
+
+# 3. Remove old images, build cache and volumes (asks you to confirm)
+docker system prune -a --volumes
+
+# 4. Delete the old project folder (sudo, because Docker may have created root-owned files in it)
+sudo rm -rf ~/internify
+
+# 5. Get the new code
+git clone https://github.com/adyhafetz/internify.git
+cd internify
+cp .env.example .env
+nano .env
 ```
 
-Check: open `https://internify.adyhafetz.dev/` (home page), then
-`https://internify.adyhafetz.dev/live?key=YOUR_KEY` once. The browser remembers the key for 30 days.
+In `.env` fill in (save with Ctrl+O, Enter, Ctrl+X):
 
-## 4. Google consent screen
+```env
+OPENAI_API_KEY=sk-...
+TELEGRAM_BOT_TOKEN=123456:ABC...
+TELEGRAM_ALLOWED_USER_IDS=YOUR_TELEGRAM_NUMBER      # from @userinfobot
+SCRAPINGANT_API_KEY=                                 # optional
+DASHBOARD_KEY=                                       # see part 2, step 1
+CONTACT_EMAIL=you@example.com                        # shown on your privacy page
+CLOUDFLARE_TUNNEL_TOKEN=                             # part 2
+# Google values come in part 4
+```
 
-Use these values:
+Start it (add `--profile tunnel` once you have the tunnel token):
 
-| Field | Value |
-|---|---|
-| Application home page | `https://internify.adyhafetz.dev/` |
-| Privacy policy link | `https://internify.adyhafetz.dev/privacy` |
-| Terms of service link | `https://internify.adyhafetz.dev/terms` |
-| Authorized domain | `adyhafetz.dev` |
+```bash
+docker compose up -d --build --remove-orphans
+docker compose logs -f telegram-bot        # Ctrl+C to leave the logs
+```
 
-Then set the publishing status to **In production**, create a new refresh token (`python scripts/get_gdrive_token.py`)
-and put it in `.env`. Google needs to be able to open the pages above, so keep the tunnel running.
+Then message your bot `/start`. Your saved experience is now kept in `output/data/` (outside the code, so updating
+the code never touches it). To start empty, send your resume with `/importresume`. To bring back the old
+data, copy `~/backup/fact_store/facts.json` and `resume_skeleton.json` into `~/internify/output/data/` and restart.
+
+Also remove access you no longer need: <https://myaccount.google.com/permissions> (old Internify tokens) and, if you
+ever pasted a key anywhere public, create a new one.
+
+---
+
+## 2. The subdomain with a Cloudflare Tunnel
+
+1. **Dashboard key.** On the server: `openssl rand -hex 16`. Put the result in `.env` as `DASHBOARD_KEY=...`.
+2. **Zero Trust.** In the Cloudflare dashboard open **Zero Trust** (left menu). The first time it asks you to pick a
+   team name (anything) and the **Free** plan; it may ask for a card but charges nothing.
+3. **Create the tunnel.** **Networks → Tunnels → Create a tunnel → Cloudflared**, name it `internify`, Save.
+   On the next screen choose **Docker**; copy only the long token (the text after `--token`).
+4. **Public hostname** (shown as "Published application routes" in newer menus): Subdomain `internify`,
+   Domain `adyhafetz.dev`, Path empty, Service type **HTTP**, URL `telegram-bot:8080`. Save. Cloudflare creates the
+   DNS record for you; you do not add one by hand.
+5. Put the token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN=...`, then:
+
+   ```bash
+   docker compose --profile tunnel up -d --build
+   docker compose logs cloudflared | tail      # look for "Registered tunnel connection"
+   ```
+6. **Close the server.** Only SSH needs to be open: `sudo ufw allow OpenSSH && sudo ufw --force enable`. If your
+   provider has its own firewall (Tencent, AWS, Hetzner), leave only port 22 open there too. The dashboard port is
+   already published only on the server itself.
+7. **Check.** Open `https://internify.adyhafetz.dev/` (home), `/privacy`, `/terms`, then
+   `https://internify.adyhafetz.dev/live?key=YOUR_KEY` once. The browser remembers the key for 30 days.
+
+The main domain `adyhafetz.dev` is untouched. Later, point it at your portfolio however you like (for example
+Cloudflare Pages); Internify keeps working on its subdomain.
+
+---
+
+## 3. Google: from Testing to Production
+
+While the consent screen is in **Testing**, Google expires your refresh token after **7 days**, so Drive and Sheets
+stop working. In **Production** it does not expire.
+
+1. <https://console.cloud.google.com> → your project → **APIs & Services → Library**: make sure **Google Drive API**
+   and **Google Sheets API** are enabled.
+2. **Verify your domain** (Google only accepts domains you own):
+   - Open <https://search.google.com/search-console> with the same Google account, **Add property → Domain**, enter
+     `adyhafetz.dev`. It shows a TXT record starting `google-site-verification=`.
+   - In Cloudflare: **DNS → Records → Add record**: Type `TXT`, Name `@`, Content = that text. Save. This does not
+     affect your website or your portfolio later.
+   - Back in Search Console press **Verify** (it can take a few minutes).
+3. **Consent screen**: **APIs & Services → OAuth consent screen** (called *Google Auth Platform* in newer menus).
+   - **Branding**: App name `Internify`; your support email; **App home page** `https://internify.adyhafetz.dev/`;
+     **Privacy policy** `https://internify.adyhafetz.dev/privacy`; **Terms of service**
+     `https://internify.adyhafetz.dev/terms`; **Authorized domain** `adyhafetz.dev`; developer contact email.
+     Leave the logo empty (adding one triggers extra review).
+   - **Audience**: user type **External**.
+   - **Data access / Scopes**: add `https://www.googleapis.com/auth/drive` and
+     `https://www.googleapis.com/auth/spreadsheets`.
+4. **Audience → Publish app → Confirm**. The status becomes **In production**.
+5. You do **not** need to press "Prepare for verification". Verification is only for apps with many users. For
+   your own use, Google shows an **"unverified app"** warning when you sign in: choose **Advanced → Go to Internify
+   (unsafe)**. It is your own app, so that is expected. (Limit: 100 users, far more than you need.)
+6. **Get a new refresh token** (part 4). Tokens issued while in Testing keep expiring; only a new one is permanent.
+
+The privacy page already contains what Google checks for: what Google data is used and why, the exact **Limited
+Use** sentence, who receives data, retention and deletion, and a contact address (`CONTACT_EMAIL`).
+
+---
+
+## 4. Get the refresh token
+
+Do this on **your own computer** (it opens a browser), not on the server.
+
+1. Cloud Console → **APIs & Services → Credentials** (or **Clients**) → **Create credentials → OAuth client ID** →
+   Application type **Desktop app** → Create → **Download JSON**. Save it in the project folder as `client_secret.json`.
+2. In the project folder:
+
+   ```bash
+   pip install -r requirements.txt     # once (a virtual environment is fine)
+   python scripts/get_gdrive_token.py
+   ```
+3. A browser opens. Sign in, press **Advanced → Go to Internify (unsafe)**, tick both permissions, **Continue**.
+4. The script prints three lines: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`.
+   Paste them into the server's `.env` (`nano .env`), together with `GOOGLE_SHEET_ID` and `GOOGLE_DRIVE_FOLDER_ID`.
+5. Reload the settings (a plain restart does not re-read `.env`):
+
+   ```bash
+   docker compose up -d --force-recreate
+   docker compose logs telegram-bot | grep "Google sync"     # expect "Drive: connected" and the sheet connected
+   ```
+6. Delete `client_secret.json` and `token.json` from your computer. Never commit them (they are git-ignored).
+
+If no refresh token is printed: open <https://myaccount.google.com/permissions>, remove Internify, run the script
+again (it forces a fresh consent).
+
+Note: uploaded resumes now stay **private** to your Google account (earlier versions made each file readable by
+anyone with the link). Open the Drive link while signed in.
+
+---
 
 ## Sharing the dashboard with someone
 
 Send them `https://internify.adyhafetz.dev/live?key=YOUR_KEY`. Anyone with that link can see your runs, which
-include job text and resume lines, so share it only when needed, and change `DASHBOARD_KEY` afterwards.
+include job text and resume lines, so share it only when needed and change `DASHBOARD_KEY` afterwards.

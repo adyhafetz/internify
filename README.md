@@ -71,7 +71,7 @@ Every small helper falls back to plain rules if its model call fails.
 
 Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
-1. **Discoverer** visits your *job pages*: career pages or job boards you added, plus the Greenhouse and Lever boards of companies you already sent links for. Greenhouse and Lever are read from their public listings; any other career page goes through ScrapingAnt (if you set a key) or a plain visit.
+1. **Discoverer** visits your *job pages*: career pages or job boards you added, plus the boards (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Jobvite, Workday) behind jobs you already sent. In Malaysia? `/profile` → Job pages I check → 🇲🇾 Popular in Malaysia adds well-known job pages with one tap. Greenhouse and Lever are read from their public listings; any other career page goes through ScrapingAnt (if you set a key) or a plain visit.
 2. **Matcher** compares each new posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match.
 3. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
 
@@ -259,7 +259,7 @@ We provide a pre-formatted, production-ready Google Sheet tracker complete with 
 
 ### 2. Google OAuth Credentials Setup
 1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/) (Enable **Google Drive API** and **Google Sheets API**).
-2. Authenticate once via OAuth2 or service account to obtain your refresh token.
+2. Authenticate once with `python scripts/get_gdrive_token.py` to obtain your refresh token. Full steps, including moving the Google consent screen from Testing to Production so the token does not expire after 7 days: [`docs/domain_setup.md`](docs/domain_setup.md).
 3. Add the generated credentials to `.env`:
    ```env
    GOOGLE_CLIENT_ID=...
@@ -282,6 +282,8 @@ To prevent unauthorized users on Telegram from generating resumes or modifying y
    TELEGRAM_ALLOWED_USER_IDS=123456789
    ```
 Any messages from other users will be rejected with an `Access Denied` notification.
+
+Your saved experience is kept in `output/data/` (outside the code, so updates never touch it), and resumes uploaded to Google Drive stay private to your account.
 
 ---
 

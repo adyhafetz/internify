@@ -1,7 +1,7 @@
 # Cloud VPS Deployment Guide
 
 Deploying **Internify** on any Cloud VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS, Linode, etc.) is remarkably simple because the Python Telegram bot uses **long polling**—meaning:
-- **No domain name required**
+- **No domain name required** (optional: see [`domain_setup.md`](domain_setup.md))
 - **No SSL certificates or Caddy/Nginx required**
 - **No public webhook ports needed** (the bot communicates outbound directly to Telegram's secure API)
 
@@ -67,7 +67,6 @@ TELEGRAM_ALLOWED_USER_IDS=YOUR_TELEGRAM_NUMERIC_ID
 SCRAPINGANT_API_KEY=
 
 # (Optional) Cloud Sync (Google Drive & Sheets)
-# Google Sheets Tracker Template: https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
@@ -113,5 +112,4 @@ The bot also serves a small website: a home page, privacy policy and terms (publ
 3. Follow [`domain_setup.md`](domain_setup.md) to create the tunnel, then:
    `docker compose --profile tunnel up -d --build`
 
-**Before pulling updates on a server where you already use the bot:** the bot edits `service/fact_store/*.json`.
-Back them up (`cp -r service/fact_store ~/fact_store_backup`), run `git stash`, pull, then copy your files back.
+**Updating later:** your saved experience lives in `output/data/`, outside the code, so `git pull && docker compose up -d --build` never touches it. Starting from scratch? See part 1 of [`domain_setup.md`](domain_setup.md).

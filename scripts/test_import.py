@@ -218,4 +218,13 @@ holder, status, _ = upload("x.txt", ("some unrelated text. " * 30).encode())
 assert "couldn't find any resume sections" in holder.log[-1]
 print("4d ok: wrong file type, oversize file and a non-resume are refused politely")
 
+
+# F1 your saved experience starts as a copy of the sample, in a data folder outside the code
+from service.fact_store import store as _store
+_d = os.path.join(tempfile.mkdtemp(), "data"); _target = os.path.join(_d, "facts.json")
+assert not os.path.exists(_target)
+assert _store.load_facts(_target), "a fresh install starts from the sample"
+assert os.path.exists(_target)
+open(_target, "w").write("[]"); assert _store.load_facts(_target) == [], "an existing file is never overwritten"
+print("F1 ok: saved experience is created in the data folder from the sample, and never overwritten")
 print("\n✅ import test passed")

@@ -7,7 +7,7 @@ from typing import Literal, get_args
 from pydantic import BaseModel, Field
 
 from service import config
-from service.fact_store.store import _load_cache, _save_cache
+from service.fact_store.store import _load_cache, _save_cache, ensure_data_file
 from service.latex.compile import compile_tex
 from service.models import GeneratedResume, ResumeBullet, ResumeSkeleton
 
@@ -45,6 +45,7 @@ def _unique_id(base_id: str, existing: set[str]) -> str:
 
 
 def _load_skeleton_raw() -> dict:
+    ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")
     with open(config.SKELETON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -55,6 +56,7 @@ def _save_skeleton_raw(data: dict) -> None:
 
 
 def _load_facts_raw() -> list[dict]:
+    ensure_data_file(config.FACT_STORE_PATH, "facts.json")
     with open(config.FACT_STORE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 

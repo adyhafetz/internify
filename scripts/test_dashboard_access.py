@@ -38,6 +38,17 @@ for path, kind in (("/assets/brand/logo-mark.svg", "image/svg+xml"), ("/assets/b
     assert r.status_code == 200 and r.headers["content-type"].startswith(kind.split("/")[0]), (path, r.status_code, r.headers.get("content-type"))
 for page in ("/", "/privacy", "/terms"):
     assert "/assets/brand/logo-mark.svg" in c.get(page).text, page
+for page in ("/", "/privacy", "/terms"):
+    body = c.get(page).text
+    assert "{{" not in body and "github.com/adyhafetz/internify/issues" in body, page          # the contact placeholder is always filled in
+priv = c.get("/privacy").text
+for must in ("Limited Use", "Google API Services User Data Policy", "OpenAI", "Telegram", "myaccount.google.com/permissions", "Google Drive", "Google Sheets"):
+    assert must in priv, must
+assert "Limited Use" in c.get("/").text, "the home page states the Google data policy too"
+from bot import config as _bc
+_bc.CONTACT_EMAIL = "me@example.com"
+assert 'mailto:me@example.com' in c.get("/privacy").text
+_bc.CONTACT_EMAIL = ""
 live = c2.get("/live").text
 assert 'data-theme="light"' in live, "light mode first"
 for must in ("Telegram", "Scout", "Analyst", "Archivist", "Scribe", "Critic", "Publisher", 'id="logBtn"', 'id="demoMenu"', "#2563EB", "#F97316", "Inter"):
