@@ -79,7 +79,7 @@ def run_test():
     duration = time.time() - t0
     print(f"  ⏱️ Pipeline completed in {duration:.1f} seconds")
 
-    print(f"\n[Step 4] Pipeline Results:")
+    print("\n[Step 4] Pipeline Results:")
     print(f"  • Quality Status: {res.resume_status}")
     print(f"  • ATS Match Score: {res.score:.1f}/100")
     print(f"  • PDF Path: {res.pdf_path}")

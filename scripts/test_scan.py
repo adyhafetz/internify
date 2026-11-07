@@ -29,7 +29,20 @@ assert watchlist.remove_source(b.id) and not watchlist.remove_source(b.id)
 assert not watchlist.seen("u1"); watchlist.mark_seen("u1", "T", "C", "low-fit", 0.2, "r"); assert watchlist.seen("u1")
 assert not watchlist.scan_paused(); watchlist.set_setting("scan_paused", "1"); assert watchlist.scan_paused(); watchlist.set_setting("scan_paused", "0")
 assert watchlist.owner_chat_id() is None; watchlist.set_setting("owner_chat_id", "42"); assert watchlist.owner_chat_id() == 42
-print("W ok: classify, add/dedupe/remove, seen, settings")
+assert watchlist.board_root("https://jobs.ashbyhq.com/acme-co/1234-abcd") == ("https://jobs.ashbyhq.com/acme-co", "Acme Co")
+assert watchlist.board_root("https://apply.workable.com/globex/j/ABC123/") == ("https://apply.workable.com/globex", "Globex")
+assert watchlist.board_root("https://intel.wd1.myworkdayjobs.com/en-US/External/job/Penang/Intern_JR1") == ("https://intel.wd1.myworkdayjobs.com/External", "Intel")
+assert watchlist.board_root("https://careers.initech.com/jobs/1") is None
+for link in ("https://jobs.ashbyhq.com/acme-co/1234-abcd", "https://careers.initech.com/jobs/1", "https://jobs.lever.co/globex/abc"):
+    db.upsert_application("Co", "Role", job_link=link)
+added = watchlist.sources_from_history()
+urls = {s_.url: s_ for s_ in watchlist.list_sources()}
+assert "https://jobs.ashbyhq.com/acme-co" in urls and urls["https://jobs.ashbyhq.com/acme-co"].label == "Acme Co" and urls["https://jobs.ashbyhq.com/acme-co"].auto
+assert "https://jobs.lever.co/globex" in urls and not any("initech" in u for u in urls), "other hosts are not guessed"
+for s_ in list(urls.values()):
+    watchlist.remove_source(s_.id)
+with db._get_connection() as _c: _c.execute("DELETE FROM applications"); _c.commit()
+print("W ok: classify, add/dedupe/remove, seen, settings, boards found from your history")
 
 # ---- D: discovery with fake websites
 GH = {"jobs": [{"title": "Backend Intern", "absolute_url": "https://boards.greenhouse.io/acme-corp/jobs/1", "location": {"name": "KL"}, "content": "<p>Python &amp; Postgres</p>"},

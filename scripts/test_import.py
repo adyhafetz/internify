@@ -20,7 +20,7 @@ from bot.extraction import (ParsedResume, ParsedHeader, ParsedEducation, ParsedE
                             ParsedLeadership, ParsedBullet)
 from service import importer
 from service.fact_store.store import load_facts, load_skeleton
-from service.profile_data import _load_facts_raw, _load_skeleton_raw
+from service.profile_data import _load_facts_raw
 
 RESUME_LINES = ["Ady Student", "ady_student@uni.edu.my | +60 12-345 6789 | github.com/adystudent",
                 "EDUCATION", "Universiti Example, B.Sc. Computer Science, CGPA 3.7", "EXPERIENCE",
@@ -142,7 +142,6 @@ print("3 ok: header skips missing LinkedIn, email with underscore is safe in LaT
 
 # ------------------------------------------------------------------ 4. the Telegram flow
 from bot.handlers import importresume as ir
-from bot import extraction
 shutil.copy(os.path.join("service/fact_store", "facts.json"), service_config.FACT_STORE_PATH)           # back to the sample for the flow test
 shutil.copy(os.path.join("service/fact_store", "resume_skeleton.json"), service_config.SKELETON_PATH)
 ir.extract_resume = lambda text: PARSED

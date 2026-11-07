@@ -2,7 +2,7 @@
 
 A source is a career page or a job board. Job boards on Greenhouse or Lever are recognised from the link and read
 through their public job-listing APIs (structured data, no scraping). Anything else is a "page": the Discoverer reads
-it and picks out the job links. Sources are also found automatically from the jobs you have already sent."""
+it and picks out the job links. Boards are also found automatically from the jobs you have already sent (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Jobvite and Workday)."""
 from __future__ import annotations
 
 import re
@@ -56,6 +56,26 @@ def classify(url: str) -> tuple[str, str, str]:
     return "page", "", host.removeprefix("www.") or url
 
 
+_ONE_SEGMENT_BOARDS = {"jobs.ashbyhq.com": "Ashby", "careers.smartrecruiters.com": "SmartRecruiters", "jobs.smartrecruiters.com": "SmartRecruiters",
+                       "apply.workable.com": "Workable", "jobs.jobvite.com": "Jobvite"}
+_LOCALE = re.compile(r"^[a-z]{2}([-_][A-Za-z]{2})?$")
+
+
+def board_root(url: str) -> Optional[tuple[str, str]]:
+    """(listing page, name) for the company board behind a job link on other common hiring systems (Ashby, Workable,
+    SmartRecruiters, Jobvite, Workday), or None. The listing page is read by the Discoverer like any career page."""
+    u = urlparse(url)
+    host = (u.netloc or "").lower()
+    segs = [x for x in u.path.split("/") if x]
+    if host in _ONE_SEGMENT_BOARDS and segs:
+        return f"https://{host}/{segs[0]}", segs[0].replace("-", " ").replace("_", " ").title()
+    if host.endswith(".myworkdayjobs.com"):
+        site = [x for x in segs if not _LOCALE.match(x)]
+        if site:
+            return f"https://{host}/{site[0]}", host.split(".")[0].replace("-", " ").title()
+    return None
+
+
 def _clean(url: str) -> str:
     url = (url or "").strip()
     if url and not re.match(r"^https?://", url, re.I):
@@ -70,9 +90,10 @@ def _row(r) -> Source:
     return Source(r["id"], r["url"], r["kind"], r["ident"], r["label"], bool(r["auto"]), r["last_status"] or "")
 
 
-def add_source(url: str, auto: bool = False) -> Source:
+def add_source(url: str, auto: bool = False, label: str = "") -> Source:
     url = _clean(url)
-    kind, ident, label = classify(url)
+    kind, ident, found_label = classify(url)
+    label = label or found_label
     if kind in ("greenhouse", "lever"):
         url = f"https://boards.greenhouse.io/{ident}" if kind == "greenhouse" else f"https://jobs.lever.co/{ident}"
     with _get_connection() as conn:
@@ -108,15 +129,17 @@ def sources_from_history() -> int:
     """Add the job boards behind the jobs you have already sent, so the scan starts with companies you like.
     Returns how many were new."""
     before = {s.url for s in list_sources()}
-    found: set[str] = set()
+    found: dict[str, str] = {}   # page -> name ("" = work it out from the link)
     for link in application_links():
         kind, ident, _ = classify(link)
         if kind in ("greenhouse", "lever"):
-            found.add(link)
+            found[link] = ""
+        elif (root := board_root(link)) is not None:
+            found[root[0]] = root[1]
     added = 0
-    for link in sorted(found):
+    for link, name in sorted(found.items()):
         try:
-            src = add_source(link, auto=True)
+            src = add_source(link, auto=True, label=name)
             added += src.url not in before
             before.add(src.url)
         except SourceError:

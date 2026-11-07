@@ -26,7 +26,7 @@ from bot.extraction import (
 )
 from bot import config
 from bot.handlers.common import restricted
-from bot.services import watchlist
+from bot.services import starter_pages, watchlist
 from service import editor
 from service.profile_data import (
     _load_skeleton_raw,
@@ -125,6 +125,21 @@ def _schedule_text() -> str:
     return f"Every day at <b>{_h(config.SCAN_TIME)}</b> ({_h(config.SCAN_TIMEZONE)})"
 
 
+def starters_screen(notice: str = "") -> Screen:
+    """Well-known Malaysian job pages, one tap each."""
+    have = {src.url.rstrip("/") for src in watchlist.list_sources()}
+    lines = [notice, ""] if notice else []
+    lines += ["🇲🇾 <b>Popular in Malaysia</b>", "Tap one to add it to the pages I check each day. Pages that list many employers "
+              "give me the most to choose from.", ""]
+    rows = []
+    for i, (name, url, note) in enumerate(starter_pages.MALAYSIA):
+        done = url.rstrip("/") in have
+        lines.append(f"• <b>{_h(name)}</b>: {_h(note)}" + (" ✓" if done else ""))
+        rows.append([_btn(("✓ " if done else "➕ ") + _short(name, 34), "wm", i)])
+    rows.append([_btn("⬅ Back", "w")])
+    return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
 def watchlist_screen(notice: str = "") -> Screen:
     from bot.scanner import is_running
     watchlist.sources_from_history()   # pick up job boards behind the jobs you've already sent
@@ -143,7 +158,7 @@ def watchlist_screen(notice: str = "") -> Screen:
                      "or https://jobs.lever.co/acme. Boards on Greenhouse or Lever work best.</i>")
     chips = [_btn(_short(f"✕ {src.label}", 28), "wd", src.id) for src in sources]
     rows = [chips[i:i + 2] for i in range(0, len(chips), 2)]
-    rows.append([_btn("➕ Add a link", "wa")])
+    rows.append([_btn("➕ Add a link", "wa"), _btn("🇲🇾 Popular in Malaysia", "wm")])
     rows.append([_btn("⏳ Checking now…" if is_running() else "▶ Check now", "wn"),
                  _btn("▶ Resume daily check" if watchlist.scan_paused() else "⏸ Pause daily check", "wp")])
     rows.append([_btn("⬅ Back to profile", "l")])
@@ -318,6 +333,15 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
     if action == "wa":
         return _prompt(context, "➕ <b>Add a link to watch</b>\n\nSend a career page or a job-board link, for example "
                        "https://boards.greenhouse.io/acme or https://jobs.lever.co/acme.", ("w",), action="source")
+    if action == "wm":
+        if not args:
+            return starters_screen()
+        name, url, _ = starter_pages.MALAYSIA[int(args[0])]
+        try:
+            watchlist.add_source(url, label=name)
+        except watchlist.SourceError as err:
+            return starters_screen(notice=f"❌ {_h(err)}")
+        return starters_screen(notice=f"✅ Added {_h(name)}.")
     if action == "wd":
         gone = watchlist.remove_source(int(args[0]))
         return watchlist_screen(notice="✕ Removed." if gone else "That one was already gone.")

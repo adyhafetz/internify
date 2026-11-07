@@ -1,6 +1,6 @@
 """Offline test: no message can fail on special characters, and the real handlers' output stays readable."""
 from __future__ import annotations
-import asyncio, os, random, re, shutil, sys, tempfile, types
+import asyncio, os, random, re, shutil, sys, tempfile
 from html import unescape
 from html.parser import HTMLParser
 
@@ -72,7 +72,7 @@ for _ in range(4000):
 print("3 ok: 4000 random messages -> always valid HTML, no letters lost")
 
 # 4. through the real python-telegram-bot message path
-from telegram import Chat, Message, CallbackQuery, User
+from telegram import Chat, Message
 from telegram.ext import ExtBot
 import datetime
 captured = []

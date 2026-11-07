@@ -121,6 +121,8 @@ def all_screens():
     yield "contact", eb.contact_screen()
     yield "skills", eb.skills_screen()
     yield "add menu", eb.add_menu_screen()
+    yield "job pages", eb.watchlist_screen()
+    yield "malaysian pages", eb.starters_screen()
     for i, _, _ in editor.list_skill_categories():
         yield f"skill category {i}", eb.skill_category_screen(i)
     for e in editor.list_entries():
@@ -381,4 +383,17 @@ assert [c for c, _ in sent["commands"]] == ["profile", "importresume", "history"
 assert all(3 <= len(d) <= 256 and d[0].isupper() for _, d in sent["commands"]) and "job link" in sent["short"] and "resume file" in sent["long"]
 print("D5 ok: only 7 commands exist (/start /help /profile /importresume /history /resume /cancel); the menu has 6 entries with clear descriptions; the bot description tells new users what to do:")
 for c, d in sent["commands"]: print(f"     /{c:13} {d}")
+# E1 the Malaysian starter pages: tap to add, shown as added, and they appear on the job pages screen
+from bot.services import starter_pages, watchlist
+ctx = types.SimpleNamespace(user_data={})
+text, markup = tap(ctx, "xp:w")
+assert "Popular in Malaysia" in [b.text for b in buttons(markup)][-3] or any("Popular in Malaysia" in b.text for b in buttons(markup))
+text, markup = tap(ctx, find(markup, "🇲🇾"))
+assert "Popular in Malaysia" in text and all(name.split(",")[0] in text for name, _, _ in starter_pages.MALAYSIA[:2])
+text, markup = tap(ctx, "xp:wm:2")
+assert "✅ Added" in text and any(b.text.startswith("✓ ") for b in buttons(markup)), text
+assert any(src.url == starter_pages.MALAYSIA[2][1] and src.label == starter_pages.MALAYSIA[2][0] for src in watchlist.list_sources())
+text, markup = tap(ctx, "xp:w")
+assert starter_pages.MALAYSIA[2][0] in text
+print("E1 ok: Popular in Malaysia lists well-known pages, one tap adds one, it shows as added")
 print("\n✅ browser test passed")
