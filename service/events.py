@@ -24,6 +24,8 @@ AGENTS: dict[str, dict[str, str]] = {
     "scribe":    {"name": "Scribe",    "role": "Writes tailored bullets",        "emoji": "✍️"},
     "critic":    {"name": "Critic",    "role": "Checks claims and scores fit",   "emoji": "🛡️"},
     "publisher": {"name": "Publisher", "role": "Builds PDF, files it, logs it",  "emoji": "📎"},
+    # The coordinator: plans each job, sends work where it belongs, and decides when a draft goes back
+    "orchestrator": {"name": "Orchestrator", "role": "Directs the team", "emoji": "🧭"},
     # The morning scan: these two work before the six above, on a schedule
     "discoverer": {"name": "Discoverer", "role": "Finds new jobs for you",       "emoji": "🔎"},
     "matcher":    {"name": "Matcher",    "role": "Picks the best fits",          "emoji": "🎯"},
@@ -152,6 +154,11 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
                 return f"{_READ.get(d.get('method'), 'Read the posting from ' + str(d.get('label')))} ({chars} characters)"
             return f"Read the whole posting ({chars} characters)"
         if k == FAIL: return "Couldn't read this page by any route"
+    elif a == "orchestrator":
+        if k == START: return "Checking the tracker and planning the steps…"
+        if k == PROGRESS and d.get("sendback"):
+            return f"Draft {d.get('iteration')} scored {round(float(d.get('score', 0)))}%, the bar is {round(float(d.get('threshold', 0)))}%. Sending it back to the Scribe"
+        if k == DONE: return "All steps done. Sending you the resume"
     elif a == "discoverer":
         if k == START: return f"Checking your {n('job source', int(d.get('sources', 0)))}…"
         if k == PROGRESS and d.get("status") == "trying": return f"Checking {d.get('label', 'a source')}…"

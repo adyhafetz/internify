@@ -91,6 +91,8 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
         await reporter.fail(text)
         return JobOutcome(ok=False, error=text)
 
+    events.emit("orchestrator", events.START, "Planning this job")
+
     # 1. Already in the tracker? One Sheet lookup answers both "is it a repeat" and "which row".
     sheet_row = await asyncio.to_thread(find_row_by_url, job_url)
     already_tracked = is_duplicate_url(job_url) or sheet_row is not None
@@ -99,6 +101,8 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
                 duplicate=already_tracked)
     if already_tracked:
         await reporter.notice("ℹ️ This link is already in your tracker. I'll tailor a fresh resume and update the existing entry.")
+
+    events.emit("orchestrator", events.HANDOFF, "Read this job page", to="scout")
 
     # 2. Scout reads the page. If it is blocked or empty, Scout tries other routes (each one is shown), and as a
     #    last resort (when someone can answer) asks you to paste the job description.
@@ -193,6 +197,7 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
     outcome = JobOutcome(ok=True, company=job.company, role=job.job_title, score=result.score, status=result.resume_status,
                          pdf_path=pdf_path, filename=filename, drive_link=drive_link or "", sheet_row=sheet_row,
                          comment=result.comment)
+    events.emit("orchestrator", events.DONE, "Resume ready", score=result.score)
     await reporter.finished(outcome)
     # 7. Deliver the PDF
     await reporter.deliver(outcome, build_caption(outcome, intro))

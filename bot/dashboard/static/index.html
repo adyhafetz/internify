@@ -71,12 +71,22 @@ body {
 .room { position: relative; flex: 1; min-height: 0; margin: 0 20px 16px; border-radius: 26px; border: 1px solid var(--line); overflow: hidden;
   background: radial-gradient(ellipse 52% 60% at 50% 48%, var(--sky) 0%, transparent 70%), var(--card); box-shadow: var(--shadow); }
 .stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.desk { position: absolute; border-radius: 24px; border: 1.5px dashed var(--edge); background: color-mix(in srgb, var(--sky) 45%, transparent); }
-.desk .cap { position: absolute; left: 18px; top: 13px; right: 10px; color: var(--muted); font-size: 10.5px; }
-.room.compact .desk .cap { left: 10px; font-size: 9.5px; letter-spacing: .05em; }
-.room svg.layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.table { position: absolute; border-radius: 50%; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
-  display: grid; place-items: center; text-align: center; padding: 8%; transform: translate(-50%, -50%); }
+.desk { position: absolute; border-radius: 24px; border: 1px solid #DCE6F2; background: #EFF6FF; }
+:root[data-theme="dark"] .desk { background: #12284B; border-color: var(--line); }
+.desk .cap { position: absolute; left: 22px; top: 16px; color: var(--blue); display: flex; align-items: center; gap: 8px; }
+.desk .big { position: absolute; left: 512px; top: 56px; width: 340px; }
+.desk .big h2 { margin: 0 0 8px; font-size: 24px; font-weight: 700; letter-spacing: -.03em; line-height: 1.15; }
+.desk .big p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+.room.compact .desk .big { display: none; } .room.compact .desk .cap { left: 14px; top: 10px; font-size: 10px; }
+.lane { position: absolute; border-radius: 26px; background: color-mix(in srgb, var(--canvas) 80%, var(--card)); }
+.lane.tint { background: #EFF6FF; } :root[data-theme="dark"] .lane.tint { background: #12284B; }
+.lane .ttl { position: absolute; left: 22px; top: 18px; color: var(--muted); }
+.start { position: absolute; color: var(--blue); }
+.pbar { width: 100%; height: 5px; border-radius: 3px; background: var(--line); margin-top: 9px; overflow: hidden; }
+.pbar i { display: block; height: 100%; width: 0; background: var(--blue); border-radius: 3px; transition: width .6s ease; }
+.room svg.layer { z-index: 5; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.table { position: absolute; border-radius: 22px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+  display: grid; place-items: center; text-align: center; padding: 12px 14px; transform: translate(-50%, -50%); }
 .table .inner { display: grid; gap: 4px; justify-items: center; max-width: 100%; }
 .table .mark { width: 54px; height: 54px; }
 .table h2 { margin: 6px 0 0; font-size: 17px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
@@ -93,12 +103,12 @@ body {
 .table.small .role { font-size: 15px; } .table.small .company { font-size: 12.5px; } .table.small h2 { font-size: 15px; } .table.small .sub, .table.small .step { font-size: 12px; }
 
 .actor {
-  position: absolute; display: flex; align-items: center; gap: 11px; padding: 9px 14px 9px 10px; border-radius: 22px; background: var(--card);
+  position: absolute; display: flex; align-items: center; gap: 9px; padding: 8px 10px 8px 8px; border-radius: 22px; background: var(--card);
   border: 1px solid var(--line); box-shadow: var(--shadow); transform: translate(-50%, -50%); transition: border-color .25s, box-shadow .25s, transform .25s;
 }
-.actor .av { position: relative; flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--sky); color: var(--blue); transition: background .25s, color .25s; }
+.actor .av { position: relative; flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--sky); color: var(--blue); transition: background .25s, color .25s; }
 :root[data-theme="dark"] .actor .av { color: #93C5FD; }
-.actor .av svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.actor .av svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .actor .nm { font-size: 15px; font-weight: 650; letter-spacing: -.01em; line-height: 1.15; }
 .actor .rl { font-size: 12px; color: var(--muted); line-height: 1.25; }
 .actor .bdg { position: absolute; right: -4px; top: -4px; width: 19px; height: 19px; border-radius: 50%; display: none; place-items: center; font-size: 11px; font-weight: 700; color: #fff; border: 2px solid var(--card); }
@@ -208,7 +218,10 @@ body {
 
 <main class="room" id="room" aria-label="Agents at work">
   <div class="stage" id="stage">
-    <div class="desk" id="desk"><div class="cap label">While you sleep</div></div>
+    <div id="lanes"></div>
+    <div class="desk" id="desk"><div class="cap label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>While you sleep</div>
+      <div class="big"><h2>Your next opportunity, found.</h2><p>A separate discovery loop finds and filters jobs, then brings the best fits to your phone.</p></div></div>
+    <div class="start label" id="startlbl">Start with you</div>
     <svg class="layer" id="layer"></svg>
     <div class="table" id="table"></div>
     <div id="actors"></div>
@@ -247,6 +260,7 @@ const ICONS = {
   archivist: '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1.5" y="3" width="21" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/>',
   scribe: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   critic: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>',
+  orchestrator: '<rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-4h14v4"/>',
   discoverer: '<circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8"/>',
   matcher: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   publisher: '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
@@ -259,11 +273,12 @@ const ACTORS = [
   { id: "scribe", name: "Scribe", role: "Writes the resume" },
   { id: "critic", name: "Critic", role: "Checks every line" },
   { id: "publisher", name: "Publisher", role: "Builds and files the PDF" },
+  { id: "orchestrator", name: "Orchestrator", role: "Directs the team" },
   { id: "discoverer", name: "Discoverer", role: "Finds new jobs for you" },
   { id: "matcher", name: "Matcher", role: "Picks the best fits" },
 ];
-const RING = ["you", "scout", "analyst", "archivist", "scribe", "critic", "publisher"], DESK = ["discoverer", "matcher"], PIPE = RING.slice(1);
-const N = RING.length, IDX = Object.fromEntries(RING.map((id, i) => [id, i])), NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
+const DESK = ["discoverer", "matcher"], PIPE = ["scout", "analyst", "archivist", "scribe", "critic", "publisher"];
+const NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
 const room = $("#room"), stage = $("#stage"), deskEl = $("#desk"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
 
 /* ------------------------------------------------------------ what the page knows about the current run */
@@ -276,21 +291,40 @@ function fresh(runId = null, ts = 0) {
 S = fresh();
 
 /* ------------------------------------------------------------ layout */
-const L = { W: 0, H: 0, cx: 0, cy: 0, cw: 0, ch: 0, D: 0, compact: false, pos: {} };
+const L = { W: 0, H: 0, cw: 0, ch: 0, compact: false, pos: {}, side: {} };
 function layout() {
   // The scene is drawn at one fixed size and scaled to fit the window, so nothing ever scrolls.
   const RW = room.clientWidth, RH = room.clientHeight, compact = RW < 760;
-  const W = compact ? 400 : 1120, H = compact ? 800 : 690, k = Math.max(0.2, Math.min(RW / W, RH / H, 1.6));
+  const W = compact ? 400 : 1200, H = compact ? 800 : 630, k = Math.max(0.2, Math.min(RW / W, RH / H, 1.6));
   stage.style.width = W + "px"; stage.style.height = H + "px";
   stage.style.transform = `translate(${((RW - W * k) / 2).toFixed(1)}px, ${((RH - H * k) / 2).toFixed(1)}px) scale(${k.toFixed(4)})`;
   room.classList.toggle("compact", compact);
-  const cw = compact ? 72 : 168, ch = compact ? 76 : 62;
-  const cx = compact ? 200 : 700, cy = compact ? 470 : 340, rx = compact ? 150 : 330, ry = compact ? 190 : 235;
-  Object.assign(L, { W, H, cx, cy, cw, ch, compact, D: compact ? 2 * (rx - cw / 2 - 12) : 270 });
-  const put = (id, x, y) => { L.pos[id] = { x, y, w: cw, h: ch, rect: { x: x - cw / 2, y: y - ch / 2, w: cw, h: ch } }; };
-  RING.forEach((id, i) => { const ang = (-90 - i * 360 / N) * Math.PI / 180; put(id, cx + rx * Math.cos(ang), cy + ry * Math.sin(ang)); });   // clockwise's mirror image: the flow runs counter-clockwise
-  if (compact) { put("discoverer", 72, 92); put("matcher", 72, 206); Object.assign(deskEl.style, { left: "6px", top: "16px", width: "132px", height: "266px" }); }
-  else { put("discoverer", 140, 125); put("matcher", 140, 300); Object.assign(deskEl.style, { left: "20px", top: "52px", width: "240px", height: "380px" }); }
+  const cw = compact ? 72 : 160, ch = compact ? 76 : 62;
+  Object.assign(L, { W, H, cw, ch, compact, pos: {}, side: {} });
+  const put = (id, x, y, side) => { L.pos[id] = { x, y, w: cw, h: ch, rect: { x: x - cw / 2, y: y - ch / 2, w: cw, h: ch } }; L.side[id] = side; };
+  const lanes = $("#lanes"); lanes.textContent = "";
+  const box = (el, x, y, w, h) => Object.assign(el.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+  if (!compact) {
+    put("you", 138, 137, "below"); put("orchestrator", 138, 312, "below"); put("scout", 138, 482, "below");
+    put("analyst", 360, 324, "below"); put("archivist", 360, 480, "below");
+    put("scribe", 565, 392, "below"); put("critic", 835, 392, "below"); put("publisher", 1050, 392, "above");
+    put("discoverer", 360, 129, "below"); put("matcher", 582, 129, "below");
+    box(deskEl, 258, 36, 906, 164);
+    [["01 / Plan and read", 36, 204, false], ["02 / Gather context", 258, 204, true], ["03 / Write and refine", 480, 438, false], ["04 / Deliver", 936, 228, true]].forEach(([t, x, w, tint]) => {
+      const d = html("div", "lane" + (tint ? " tint" : "")); box(d, x, 246, w, 344); d.appendChild(html("div", "ttl label", t)); lanes.appendChild(d);
+    });
+    Object.assign($("#startlbl").style, { left: "54px", top: "62px", display: "" });
+    L.table = { x: 1050, y: 512, w: 200, h: 150 };
+    $("#desk").querySelector(".big").style.left = "512px";
+  } else {
+    put("discoverer", 84, 84, "below"); put("matcher", 204, 84, "below");
+    put("you", 62, 226, "dock"); put("orchestrator", 200, 226, "dock"); put("scout", 338, 226, "dock");
+    put("analyst", 125, 346, "dock"); put("archivist", 275, 346, "dock");
+    put("scribe", 62, 466, "dock"); put("critic", 200, 466, "dock"); put("publisher", 338, 466, "dock");
+    box(deskEl, 8, 10, 384, 138);
+    $("#startlbl").style.display = "none";
+    L.table = { x: 200, y: 600, w: 344, h: 130 };
+  }
   layer.setAttribute("viewBox", `0 0 ${W} ${H}`);
   place();
 }
@@ -305,8 +339,8 @@ function buildActors() {
   });
 }
 function place() {
-  ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.minWidth = L.compact ? "" : (L.cw - 8) + "px"; });
-  Object.assign(tableEl.style, { left: L.cx + "px", top: L.cy + "px", width: L.D + "px", height: L.D + "px" });
+  ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.width = L.compact ? "" : L.cw + "px"; });
+  Object.assign(tableEl.style, { left: L.table.x + "px", top: L.table.y + "px", width: L.table.w + "px", height: L.table.h + "px" });
   drawBase(); drawEdges(); placeCallout();
 }
 
@@ -317,26 +351,19 @@ const inside = (p, r, pad) => p.x > r.x - pad && p.x < r.x + r.w + pad && p.y > 
 function edgeGeom(a, b) {
   const A = L.pos[a], B = L.pos[b], p0 = { x: A.x, y: A.y }, p2 = { x: B.x, y: B.y };
   const dx = p2.x - p0.x, dy = p2.y - p0.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
-  const onRing = IDX[a] !== undefined && IDX[b] !== undefined;
-  const fwd = onRing && (IDX[b] - IDX[a] + N) % N === 1, back = onRing && (IDX[a] - IDX[b] + N) % N === 1;
   const mid = { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 };
-  let sign;
-  if (!onRing) {       // the night desk: a gentle bow toward the table
-    sign = -1;
-  } else if (fwd || back) {   // neighbours on the ring: forward arrows bulge outward, return arrows curve inward
-    const out = { x: mid.x - L.cx, y: mid.y - L.cy }, side = Math.sign(nx * out.x + ny * out.y) || 1;
-    sign = fwd ? side : -side;
-  } else {             // across the table (you <-> the Archivist): arc around the outside; the answer nests inside the question
-    const out = { x: mid.x - L.cx, y: mid.y - L.cy };
-    sign = Math.sign(nx * out.x + ny * out.y) || 1;
-  }
-  const bulge = (!onRing ? 0.1 : fwd || back ? 0.2 : IDX[a] < IDX[b] ? 0.55 : 0.4) * len;
-  const c = { x: mid.x + nx * bulge * sign, y: mid.y + ny * bulge * sign };
+  // A pair of agents always bows toward the top-left from its alphabetical direction, so an answer going back
+  // takes the other side of the same pair and the two arrows never lie on top of each other.
+  const sgn = a < b ? 1 : -1, cdx = a < b ? dx : -dx, cdy = a < b ? dy : -dy, cl = Math.hypot(cdx, cdy) || 1, cnx = -cdy / cl, cny = cdx / cl;
+  const best = (mid.x + cnx * 40 + mid.y + cny * 40) <= (mid.x - cnx * 40 + mid.y - cny * 40) ? 1 : -1;
+  const side = best;   // the normal flips with the direction, so the return arrow lands on the other side
+  const bulge = Math.min(0.22, 38 / len + 0.07) * len;
+  const c = { x: mid.x + nx * bulge * side, y: mid.y + ny * bulge * side };
   let t0 = 0, t1 = 1;
   for (let i = 0; i <= 120; i++) { if (!inside(quad(p0, c, p2, i / 120), A.rect, 5)) { t0 = i / 120; break; } }
   for (let i = 120; i >= 0; i--) { if (!inside(quad(p0, c, p2, i / 120), B.rect, 7)) { t1 = i / 120; break; } }
-  const q0 = lerp(p0, c, t1), e = quad(p0, c, p2, t1), s = t1 > 0 ? t0 / t1 : 0;
-  return { p0: quad(p0, c, p2, t0), c: lerp(q0, e, s), p2: e };
+  const q0 = lerp(p0, c, t1), e = quad(p0, c, p2, t1), sc = t1 > 0 ? t0 / t1 : 0;
+  return { p0: quad(p0, c, p2, t0), c: lerp(q0, e, sc), p2: e };
 }
 const pathD = g => `M${g.p0.x.toFixed(1)},${g.p0.y.toFixed(1)} Q${g.c.x.toFixed(1)},${g.c.y.toFixed(1)} ${g.p2.x.toFixed(1)},${g.p2.y.toFixed(1)}`;
 
@@ -349,19 +376,13 @@ function drawBase() {
     m.appendChild(svg("path", { d: "M0,1 L9,5 L0,9 z", fill: col })); defs.appendChild(m);
   });
   layer.appendChild(defs);
-  layer.appendChild(svg("circle", { cx: L.cx, cy: L.cy, r: L.D / 2 + 26, class: "ring-guide" }));
-  const r = L.D / 2 + 9, circ = 2 * Math.PI * r;
-  layer.appendChild(svg("circle", { cx: L.cx, cy: L.cy, r, class: "progress-bg" }));
-  layer.appendChild(svg("circle", { id: "prog", cx: L.cx, cy: L.cy, r, class: "progress", "stroke-dasharray": circ, "stroke-dashoffset": circ, transform: `rotate(-90 ${L.cx} ${L.cy})` }));
   layer.appendChild(svg("g", { id: "edges" }));
   layer.appendChild(svg("g", { id: "packets" }));
-  setProgress();
 }
 function setProgress() {
-  const p = $("#prog"); if (!p) return;
-  const circ = 2 * Math.PI * (L.D / 2 + 9);
+  const bar = tableEl.querySelector(".pbar i"); if (!bar) return;
   const frac = S.final ? 1 : S.scan ? (S.jobs.n ? (S.jobs.done + S.jobs.failed) / S.jobs.n : 0) : PIPE.filter(id => S.actors[id].state === "done").length / PIPE.length;
-  p.setAttribute("stroke-dashoffset", circ * (1 - frac));
+  bar.style.width = Math.round(frac * 100) + "%";
 }
 function drawEdges() {
   const g = $("#edges"); if (!g) return; g.innerHTML = "";
@@ -393,7 +414,7 @@ function sendPacket(from, to, label, tone = "data") {
   (function step(now) {
     const t = Math.min(1, (now - t0) / dur), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, p = quad(geo.p0, geo.c, geo.p2, e);
     g.setAttribute("transform", `translate(${p.x.toFixed(1)},${p.y.toFixed(1)})`);
-    pill.setAttribute("transform", `translate(0,${p.y < L.cy ? -30 : 32})`);
+    pill.setAttribute("transform", "translate(0,-30)");
     if (t < 1) requestAnimationFrame(step); else { g.remove(); done(); }
   })(t0);
 }
@@ -420,7 +441,7 @@ function placeCallout() {
   const pad = 10;
   c.style.width = L.compact ? (L.W - 2 * pad) + "px" : "";
   const w = c.offsetWidth || 244, h = c.offsetHeight || 70;
-  const side = L.compact ? "dock" : S.say.id === "you" ? "left" : DESK.includes(S.say.id) ? "below" : p.y < L.cy - 4 ? "above" : "below";   // the top seat has no room above it; phones dock it at the bottom
+  const side = L.compact ? "dock" : (L.side[S.say.id] || "below");   // the top seat has no room above it; phones dock it at the bottom
   let left, top;
   if (side === "dock") { left = pad; top = L.H - h - 14; }
   else if (side === "left") { left = Math.max(pad, p.x - p.w / 2 - 16 - w); top = Math.max(pad, p.y - h / 2); c.style.setProperty("--ttop", (p.y - top) + "px"); }
@@ -430,12 +451,12 @@ function placeCallout() {
 }
 const pctText = (n) => Math.round(n) + "%";
 function renderTable() {
-  const t = tableEl; t.classList.toggle("problem", !!S.failed); t.classList.toggle("small", L.D < 260); t.textContent = "";
+  const t = tableEl; t.classList.toggle("problem", !!S.failed); t.classList.toggle("small", true); t.textContent = "";
   const inner = html("div", "inner"); t.appendChild(inner);
   const add = (tag, cls, text) => inner.appendChild(html(tag, cls, text));
   if (!S.run) {
     const img = html("img", "mark"); img.src = "/assets/brand/logo-mark.svg"; img.alt = ""; inner.appendChild(img);
-    add("h2", "", "Opportunity, connected."); add("p", "sub", L.compact ? "Send a job link on Telegram." : "Send a job link to your Telegram bot and watch the team work.");
+    add("h2", "", "Your next chapter"); add("p", "sub", "Send a job link on Telegram, or wait for the morning scan.");
     return;
   }
   if (S.scan && !S.failed) {
@@ -448,6 +469,7 @@ function renderTable() {
     } else if (S.job.role) {
       add("div", "lbl label", `Resume ${j.i} of ${j.n}`); add("div", "role", S.job.role); if (S.job.company) add("div", "company", S.job.company);
       add("div", "step", `${PIPE.filter(id => S.actors[id].state === "done").length} of ${PIPE.length} steps done`);
+      const pb = html("div", "pbar"); pb.appendChild(document.createElement("i")); inner.appendChild(pb); setProgress();
     } else {
       add("div", "lbl label", "Morning scan");
       add("div", "role", S.actors.matcher.state === "done" ? S.kept + " of " + S.found + " fit you" : S.actors.matcher.state === "working" ? "Scoring the new jobs" : S.actors.discoverer.state === "done" ? "Found " + S.found + " new jobs" : "Looking for new jobs");
@@ -468,7 +490,7 @@ function renderTable() {
   add("div", "lbl label", "Now tailoring");
   if (S.job.role) { add("div", "role", S.job.role); if (S.job.company) add("div", "company", S.job.company); } else add("div", "role", "A new job posting");
   const n = PIPE.filter(id => S.actors[id].state === "done").length;
-  add("div", "step", `${n} of ${PIPE.length} steps done`);
+  add("div", "step", `${n} of ${PIPE.length} steps done`); const pb = html("div", "pbar"); pb.appendChild(document.createElement("i")); inner.appendChild(pb); setProgress();
 }
 
 /* ------------------------------------------------------------ the log */
@@ -502,7 +524,7 @@ function renderLog() {
 function handoffLabel(ev) {
   const a = ev.agent, t = ev.to, d = ev.data || {}, last = S.scores[S.scores.length - 1];
   if (a === "scout") return "Job posting text";
-  if (a === "discoverer" || (a === "matcher" && t === "scout")) return ev.message;
+  if (a === "discoverer" || a === "matcher" || a === "orchestrator") return ev.message;
   if (a === "analyst") return `${S.stack} tools, ${S.reqs} skills wanted`;
   if (a === "archivist") return `${S.facts} matching experiences`;
   if (a === "scribe") return `Draft ${d.iteration || ""} to check`.trim();
@@ -512,6 +534,10 @@ function handoffLabel(ev) {
 }
 
 /* ------------------------------------------------------------ events -> scene */
+function deliverPacket(run) {   // the finished PDF goes Publisher -> Orchestrator -> you
+  sendPacket("publisher", "orchestrator", "Resume PDF");
+  setTimeout(() => { if (S.run === run) sendPacket("orchestrator", "you", "Resume PDF"); }, REDUCED ? 0 : 1300);
+}
 function runEvent(ev) {
   const d = ev.data || {};
   if (d.state === "started" && d.mode === "scan") {
@@ -526,7 +552,7 @@ function runEvent(ev) {
     ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
     setState("you", "done"); say("you", "You sent a job link", "");
     addLog(ev, "ok", "Telegram", "You sent a job link" + (S.url ? ": " + S.url.replace(/^https?:\/\//, "").slice(0, 60) : ""));
-    sendPacket("you", "scout", "Job link");
+    sendPacket("you", "orchestrator", "Job link");
     return;
   }
   if (ev.run_id !== S.run) return;
@@ -534,14 +560,13 @@ function runEvent(ev) {
     const keep = Object.fromEntries(Object.entries(S.edges).filter(([k]) => /discoverer|matcher/.test(k)));
     S.edges = keep; S.hot = null; S.job = { company: d.company || "", role: d.role || "" }; S.jobs.i = d.index; S.jobs.n = d.total;
     S.scores = []; S.blocked = 0; S.covered = S.missing = S.facts = S.stack = S.reqs = 0; S.say = null;
-    PIPE.forEach(id => setState(id, "idle")); drawEdges(); renderTable();
+    PIPE.concat("orchestrator").forEach(id => setState(id, "idle")); drawEdges(); renderTable();
     addLog(ev, "info", "Matcher", `Writing resume ${d.index} of ${d.total}: ${d.role} at ${d.company}${d.fit != null ? " (" + pctText(d.fit * 100) + " fit)" : ""}`);
-    if (d.index > 1) sendPacket("matcher", "scout", `Job ${d.index} of ${d.total}`);
     return;
   }
   if (d.state === "job_finished") {
     S.jobs.done++; addLog(ev, "ok", "Run", `Resume ready: ${d.role || "role"} at ${d.company || "company"}${d.score != null ? " · " + pctText(d.score) + " match" : ""}`);
-    setState("you", "done"); sendPacket("publisher", "you", "Resume PDF"); say("you", `Resume ${S.jobs.i} of ${S.jobs.n} is in your chat.`, ""); renderTable(); setProgress();
+    setState("you", "done"); deliverPacket(ev.run_id); say("you", `Resume ${S.jobs.i} of ${S.jobs.n} is in your chat.`, ""); renderTable(); setProgress();
     return;
   }
   if (d.state === "job_failed") {
@@ -556,7 +581,7 @@ function runEvent(ev) {
   if (d.state === "finished") {
     S.final = d; S.job.company = d.company || S.job.company; S.job.role = d.role || S.job.role;
     addLog(ev, "ok", "Run", `Resume ready${d.score != null ? " · " + pctText(d.score) + " match" : ""}`);
-    setState("you", "done"); sendPacket("publisher", "you", "Resume PDF"); say("you", "Your resume is ready. The PDF is in your chat.", "");
+    setState("you", "done"); deliverPacket(ev.run_id); say("you", "Your resume is ready. The PDF is in your chat.", "");
     renderTable(); setProgress();
   } else if (d.state === "failed") {
     S.failed = d.error || "Something went wrong"; addLog(ev, "bad", "Run", "The run failed", S.failed);

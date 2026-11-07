@@ -25,11 +25,12 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ## 🖥️ Live Agent Dashboard
 
-While the bot runs, open **http://localhost:8080/live**. It's a single picture that fits your browser window (no scrolling): a round table with seven seats, **Telegram** (you) and the six agents, plus a dashed **While you sleep** desk with two more agents. Send a job link in Telegram and watch the work move around the table: documents fly along the arrows from seat to seat, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
+While the bot runs, open **http://localhost:8080/live**. It's a single picture that fits your browser window (no scrolling), laid out as the team works: **Telegram** (you) and the **Orchestrator** on the left, the six agents in four stages (plan and read, gather context, write and refine, deliver), and a **While you sleep** band with two more agents. Send a job link in Telegram and watch the work move through the stages: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
 | Seat | What it does |
 |---|---|
 | 💬 Telegram | You, on your phone: send the link, answer questions, receive the PDF |
+| 🧭 Orchestrator | Plans each job, hands work to the Scout, and decides when a draft goes back to the Scribe |
 | 🔎 Scout | Reads the job page, and finds another way in if it's blocked |
 | 📄 Analyst | Works out what the job wants |
 | 🗄 Archivist | Finds your matching experience, and asks you about gaps |

@@ -146,7 +146,7 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         best = f" The best fit was {round(result.top * 100)}%." if result.top is not None else ""
         s.note = f"Found {len(fresh)} new job{'s' if len(fresh) != 1 else ''}, but none fit well enough to tailor a resume.{best}"
         return
-    events.emit("matcher", events.HANDOFF, f"{s.kept} shortlisted", to="scout")
+    events.emit("matcher", events.HANDOFF, f"{s.kept} shortlisted", to="orchestrator")
 
     # 3. The shortlisted jobs go through the same agents as a link you send yourself, one after another
     for i, pick in enumerate(result.kept, start=1):

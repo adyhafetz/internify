@@ -81,7 +81,10 @@ FAIL_REASONS = {
 
 def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
     """One resume through the six agents. ask=False is how a morning scan works: it never stops to question you."""
+    ev.emit("orchestrator", ev.START, "Planning this job")
+    wait(0.9)
     ev.emit("publisher", ev.PROGRESS, "New URL, not in tracker yet", duplicate=False)
+    ev.emit("orchestrator", ev.HANDOFF, "Read this job page", to="scout")
     ev.emit("scout", ev.START, "Opening the job page", url=url)
     total = len(ROUTES)
     via = dict(via_fallback=False, label="a normal visit", note="", method="direct")
@@ -158,6 +161,8 @@ def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
     ev.emit("critic", ev.DONE, "Draft 1 scored 40/100, 1 unsupported claim(s) caught", iteration=1, score=40.0,
             unsupported=[bad], notes="Remove the Redis claim and add the route-planner project to show algorithms.",
             coverage_notes="Good Python and PostgreSQL coverage.", threshold=85.0)
+    ev.emit("orchestrator", ev.PROGRESS, "Draft 1 is below the bar, sending it back", sendback=True, iteration=1, score=40.0, threshold=85.0)
+    wait(0.8)
     ev.emit("critic", ev.HANDOFF, "Remove the Redis claim; add algorithms evidence", to="scribe", iteration=1)
     wait(1.0)
 
@@ -185,6 +190,7 @@ def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
     wait(0.8)
     ev.emit("publisher", ev.DONE, "Resume filed and tracker updated", sheet_row=14,
             drive_link="https://drive.google.com/", pdf="")
+    ev.emit("orchestrator", ev.DONE, "Resume ready", score=88.0)
 
 
 def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0) -> str:
@@ -227,7 +233,7 @@ def _scan(wait) -> str:
     ev.emit("matcher", ev.PROGRESS, "Reading the best in detail", reading=6); wait(2.0)
     ev.emit("matcher", ev.DONE, "Kept 2 of 23", kept=2, total=23, top=0.82,
             picks=[{"role": r, "company": c, "fit": f, "why": w} for r, c, f, w in PICKS])
-    ev.emit("matcher", ev.HANDOFF, "2 shortlisted", to="scout")
+    ev.emit("matcher", ev.HANDOFF, "2 shortlisted", to="orchestrator")
     wait(1.0)
     for i, (role, company, fit, _) in enumerate(PICKS, start=1):
         ev.emit_run("job_started", url=URL + f"-{i}", index=i, total=len(PICKS), company=company, role=role, fit=fit)

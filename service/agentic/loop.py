@@ -61,6 +61,8 @@ def run_generator_critic_loop(
         if feedback.score >= config.SCORE_THRESHOLD:
             break
         if iteration < config.MAX_GENERATOR_ITERATIONS:
+            events.emit("orchestrator", events.PROGRESS, f"Draft {iteration} is below the bar, sending it back",
+                        sendback=True, iteration=iteration, score=feedback.score, threshold=config.SCORE_THRESHOLD)
             events.emit("critic", events.HANDOFF, feedback.revision_notes[:200], to="scribe", iteration=iteration)
 
     return LoopResult(
