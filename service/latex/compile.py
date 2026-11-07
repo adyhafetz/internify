@@ -5,7 +5,7 @@ import subprocess
 
 from jinja2 import Environment, FileSystemLoader
 
-from service import config
+from service import config, events
 from service.clients import openai_client
 from service.models import GeneratedResume, ResumeSkeleton
 
@@ -227,4 +227,7 @@ def compile_tex(
         if attempts > max_retries:
             raise TexCompileError(log=result.stderr, tex_source=tex_source)
 
+        events.emit("publisher", events.PROGRESS,
+                    f"LaTeX error, asking LLM to repair the source (attempt {attempts}/{max_retries})",
+                    repair_attempt=attempts, error=result.stderr[-300:])
         tex_source = _fix_tex_with_llm(tex_source, result.stderr)

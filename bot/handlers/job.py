@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import os
 import re
 import logging
@@ -18,6 +19,8 @@ from bot.services.drive import upload_to_drive
 from bot.extraction import normalize_job_posting
 from service.models import ProcessRequest
 from service.main import process
+from service import events
+from bot.progress import TelegramProgress
 
 logger = logging.getLogger(__name__)
 
@@ -60,45 +63,67 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     job_url = urls[0].rstrip(".,);")
     logger.info("Detected job URL: %s", job_url)
 
-    status_msg = await update.effective_message.reply_text(
-        "🔎 *Detected Job Link!*\nChecking application tracker...",
-        parse_mode="Markdown",
-    )
+    status_msg = await update.effective_message.reply_text("🔎 Job link detected, waking up the agents...")
+
+    # Every run gets an id; the same events feed this chat and the web dashboard.
+    run_id = events.start_run(url=job_url)
+    progress = TelegramProgress(status_msg, run_id, asyncio.get_running_loop())
+
+    async def fail(text: str, **run_data):
+        """Stop live updates, show the final error, and close the run."""
+        events.emit_run("failed", error=text, **run_data)
+        await progress.close()
+        await status_msg.edit_text(text)
 
     # 1. Duplicate check via SQLite and Google Sheets
     is_dup_sqlite = is_duplicate_url(job_url)
     is_dup_sheet = is_duplicate_job(job_url)
 
     if is_dup_sqlite or is_dup_sheet:
+        events.emit("publisher", events.PROGRESS, "This URL is already in your tracker", duplicate=True)
         await update.effective_message.reply_text(
             "⚠️ *Notice:* You already have an application logged for this URL in your Tracker.",
             parse_mode="Markdown",
         )
+    else:
+        events.emit("publisher", events.PROGRESS, "New URL, not in tracker yet", duplicate=False)
 
     # 2. Scrape job posting
+    events.emit("scout", events.START, "Opening the job page", url=job_url)
     try:
-        await status_msg.edit_text("⏳ `[1/4]` 🌐 *Scraping job posting content...*", parse_mode="Markdown")
         scraped_text = await scrape_job_url(job_url)
         if not scraped_text or len(scraped_text) < 100:
-            await status_msg.edit_text(
-                "❌ *Failed to extract job posting text.*\n"
-                "The page could be protected by heavy anti-bot walls or JavaScript.",
-                parse_mode="Markdown",
+            events.emit("scout", events.FAIL, "Page returned too little text (anti-bot wall or JavaScript)")
+            await fail(
+                "❌ Failed to extract job posting text.\n"
+                "The page could be protected by heavy anti-bot walls or JavaScript."
             )
             return
     except Exception as scrape_err:
         logger.error("Scraping error: %s", scrape_err)
-        await status_msg.edit_text(f"❌ *Scraping failed:* {scrape_err}")
+        events.emit("scout", events.FAIL, f"Scraping failed: {scrape_err}")
+        await fail(f"❌ Scraping failed: {scrape_err}")
         return
+    events.emit(
+        "scout", events.DONE, f"Read {len(scraped_text):,} characters from the page",
+        chars=len(scraped_text), preview=scraped_text[:1500], url=job_url,
+    )
+    events.emit("scout", events.HANDOFF, "Raw job posting text", to="analyst")
 
     # 3. Extract structured job details
+    events.emit("analyst", events.START, "Normalizing the raw page into a clean job posting")
     try:
-        await status_msg.edit_text("⏳ `[2/4]` 🧠 *Normalizing job details with AI...*", parse_mode="Markdown")
-        job = normalize_job_posting(scraped_text)
+        job = await asyncio.to_thread(normalize_job_posting, scraped_text)
     except Exception as norm_err:
         logger.error("Normalization error: %s", norm_err)
-        await status_msg.edit_text(f"❌ *Failed to parse job description:* {norm_err}")
+        events.emit("analyst", events.FAIL, f"Could not parse job description: {norm_err}")
+        await fail(f"❌ Failed to parse job description: {norm_err}")
         return
+    events.emit(
+        "analyst", events.PROGRESS, f"Identified {job.job_title} at {job.company}",
+        company=job.company, role=job.job_title, location=job.location,
+        description=job.job_description, requirements=job.job_requirements,
+    )
 
     # 4. Log initial row to SQLite (Always) & Google Sheets (Optional Cloud)
     db_app_id = db_add_application(
@@ -111,7 +136,8 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status="Processing",
     )
 
-    sheet_row_num = append_application(
+    sheet_row_num = await asyncio.to_thread(
+        append_application,
         company=job.company,
         job_title=job.job_title,
         location=job.location,
@@ -121,13 +147,8 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status="New",
     )
 
-    # 5. Run agentic loop (Retrieval + Generator + Critic)
+    # 5. Run agentic loop (Retrieval + Generator + Critic) off the event loop so live updates keep flowing
     try:
-        await status_msg.edit_text(
-            f"⏳ `[3/4]` ✍️ *Tailoring resume for* **{job.company}** (`{job.job_title}`)...\n"
-            "_Evaluating keyword match, selecting relevant coursework & running critic loop..._",
-            parse_mode="Markdown",
-        )
         proc_req = ProcessRequest(
             company=job.company,
             job_title=job.job_title,
@@ -136,13 +157,13 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             job_requirements=job.job_requirements,
             job_link=job_url,
         )
-        proc_res = process(proc_req)
+        proc_res = await asyncio.to_thread(process, proc_req)
     except Exception as proc_err:
         logger.error("Resume pipeline error: %s", proc_err)
         db_update_application(db_app_id, status="Failed", comment=str(proc_err))
         if sheet_row_num:
             update_application_status(sheet_row_num, resume_status="Failed", comment=str(proc_err))
-        await status_msg.edit_text(f"❌ *Resume pipeline failed:* {proc_err}")
+        await fail(f"❌ Resume pipeline failed: {proc_err}")
         return
 
     # 6. Check compiled PDF
@@ -157,18 +178,22 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         if sheet_row_num:
             update_application_status(sheet_row_num, resume_status=proc_res.resume_status, comment=proc_res.comment)
-        await status_msg.edit_text(
-            f"❌ *LaTeX Compilation Failed*\n\n"
-            f"• *Status:* {proc_res.resume_status}\n"
-            f"• *Notes:* {proc_res.comment}",
-            parse_mode="Markdown",
+        await fail(
+            f"❌ LaTeX Compilation Failed\n\n"
+            f"• Status: {proc_res.resume_status}\n"
+            f"• Notes: {proc_res.comment}"
         )
         return
 
     # 7. Upload to Google Drive (Optional Cloud)
-    await status_msg.edit_text("⏳ `[4/4]` 📄 *Packaging PDF and updating application tracker...*", parse_mode="Markdown")
+    events.emit("publisher", events.PROGRESS, "Uploading PDF to Google Drive")
     dest_filename = f"{job.company}_{job.job_title}.pdf".replace(" ", "_")
-    drive_link = upload_to_drive(pdf_path, dest_filename)
+    drive_link = await asyncio.to_thread(upload_to_drive, pdf_path, dest_filename)
+    events.emit(
+        "publisher", events.PROGRESS,
+        "Uploaded to Drive" if drive_link else "Drive not configured, kept local copy",
+        drive_link=drive_link or "",
+    )
 
     # 8. Update SQLite & Google Sheets
     db_update_application(
@@ -182,12 +207,24 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if sheet_row_num:
-        update_application_status(
+        await asyncio.to_thread(
+            update_application_status,
             row_num=sheet_row_num,
             resume_link=drive_link or "",
             resume_status=proc_res.resume_status,
             comment=f"Score: {proc_res.score:.1f}. {proc_res.comment}",
         )
+    events.emit(
+        "publisher", events.DONE,
+        "Resume filed and tracker updated" if sheet_row_num else "Saved to local tracker",
+        sheet_row=sheet_row_num or None, drive_link=drive_link or "", db_id=db_app_id,
+        pdf=os.path.basename(pdf_path),
+    )
+    events.emit_run(
+        "finished", score=proc_res.score, status=proc_res.resume_status,
+        pdf=os.path.basename(pdf_path), drive_link=drive_link or "",
+        company=job.company, role=job.job_title,
+    )
 
     # 9. Deliver PDF directly to Telegram chat
     score_emoji = "🟢" if proc_res.score >= 80 else ("🟡" if proc_res.score >= 65 else "🔴")
@@ -201,6 +238,7 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption += f"• ☁️ [Open in Google Drive]({drive_link})\n"
     caption += f"\n💡 *Critic Feedback:*\n_{proc_res.comment[:400]}_"
 
+    await progress.close()
     try:
         with open(pdf_path, "rb") as pdf_file:
             await update.effective_message.reply_document(
@@ -211,15 +249,19 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 write_timeout=60,
                 read_timeout=60,
             )
-        await status_msg.delete()
+        # Keep the finished agent timeline in the chat instead of deleting it.
+        try:
+            await status_msg.edit_text(progress.render())
+        except Exception:
+            pass
     except Exception as upload_err:
         logger.error("Failed to deliver tailored PDF to Telegram: %s", upload_err)
         msg_text = (
-            f"🎯 *Tailored Resume Ready*, but delivery directly to Telegram encountered a network timeout:\n`{upload_err}`"
+            f"🎯 Tailored Resume Ready, but delivery directly to Telegram encountered a network timeout:\n{upload_err}"
         )
         if drive_link:
-            msg_text += f"\n\n☁️ *You can access your compiled PDF on Google Drive:*\n[Open in Drive]({drive_link})"
-        await status_msg.edit_text(msg_text, parse_mode="Markdown")
+            msg_text += f"\n\n☁️ You can access your compiled PDF on Google Drive:\n{drive_link}"
+        await status_msg.edit_text(msg_text)
 
 
 def get_job_url_handler() -> MessageHandler:

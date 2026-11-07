@@ -15,6 +15,9 @@ services:
     container_name: internify-telegram-bot
     command: ["python", "-m", "bot.main"]
     env_file: .env
+    ports:
+      # Live agent dashboard: open http://localhost:8080 (bound to localhost only)
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./output:/app/output
       - ./service:/app/service

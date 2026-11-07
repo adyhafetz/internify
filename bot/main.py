@@ -174,6 +174,9 @@ def create_bot_app():
 def main():
     logger.info("Initializing database...")
     init_db()
+    if config.DASHBOARD_ENABLED:
+        from bot.dashboard.server import start_dashboard
+        start_dashboard(config.DASHBOARD_HOST, config.DASHBOARD_PORT)
     logger.info("Starting Internify Telegram Bot runner...")
     app = create_bot_app()
     app.run_polling(allowed_updates=Update.ALL_TYPES)

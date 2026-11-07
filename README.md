@@ -23,6 +23,27 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ---
 
+## 🖥️ Live Agent Dashboard
+
+While the bot runs, open **http://localhost:8080**. Send a job link in Telegram and watch six named agents work in real time, while the same progress streams into the chat:
+
+| Agent | Job |
+|---|---|
+| 🔭 Scout | Reads the job page |
+| 🧠 Analyst | Extracts stack, requirements, ATS keywords |
+| 📚 Archivist | Retrieves your verified facts, flags requirements with no evidence |
+| ✍️ Scribe | Writes tailored bullets, each tied to a fact |
+| 🛡️ Critic | Verifies every claim and scores ATS fit, sends notes back to Scribe |
+| 📎 Publisher | Compiles the PDF (self-repairing LaTeX), uploads to Drive, logs the tracker |
+
+- Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
+- **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
+- Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/?replay=<run_id>` (add `&speed=2` to go faster).
+- Offline check of the event plumbing: `python scripts/test_events.py`.
+- Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
+
+---
+
 ## 🏗️ Architecture
 
 ```

@@ -27,3 +27,8 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN", "").strip()
 GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
 
+
+# Live dashboard (served from the bot process; shows the agents working in real time)
+DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "true").strip().lower() in ("1", "true", "yes")
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0").strip()
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))

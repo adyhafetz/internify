@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Internify Live</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --ink: #1b1f27; --muted: #697386; --line: #e3e6ec;
+  --ok: #1f9d55; --warn: #c27803; --bad: #d64545; --accent: #3b6ef5;
+  --c-scout: #3b82f6; --c-analyst: #8b5cf6; --c-archivist: #0d9488;
+  --c-scribe: #f59e0b; --c-critic: #ef4444; --c-publisher: #22a55b;
+  --shadow: 0 1px 2px rgba(20,24,40,.06), 0 4px 14px rgba(20,24,40,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1218; --panel: #171b24; --ink: #e8ebf2; --muted: #8d97ab; --line: #272d3a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1218; --panel: #171b24; --ink: #e8ebf2; --muted: #8d97ab; --line: #272d3a;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.wrap { max-width: 1320px; margin: 0 auto; padding: 16px; }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.brand { font-weight: 700; font-size: 18px; letter-spacing: -.2px; }
+.brand span { color: var(--accent); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.live.on i { background: var(--ok); box-shadow: 0 0 0 0 rgba(31,157,85,.6); animation: ping 1.6s infinite; }
+@keyframes ping { 70% { box-shadow: 0 0 0 7px rgba(31,157,85,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,85,0); } }
+.urlbar {
+  flex: 1 1 360px; min-width: 240px; display: flex; align-items: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+  box-shadow: var(--shadow); color: var(--muted); font-size: 13px; overflow: hidden;
+}
+.urlbar b { color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn {
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px;
+  padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; box-shadow: var(--shadow);
+}
+.btn:hover { border-color: var(--accent); }
+
+/* agent stage */
+.stage {
+  position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 18px 10px 14px; margin-bottom: 14px;
+}
+.agents { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; z-index: 2; }
+.agent { text-align: center; padding: 0 6px; min-width: 0; }
+.avatar {
+  position: relative; width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 8px;
+  display: grid; place-items: center; font-size: 30px;
+  background: color-mix(in srgb, var(--c) 16%, var(--panel));
+  border: 3px solid color-mix(in srgb, var(--c) 40%, var(--panel));
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+.agent[data-state="idle"] .avatar { filter: grayscale(.75); opacity: .65; }
+.agent[data-state="working"] .avatar {
+  border-color: var(--c); transform: scale(1.08);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 45%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--c) 0%, transparent); }
+}
+.agent[data-state="done"] .avatar { border-color: var(--ok); }
+.agent[data-state="fail"] .avatar { border-color: var(--bad); }
+.badge {
+  position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; border-radius: 50%;
+  display: none; place-items: center; font-size: 12px; font-weight: 700; color: #fff; border: 2px solid var(--panel);
+}
+.agent[data-state="done"] .badge { display: grid; background: var(--ok); }
+.agent[data-state="fail"] .badge { display: grid; background: var(--bad); }
+.agent[data-state="waiting"] .badge { display: grid; background: var(--warn); }
+.aname { font-weight: 650; font-size: 14px; }
+.arole { color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+.bubble {
+  min-height: 38px; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 5px 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.agent[data-state="idle"] .bubble { color: var(--muted); }
+.edges { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: visible; }
+.edge { fill: none; stroke: var(--muted); stroke-opacity: .35; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.edge.hot { stroke-opacity: .9; stroke-width: 2; }
+.edgecount { font-size: 11px; fill: var(--muted); font-weight: 600; }
+.packet { filter: drop-shadow(0 1px 3px rgba(0,0,0,.35)); }
+.pkt-chip { font-size: 11px; font-weight: 600; }
+
+/* panels */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .agents { grid-template-columns: repeat(3, 1fr); row-gap: 14px; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--c); }
+.empty { color: var(--muted); font-size: 13px; }
+.rawwrap { position: relative; }
+.raw {
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  max-height: 200px; overflow: auto; margin: 0 0 10px;
+}
+.raw mark { background: color-mix(in srgb, var(--c-analyst) 28%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.cursor {
+  display: none; position: absolute; width: 18px; height: 18px; z-index: 4; pointer-events: none;
+  transition: left .35s ease, top .35s ease;
+}
+.cursor.on { display: block; }
+.cursor svg { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.cursor span {
+  position: absolute; left: 14px; top: 12px; background: var(--c-scout); color: #fff; font-size: 10px;
+  font-weight: 700; padding: 1px 6px; border-radius: 6px; white-space: nowrap;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); animation: pop .35s ease both; }
+.chip.ok { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok) 12%, var(--panel)); }
+.chip.miss { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); background: color-mix(in srgb, var(--warn) 14%, var(--panel)); }
+.chip.kw { border-color: color-mix(in srgb, var(--c-analyst) 45%, var(--line)); background: color-mix(in srgb, var(--c-analyst) 10%, var(--panel)); }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.lbl { font-size: 11.5px; color: var(--muted); font-weight: 600; margin: 8px 0 4px; }
+.facts, .bullets { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.fact, .bullet { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--bg); animation: slide .4s ease both; font-size: 13px; }
+.bullet.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); }
+.bullet.new { border-color: color-mix(in srgb, var(--c-scribe) 70%, var(--line)); }
+@keyframes slide { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+.meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.tag { font-family: ui-monospace, Menlo, monospace; background: color-mix(in srgb, var(--c-archivist) 14%, var(--panel)); color: var(--c-archivist); border-radius: 5px; padding: 0 6px; }
+.bar { height: 5px; border-radius: 3px; background: var(--line); flex: 1; max-width: 90px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--c-archivist); }
+.scores { display: flex; align-items: flex-end; gap: 10px; height: 92px; margin: 4px 0 10px; border-bottom: 1px solid var(--line); position: relative; padding-bottom: 2px; }
+.sbar { flex: 0 0 60px; text-align: center; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.sbar i { display: block; border-radius: 6px 6px 0 0; background: var(--bad); transition: height .6s; margin-top: 3px; }
+.sbar.pass i { background: var(--ok); }
+.sbar small { color: var(--muted); font-weight: 500; font-size: 10.5px; }
+.thr { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--muted); opacity: .6; }
+.thr em { position: absolute; right: 0; top: -17px; font-size: 10px; color: var(--muted); font-style: normal; }
+.warnbox { border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); border-radius: 10px; padding: 7px 10px; font-size: 12.5px; margin-bottom: 8px; animation: slide .4s ease both; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.step { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.sicon { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--line); color: var(--muted); flex: none; }
+.step.done .sicon { background: var(--ok); color: #fff; }
+.step.doing .sicon { background: var(--c-publisher); color: #fff; animation: pulse 1.4s infinite; --c: var(--c-publisher); }
+.step.fail .sicon { background: var(--bad); color: #fff; }
+.step small { display: block; color: var(--muted); font-size: 11.5px; }
+.step a { color: var(--accent); }
+.log { margin-top: 14px; }
+.logrows { max-height: 170px; overflow: auto; font-size: 12.5px; display: grid; gap: 3px; }
+.logrow { display: flex; gap: 8px; align-items: baseline; }
+.logrow time { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; width: 52px; }
+.logrow b { flex: none; width: 76px; }
+.final { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ok) 12%, var(--panel)); border: 1px solid var(--ok); font-weight: 600; }
+.final.show { display: block; animation: slide .4s ease both; }
+.final.err { background: color-mix(in srgb, var(--bad) 10%, var(--panel)); border-color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">Internify <span>Live</span></div>
+    <div class="urlbar" title="Paste the job link in Telegram. It appears here."><span>Job link</span><b id="url">Waiting for a job link from Telegram…</b></div>
+    <span class="live" id="live"><i></i><span id="livetxt">connecting</span></span>
+    <button class="btn" id="demo">▶ Demo run</button>
+    <button class="btn" id="demo2" title="Show the Scout recovering from a blocked page">Demo: blocked page</button>
+  </div>
+
+  <div class="stage">
+    <div class="agents" id="agents"></div>
+    <svg class="edges" id="edges"></svg>
+  </div>
+
+  <div class="grid">
+    <section class="panel" style="--c: var(--c-scout)">
+      <h2><span class="dot"></span>Job posting <span class="empty" style="font-weight:400;text-transform:none;letter-spacing:0">Scout &amp; Analyst</span></h2>
+      <div id="job"><div class="empty">Nothing read yet.</div></div>
+    </section>
+
+    <section class="panel" style="--c: var(--c-archivist)">
+      <h2><span class="dot"></span>Your verified facts <span class="empty" style="font-weight:400;text-transform:none;letter-spacing:0">Archivist</span></h2>
+      <div id="facts"><div class="empty">Waiting for the Analyst.</div></div>
+    </section>
+
+    <section class="panel" style="--c: var(--c-scribe)">
+      <h2><span class="dot"></span>Resume draft <span class="empty" style="font-weight:400;text-transform:none;letter-spacing:0">Scribe &amp; Critic</span></h2>
+      <div id="draft"><div class="empty">No draft yet.</div></div>
+    </section>
+
+    <section class="panel" style="--c: var(--c-publisher)">
+      <h2><span class="dot"></span>Publish <span class="empty" style="font-weight:400;text-transform:none;letter-spacing:0">Publisher</span></h2>
+      <ul class="steps" id="steps"></ul>
+      <div class="final" id="final"></div>
+    </section>
+  </div>
+
+  <section class="panel log">
+    <h2>Activity log</h2>
+    <div class="logrows" id="log"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+"use strict";
+const AGENT_ORDER = ["scout","analyst","archivist","scribe","critic","publisher"];
+const AGENTS = {
+  scout:     {name:"Scout",     role:"Reads the job page",            emoji:"🔭"},
+  analyst:   {name:"Analyst",   role:"Extracts requirements",         emoji:"🧠"},
+  archivist: {name:"Archivist", role:"Retrieves your verified facts", emoji:"📚"},
+  scribe:    {name:"Scribe",    role:"Writes tailored bullets",       emoji:"✍️"},
+  critic:    {name:"Critic",    role:"Checks claims, scores fit",     emoji:"🛡️"},
+  publisher: {name:"Publisher", role:"Builds PDF, files, logs",       emoji:"📎"},
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const params = new URLSearchParams(location.search);
+const REPLAY = params.get("replay");
+const SPEED = parseFloat(params.get("speed") || "1");
+
+let currentRun = null;
+let animate = true;           // false while a backlog is being applied
+let edges = {};               // "a>b" -> count
+let st;                       // per-run view state
+
+function resetState() {
+  edges = {};
+  st = { raw:"", terms:[], draftIdx:0, scores:[], threshold:85, steps:{}, rawEl:null };
+  $("url").textContent = "Waiting for a job link from Telegram…";
+  $("job").innerHTML = '<div class="empty">Nothing read yet.</div>';
+  $("facts").innerHTML = '<div class="empty">Waiting for the Analyst.</div>';
+  $("draft").innerHTML = '<div class="empty">No draft yet.</div>';
+  $("log").innerHTML = "";
+  $("final").className = "final"; $("final").textContent = "";
+  buildSteps();
+  for (const a of AGENT_ORDER) setAgent(a, "idle", "Standing by");
+  drawEdges();
+  hideCursor();
+}
+
+/* ---------------- agents ---------------- */
+function buildAgents() {
+  $("agents").innerHTML = AGENT_ORDER.map(k => {
+    const a = AGENTS[k];
+    return `<div class="agent" id="ag-${k}" data-state="idle" style="--c: var(--c-${k})">
+      <div class="avatar" id="av-${k}">${a.emoji}<span class="badge" id="bd-${k}">✓</span></div>
+      <div class="aname">${a.name}</div><div class="arole">${a.role}</div>
+      <div class="bubble" id="bb-${k}">Standing by</div></div>`;
+  }).join("");
+}
+function setAgent(k, state, text) {
+  const el = $("ag-"+k); if (!el) return;
+  if (state) el.dataset.state = state;
+  if (text != null) $("bb-"+k).textContent = text;
+  const bd = $("bd-"+k);
+  bd.textContent = state === "fail" ? "✕" : state === "waiting" ? "…" : "✓";
+}
+
+/* ---------------- hand-off edges ---------------- */
+function center(k) {
+  const r = $("av-"+k).getBoundingClientRect(), s = $("edges").getBoundingClientRect();
+  return { x: r.left - s.left + r.width/2, y: r.top - s.top + r.height/2, r: r.width/2 };
+}
+function edgePath(a, b) {
+  const A = center(a), B = center(b);
+  const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
+  const ux = dx/len, uy = dy/len, nx = -uy, ny = ux;
+  const bend = (a < b ? 1 : -1) * 0;  // placeholder
+  const sign = AGENT_ORDER.indexOf(a) < AGENT_ORDER.indexOf(b) ? -1 : 1;   // forward arcs go over, backward arcs go under
+  const off = 14 * sign;
+  const sx = A.x + ux*(A.r+4) + nx*off*0.6, sy = A.y + uy*(A.r+4) + ny*off*0.6;
+  const ex = B.x - ux*(B.r+4) + nx*off*0.6, ey = B.y - uy*(B.r+4) + ny*off*0.6;
+  const cx = (sx+ex)/2 + nx*off, cy = (sy+ey)/2 + ny*off;
+  return { d:`M${sx},${sy} Q${cx},${cy} ${ex},${ey}`, sx, sy, cx, cy, ex, ey };
+}
+function drawEdges(hotKey) {
+  const svg = $("edges");
+  const sr = svg.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${sr.width} ${sr.height}`);
+  svg.innerHTML = `<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>`;
+  for (const key of Object.keys(edges)) {
+    const [a,b] = key.split(">"), p = edgePath(a,b);
+    svg.insertAdjacentHTML("beforeend", `<path class="edge ${key===hotKey?"hot":""}" d="${p.d}" marker-end="url(#ah)"/>`);
+    if (edges[key] > 1) svg.insertAdjacentHTML("beforeend", `<text class="edgecount" x="${p.cx}" y="${p.cy + (AGENT_ORDER.indexOf(a)<AGENT_ORDER.indexOf(b)?-4:12)}" text-anchor="middle">×${edges[key]}</text>`);
+  }
+}
+function handoff(from, to, label) {
+  const key = from + ">" + to;
+  edges[key] = (edges[key] || 0) + 1;
+  drawEdges(key);
+  if (!animate) return;
+  const p = edgePath(from, to), svg = $("edges");
+  const c = getComputedStyle(document.documentElement).getPropertyValue("--c-" + from).trim();
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.innerHTML = `<circle class="packet" r="7" fill="${c}"/><g class="tag"><rect rx="8" ry="8" height="18" fill="${c}"/><text class="pkt-chip" fill="#fff" y="13" x="8"></text></g>`;
+  svg.appendChild(g);
+  const txt = g.querySelector("text"), rect = g.querySelector("rect");
+  txt.textContent = label.length > 38 ? label.slice(0,36) + "…" : label;
+  const w = txt.getComputedTextLength() + 16; rect.setAttribute("width", w);
+  const dur = 1100, t0 = performance.now();
+  (function step(now) {
+    const t = Math.min(1, (now - t0) / dur), u = 1 - t;
+    const x = u*u*p.sx + 2*u*t*p.cx + t*t*p.ex, y = u*u*p.sy + 2*u*t*p.cy + t*t*p.ey;
+    g.querySelector("circle").setAttribute("cx", x); g.querySelector("circle").setAttribute("cy", y);
+    const tag = g.querySelector(".tag");
+    tag.setAttribute("transform", `translate(${Math.max(4, Math.min(svg.getBoundingClientRect().width - w - 4, x - w/2))},${y - 30})`);
+    if (t < 1) requestAnimationFrame(step); else setTimeout(() => g.remove(), 900);
+  })(performance.now());
+}
+
+/* ---------------- job panel ---------------- */
+function renderJob() {
+  const j = st.job || {};
+  let html = "";
+  if (st.raw) {
+    html += `<div class="lbl">Raw page text${st.chars ? ` · ${st.chars.toLocaleString()} characters` : ""}</div>
+      <div class="rawwrap"><pre class="raw" id="raw"></pre><div class="cursor" id="cursor"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
+  }
+  if (j.company) html += `<div class="lbl">Identified</div><div class="chips"><span class="chip kw"><b>${esc(j.role)}</b> at <b>${esc(j.company)}</b>${j.location ? " · " + esc(j.location) : ""}</span></div>`;
+  if (j.stack && j.stack.length) html += `<div class="lbl">Tech stack</div><div class="chips">${j.stack.map(t => `<span class="chip kw">${esc(t)}</span>`).join("")}</div>`;
+  if (j.reqs && j.reqs.length) html += `<div class="lbl">Hard requirements</div><div class="chips">${j.reqs.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>`;
+  if (j.kws && j.kws.length) html += `<div class="lbl">ATS keywords</div><div class="chips">${j.kws.map(t => `<span class="chip kw">${esc(t)}</span>`).join("")}</div>`;
+  $("job").innerHTML = html || '<div class="empty">Nothing read yet.</div>';
+  const raw = $("raw");
+  if (raw) { raw.innerHTML = highlight(st.rawShown ?? st.raw); st.rawEl = raw; }
+}
+function highlight(text) {
+  let h = esc(text);
+  const terms = [...new Set(st.terms)].filter(t => t.length > 1).sort((a,b) => b.length - a.length);
+  for (const t of terms) h = h.replace(new RegExp("(" + esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi"), "<mark>$1</mark>");
+  return h;
+}
+function typeRaw() {
+  st.rawShown = st.raw;
+  if (!animate) { renderJob(); return; }
+  let n = 0; const total = st.raw.length, myRun = currentRun, step = Math.max(8, Math.ceil(total / 60));
+  st.rawShown = "";
+  const tick = () => {
+    if (myRun !== currentRun) return;
+    n = Math.min(total, n + step); st.rawShown = st.raw.slice(0, n);
+    const raw = $("raw"); if (raw) { raw.innerHTML = highlight(st.rawShown); raw.scrollTop = raw.scrollHeight; moveCursor(raw); }
+    if (n < total) setTimeout(tick, 28); else { st.rawShown = st.raw; setTimeout(hideCursor, 500); }
+  };
+  renderJob(); tick();
+}
+function moveCursor(raw) {
+  const cur = $("cursor"); if (!cur) return;
+  cur.classList.add("on");
+  const lines = raw.innerHTML.split("\n").length;
+  cur.style.left = (20 + (lines * 37) % 240) + "px";
+  cur.style.top = Math.min(raw.clientHeight - 14, 10 + lines * 18) + "px";
+}
+function hideCursor() { const c = $("cursor"); if (c) c.classList.remove("on"); }
+
+/* ---------------- facts panel ---------------- */
+function renderFacts(d) {
+  const covered = d.covered || [], missing = d.missing || [];
+  let html = `<div class="lbl">${d.facts.length} of ${d.total_facts} facts selected, ranked by relevance</div><ul class="facts">` +
+    d.facts.map((f, i) => `<li class="fact" style="animation-delay:${animate ? i*90 : 0}ms">${esc(f.text)}
+      <div class="meta"><span class="tag">${esc(f.id)}</span><span>${esc(f.entry_id)}</span>
+      <span class="bar"><i style="width:${Math.max(4, Math.min(100, f.score*100))}%"></i></span><span>${f.score.toFixed(2)}</span></div></li>`).join("") + `</ul>`;
+  if (covered.length) html += `<div class="lbl">Requirements backed by your facts</div><div class="chips">${covered.map(t => `<span class="chip ok">✓ ${esc(t)}</span>`).join("")}</div>`;
+  if (missing.length) html += `<div class="lbl">Not found in your facts</div><div class="chips">${missing.map(t => `<span class="chip miss">? ${esc(t)}</span>`).join("")}</div>`;
+  $("facts").innerHTML = html;
+}
+
+/* ---------------- draft panel ---------------- */
+function renderDraft() {
+  const d = st.draft; if (!d) return;
+  let html = "";
+  if (st.scores.length) {
+    const H = 92, thrY = H * (1 - st.threshold / 100);
+    html += `<div class="lbl">ATS score by draft</div><div class="scores"><div class="thr" style="top:${thrY}px"><em>pass ${st.threshold}</em></div>` +
+      st.scores.map((s, i) => `<div class="sbar ${s >= st.threshold ? "pass" : ""}">${s.toFixed(0)}<i style="height:${Math.max(3, s/100*(H-18))}px"></i><small>Draft ${i+1}</small></div>`).join("") + `</div>`;
+  }
+  for (const w of d.warnings || []) html += `<div class="warnbox">🛡️ <b>Critic caught an unsupported claim:</b> ${esc(w)}</div>`;
+  html += `<div class="lbl">Draft ${d.iteration}${d.final ? " (approved)" : d.scored ? "" : " (under review)"} · every bullet cites a fact</div><ul class="bullets">` +
+    d.bullets.map((b, i) => `<li class="bullet ${d.flag && d.flag(b) ? "bad" : ""} ${d.iteration > 1 && !d.prev.has(b.text) ? "new" : ""}" style="animation-delay:${animate ? i*80 : 0}ms">${esc(b.text)}
+      <div class="meta"><span class="tag">${esc(b.fact_id)}</span><span>${esc(b.entry_id)}</span></div></li>`).join("") + `</ul>`;
+  if (d.notes) html += `<div class="lbl">Critic's notes</div><div class="empty">${esc(d.notes)}</div>`;
+  $("draft").innerHTML = html;
+}
+
+/* ---------------- publish checklist ---------------- */
+const STEP_DEFS = [["tracker","Checked tracker for duplicates"],["pdf","Compiled 1-page PDF"],["drive","Saved to Google Drive"],["sheet","Logged in the tracker sheet"]];
+function buildSteps() {
+  $("steps").innerHTML = STEP_DEFS.map(([k, l]) => `<li class="step" id="st-${k}"><span class="sicon">·</span><div><span id="stl-${k}">${l}</span><small id="sts-${k}"></small></div></li>`).join("");
+}
+function setStep(k, state, sub, label) {
+  const el = $("st-"+k); if (!el) return;
+  el.className = "step " + state;
+  el.querySelector(".sicon").textContent = state === "done" ? "✓" : state === "fail" ? "✕" : state === "doing" ? "…" : "·";
+  if (label) $("stl-"+k).textContent = label;
+  if (sub != null) $("sts-"+k).innerHTML = sub;
+}
+
+/* ---------------- activity log ---------------- */
+let t0 = 0;
+function logRow(ev) {
+  const who = ev.agent ? AGENTS[ev.agent].name : "Run";
+  const c = ev.agent ? `var(--c-${ev.agent})` : "var(--muted)";
+  const msg = ev.kind === "handoff" ? `→ ${AGENTS[ev.to].name}: ${ev.message}` : ev.message;
+  const row = document.createElement("div"); row.className = "logrow";
+  row.innerHTML = `<time>${((ev.ts - t0)).toFixed(1)}s</time><b style="color:${c}">${esc(who)}</b><span>${esc(msg)}</span>`;
+  $("log").appendChild(row); $("log").scrollTop = $("log").scrollHeight;
+}
+
+/* ---------------- event reducer ---------------- */
+function apply(ev) {
+  if (ev.kind === "run") {
+    if (ev.data.state === "started") {
+      currentRun = ev.run_id; t0 = ev.ts; resetState();
+      $("url").textContent = ev.data.url || "(no url)";
+    } else if (ev.data.state === "finished") {
+      const d = ev.data, f = $("final");
+      f.className = "final show"; f.innerHTML = `🎯 Done: ${esc(d.company || "")} ${esc(d.role || "")} · ATS ${Number(d.score).toFixed(0)}/100 (${esc(d.status)}) · PDF delivered to Telegram`;
+    } else if (ev.data.state === "failed") {
+      const f = $("final"); f.className = "final show err"; f.textContent = "❌ " + (ev.data.error || "Run failed");
+    }
+    logRow(ev); return;
+  }
+  if (ev.run_id !== currentRun) { currentRun = ev.run_id; t0 = ev.ts; resetState(); }
+  const a = ev.agent, d = ev.data || {};
+  logRow(ev);
+
+  if (ev.kind === "start") setAgent(a, "working", ev.message);
+  else if (ev.kind === "progress") { $("bb-"+a).textContent = ev.message; if (a === "scout") { if (st.raw === "") $("bb-scout").textContent = ev.message; } }
+  else if (ev.kind === "done") setAgent(a, "done", ev.message);
+  else if (ev.kind === "fail") setAgent(a, "fail", ev.message);
+  else if (ev.kind === "handoff") {
+    handoff(a, ev.to, ev.message);
+    if (AGENTS[ev.to] && $("ag-"+ev.to).dataset.state === "idle") setAgent(ev.to, "waiting", "Waiting for " + AGENTS[a].name);
+    if (a === "critic" && ev.to === "scribe") setAgent("critic", "working", "Sent notes back to Scribe");
+    if (a === "scribe" && ev.to === "critic") setAgent("scribe", "done", "Draft sent to Critic");
+  }
+
+  // ---- panel updates ----
+  if (a === "scout") {
+    if (ev.kind === "start" && d.url) $("url").textContent = d.url;
+    if (ev.kind === "done") { st.raw = d.preview || ""; st.chars = d.chars; typeRaw(); }
+    if (ev.kind === "fail") $("job").innerHTML = `<div class="warnbox">${esc(ev.message)}</div>`;
+  }
+  if (a === "analyst") {
+    st.job = st.job || {};
+    if (ev.kind === "progress" && d.company) Object.assign(st.job, { company: d.company, role: d.role, location: d.location });
+    if (ev.kind === "done") {
+      Object.assign(st.job, { company: d.company, role: d.role, stack: d.core_tech_stack, reqs: d.hard_requirements, kws: d.ats_keywords });
+      st.terms = [...(d.core_tech_stack || []), ...(d.ats_keywords || [])];
+      st.rawShown = st.raw;
+    }
+    if (ev.kind === "progress" || ev.kind === "done") renderJob();
+  }
+  if (a === "archivist" && ev.kind === "done") renderFacts(d);
+  if (a === "scribe" && ev.kind === "done") {
+    const prev = new Set((st.draft && st.draft.bullets || []).map(b => b.text));
+    st.draft = { iteration: d.iteration, bullets: d.bullets, prev, warnings: st.draft && d.iteration > 1 ? [] : [], notes: "" };
+    renderDraft();
+  }
+  if (a === "critic" && ev.kind === "done") {
+    st.scores.push(d.score); st.threshold = d.threshold || st.threshold;
+    const bad = d.unsupported || [];
+    if (st.draft) {
+      st.draft.scored = true; st.draft.warnings = bad; st.draft.notes = d.notes;
+      st.draft.final = d.score >= st.threshold;
+      st.draft.flag = (b) => bad.some(w => w.includes(b.text.slice(0, 30)) || w.includes(b.fact_id));
+    }
+    renderDraft();
+  }
+  if (a === "publisher") {
+    if (d.duplicate === false) setStep("tracker", "done", "New link, not logged before");
+    if (d.duplicate === true) setStep("tracker", "done", "Already in your tracker");
+    if (ev.kind === "start") setStep("pdf", "doing", "Rendering LaTeX with Tectonic");
+    if (d.repair_attempt) setStep("pdf", "doing", "⚠ LaTeX error: the agent is repairing its own source");
+    if (d.pdf !== undefined && ev.message === "PDF compiled") setStep("pdf", "done", d.pdf ? `<a href="/pdf/${encodeURIComponent(d.pdf)}" target="_blank">Open PDF</a>` : "");
+    if (ev.kind === "fail") setStep("pdf", "fail", ev.message);
+    if (ev.message.startsWith("Uploading")) setStep("drive", "doing", "Uploading…");
+    if (d.drive_link !== undefined && ev.kind === "progress" && ev.message !== "PDF compiled") setStep("drive", d.drive_link ? "done" : "fail", d.drive_link ? `<a href="${esc(d.drive_link)}" target="_blank">Open in Drive</a>` : "Drive not configured, kept a local copy");
+    if (ev.kind === "done") {
+      setStep("pdf", "done", d.pdf ? `<a href="/pdf/${encodeURIComponent(d.pdf)}" target="_blank">Open PDF</a>` : "");
+      setStep("sheet", "done", d.sheet_row ? `Row ${d.sheet_row} added to the sheet` : "Saved in the local tracker");
+    }
+  }
+}
+
+/* ---------------- transport ---------------- */
+function setLive(on, txt) { $("live").classList.toggle("on", on); $("livetxt").textContent = txt; }
+function connect() {
+  const es = new EventSource("/api/stream");
+  let backlogUntil = Date.now() + 700;      // events arriving right after connect are history, not live
+  es.onopen = () => { setLive(true, "live"); backlogUntil = Date.now() + 700; };
+  es.onerror = () => setLive(false, "reconnecting…");
+  es.onmessage = (m) => {
+    const ev = JSON.parse(m.data);
+    animate = Date.now() > backlogUntil && (Date.now() / 1000 - ev.ts) < 5;
+    apply(ev); animate = true;
+  };
+}
+async function replay(id) {
+  setLive(false, "replay");
+  const evs = await (await fetch("/api/runs/" + encodeURIComponent(id))).json();
+  let prev = evs[0].ts;
+  for (const ev of evs) {
+    const gap = Math.min(2.2, Math.max(0.05, ev.ts - prev)) / SPEED;
+    prev = ev.ts; await new Promise(r => setTimeout(r, gap * 1000));
+    apply(ev);
+  }
+  setLive(false, "replay finished");
+}
+
+/* ---------------- boot ---------------- */
+buildAgents(); resetState();
+window.addEventListener("resize", () => drawEdges());
+$("demo").onclick = () => fetch("/api/simulate", { method: "POST" });
+$("demo2").onclick = () => fetch("/api/simulate?fail_scrape=true", { method: "POST" });
+if (REPLAY) replay(REPLAY); else connect();
+})();
+</script>
+</body>
+</html>

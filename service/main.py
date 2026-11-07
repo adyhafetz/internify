@@ -14,6 +14,7 @@ from service.retrieval.retriever import retrieve_relevant_facts
 from service.agentic.loop import run_generator_critic_loop
 from service.latex.compile import compile_tex, TexCompileError
 from service.admin import router as admin_router
+from service import events
 
 app = FastAPI(title="Internify Resume Service")
 app.include_router(admin_router)
@@ -22,6 +23,25 @@ app.include_router(admin_router)
 def _slugify(*parts: str) -> str:
     joined = "_".join(parts)
     return re.sub(r"[^a-zA-Z0-9_]", "", joined.replace(" ", "_"))[:60]
+
+
+def _coverage(job, candidate_facts) -> tuple[list[str], list[str]]:
+    """Which job requirements are backed by at least one selected fact (by tech tag)."""
+    fact_tags = {t.lower() for f in candidate_facts for t in f.fact.tech_tags}
+    seen: set[str] = set()
+    covered: list[str] = []
+    missing: list[str] = []
+    for term in job.core_tech_stack + job.hard_requirements:
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        # match on whole tag or a tag contained in a longer requirement phrase
+        if key in fact_tags or any(tag in key for tag in fact_tags if len(tag) > 2):
+            covered.append(term)
+        else:
+            missing.append(term)
+    return covered, missing
 
 
 @app.get("/health")
@@ -48,17 +68,42 @@ def process(request: ProcessRequest) -> ProcessResponse:
         f"Job Description:\n{request.job_description}\n\n"
         f"Requirements:\n{request.job_requirements}"
     )
+    events.emit("analyst", events.START, "Extracting tech stack, requirements and ATS keywords")
     try:
         job = extract_job_posting(raw_text)
     except Exception as e:
+        events.emit("analyst", events.FAIL, f"Extraction failed: {e}")
         raise HTTPException(status_code=422, detail=f"Extraction failed: {e}")
+    events.emit(
+        "analyst", events.DONE,
+        f"Found {len(job.core_tech_stack)} technologies, {len(job.hard_requirements)} requirements",
+        company=job.company, role=job.role, seniority=job.seniority,
+        core_tech_stack=job.core_tech_stack, hard_requirements=job.hard_requirements,
+        ats_keywords=job.ats_keywords,
+    )
+    events.emit("analyst", events.HANDOFF, "Requirements and keywords", to="archivist")
 
     facts = load_facts()
     if not facts:
+        events.emit("archivist", events.FAIL, "Fact store is empty")
         raise HTTPException(status_code=500, detail="Fact store is empty. Add your real bullets first.")
 
     skeleton = load_skeleton()
+    events.emit("archivist", events.START, f"Searching {len(facts)} verified facts")
     candidate_facts = retrieve_relevant_facts(job, facts)
+    matched, missing = _coverage(job, candidate_facts)
+    events.emit(
+        "archivist", events.DONE,
+        f"Selected {len(candidate_facts)} of {len(facts)} facts; {len(matched)} requirements covered, {len(missing)} not found",
+        total_facts=len(facts),
+        facts=[
+            {"id": f.fact.id, "entry_id": f.fact.entry_id, "text": f.fact.text,
+             "tags": f.fact.tech_tags, "score": round(f.total_score, 3)}
+            for f in candidate_facts
+        ],
+        covered=matched, missing=missing,
+    )
+    events.emit("archivist", events.HANDOFF, "Ranked facts to tailor from", to="scribe")
 
     try:
         loop_result = run_generator_critic_loop(
@@ -67,13 +112,17 @@ def process(request: ProcessRequest) -> ProcessResponse:
             skeleton=skeleton,
         )
     except Exception as e:
+        events.emit("scribe", events.FAIL, f"Generator/critic loop failed: {e}")
         raise HTTPException(status_code=500, detail=f"Generator/critic loop failed: {e}")
 
     filename_base = _slugify(job.company, job.role, str(int(time.time())))
 
+    events.emit("critic", events.HANDOFF, f"Approved draft, score {loop_result.feedback.score:.0f}", to="publisher")
+    events.emit("publisher", events.START, "Rendering LaTeX and compiling a 1-page PDF")
     try:
         pdf_path = compile_tex(loop_result.resume, skeleton, filename_base=filename_base)
     except TexCompileError as e:
+        events.emit("publisher", events.FAIL, "PDF compile failed after self-repair attempts")
         return ProcessResponse(
             resume_status=loop_result.status,
             score=loop_result.feedback.score,
@@ -81,6 +130,7 @@ def process(request: ProcessRequest) -> ProcessResponse:
             comment=f"PDF compile failed after retries: {e.log[:300]}",
         )
 
+    events.emit("publisher", events.PROGRESS, "PDF compiled", pdf=os.path.basename(pdf_path))
     return ProcessResponse(
         resume_status=loop_result.status,
         score=loop_result.feedback.score,

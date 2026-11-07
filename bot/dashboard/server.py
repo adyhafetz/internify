@@ -1,0 +1,126 @@
+"""Live dashboard server. Runs inside the bot process so it shares the in-memory event bus."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import threading
+from typing import Any, Optional
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+
+from service import config as service_config
+from service import events
+
+logger = logging.getLogger(__name__)
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+app = FastAPI(title="Internify Dashboard", docs_url=None, redoc_url=None)
+
+
+@app.get("/")
+def index():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/api/agents")
+def agents():
+    return events.AGENTS
+
+
+@app.get("/api/runs")
+def runs():
+    return events.bus.list_runs()
+
+
+@app.get("/api/runs/{run_id}")
+def run_events(run_id: str):
+    evs = events.bus.get_run(run_id) or events.load_trace(run_id)
+    if not evs:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return evs
+
+
+@app.get("/pdf/{filename}")
+def pdf(filename: str):
+    if "/" in filename or "\\" in filename or ".." in filename or not filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    path = os.path.join(service_config.OUTPUT_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, media_type="application/pdf")
+
+
+@app.post("/api/simulate")
+def simulate(fail_scrape: bool = False):
+    """Play a scripted run through the real event bus. Needs no API keys."""
+    from bot.dashboard.simulate import run_simulation
+
+    threading.Thread(target=run_simulation, kwargs={"fail_scrape": fail_scrape}, daemon=True).start()
+    return JSONResponse({"started": True})
+
+
+def _sse(ev: dict[str, Any]) -> str:
+    return f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+
+@app.get("/api/stream")
+async def stream(run: Optional[str] = None):
+    """Server-Sent Events: backlog of one run, then live events (all runs, or just ``run``)."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def on_event(ev: dict[str, Any]) -> None:
+        if run and ev.get("run_id") != run:
+            return
+        loop.call_soon_threadsafe(queue.put_nowait, ev)
+
+    # Subscribe before reading the backlog so nothing is missed; de-duplicate by (run, seq).
+    unsubscribe = events.bus.subscribe(on_event)
+    backlog_run = run or events.bus.latest_run_id()
+    backlog = events.bus.get_run(backlog_run) if backlog_run else []
+    seen = {(e["run_id"], e["seq"]) for e in backlog}
+
+    async def gen():
+        try:
+            yield "retry: 2000\n\n"
+            for ev in backlog:
+                yield _sse(ev)
+            while True:
+                try:
+                    ev = await asyncio.wait_for(queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                key = (ev["run_id"], ev["seq"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                yield _sse(ev)
+        finally:
+            unsubscribe()
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def start_dashboard(host: str = "0.0.0.0", port: int = 8080) -> threading.Thread:
+    """Serve the dashboard on a background thread. Never raises into the bot."""
+    import uvicorn
+
+    def _run() -> None:
+        try:
+            uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning")).run()
+        except Exception as e:  # port in use, etc: the bot must keep working without the dashboard
+            logger.error("Dashboard failed to start: %s", e)
+
+    t = threading.Thread(target=_run, name="dashboard", daemon=True)
+    t.start()
+    logger.info("Dashboard available on http://localhost:%d", port)
+    return t

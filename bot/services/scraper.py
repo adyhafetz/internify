@@ -3,6 +3,7 @@ import logging
 import httpx
 from bs4 import BeautifulSoup
 from bot import config
+from service import events
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ async def scrape_job_url(url: str) -> str:
     if config.SCRAPINGANT_API_KEY:
         try:
             logger.info("Scraping URL via ScrapingAnt: %s", url)
+            events.emit("scout", events.PROGRESS, "Fetching page through ScrapingAnt", method="scrapingant")
             async with httpx.AsyncClient(timeout=45.0) as client:
                 resp = await client.get(
                     "https://api.scrapingant.com/v2/markdown",
@@ -29,6 +31,8 @@ async def scrape_job_url(url: str) -> str:
                 )
                 if resp.status_code == 200 and resp.text.strip():
                     return resp.text.strip()
+                events.emit("scout", events.PROGRESS,
+                            f"ScrapingAnt returned {resp.status_code}, switching to direct fetch", method="direct")
                 logger.warning(
                     "ScrapingAnt returned %d: %s. Falling back to direct fetch.",
                     resp.status_code,
@@ -36,9 +40,11 @@ async def scrape_job_url(url: str) -> str:
                 )
         except Exception as e:
             logger.warning("ScrapingAnt fetch failed (%s). Falling back to direct fetch.", e)
+            events.emit("scout", events.PROGRESS, "ScrapingAnt failed, switching to direct fetch", method="direct")
 
     # Fallback direct fetch
     logger.info("Scraping URL directly: %s", url)
+    events.emit("scout", events.PROGRESS, "Fetching page directly", method="direct")
     headers = {"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"}
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
         resp = await client.get(url, headers=headers)
