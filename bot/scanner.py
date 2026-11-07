@@ -1,4 +1,4 @@
-"""The morning scan: Discoverer -> Matcher -> a resume for each of the best few -> a short digest in Telegram.
+"""The daily job check: Discoverer -> Matcher -> a resume for each of the best few -> a short digest in Telegram.
 
 Runs once a day at SCAN_TIME, or when you tap "Scan now". It never asks you questions (you may be asleep): jobs that
 need a tool you haven't saved experience for just say so in the message, and you can send that link yourself to be asked."""
@@ -44,7 +44,7 @@ class ScanReporter:
 
     async def fail(self, text: str) -> None:
         events.emit_run("job_failed", error=text)
-        await self.bot.send_message(self.chat_id, "⚠️ I couldn't tailor one of this morning's matches.\n" + text.lstrip("❌ "))
+        await self.bot.send_message(self.chat_id, "⚠️ I couldn't tailor one of today's matches.\n" + text.lstrip("❌ "))
 
     async def finished(self, outcome: JobOutcome) -> None:
         events.emit_run("job_finished", score=outcome.score, status=outcome.status, pdf=os.path.basename(outcome.pdf_path or ""),

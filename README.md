@@ -94,30 +94,18 @@ The check sends results to the chat you last talked to the bot from, so send it 
 ## 🏗️ Architecture
 
 ```
-[ Telegram Chat ] ──► [ Python Telegram Bot (Long Polling) ]
-                               │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
- [ Conversational FSM & CRUD ]         [ Job URL Processing ]
-  (/set*, /add*, /history, etc.)                  │
-            │                                     ▼
-            ▼                           [ 1. Web Scraping & AI Normalization ]
- [ Fact Store Management ]                        │
- (Facts, Experience, Skeleton)                    ▼
-            │                           [ 2. Fact Retrieval (Embeddings + Cosine) ]
-            │                                     │
-            │                                     ▼
-            │                           [ 3. Agentic Loop (Generator & Critic) ]
-            │                                     │
-            │                                     ▼
-            │                           [ 4. LaTeX Render & Tectonic Compile ]
-            │                                     │
-            ▼                                     ▼
-   [ Fact Store JSON ] ───────────────► [ 1-Page Tailored PDF ]
-                                                  │
-                                                  ▼
-                               [ SQLite DB (Default) / Google Cloud Sync ]
+ You (Telegram) ──► send a job link ───────────────┐          Daily timer ──► Discoverer ──► Matcher ──┐
+        ▲                                          ▼                                                   │
+        │                                  ┌── one bot process ──────────────────────────────────────┤
+        │                                  │   Scout ► Analyst ► Archivist ► Scribe ⇄ Critic ► Publisher
+        │                                  │                                                         │
+        └──── PDF, questions, summaries ◄──┤   saved experience (JSON) · tracker (SQLite, optional Google)
+                                           └── live dashboard (same process) shows every hand-off
 ```
+
+One process runs everything: `bot/` is Telegram, the dashboard and the daily check; `service/` is the pipeline
+(`pipeline.py`), the agents (`agentic/`), your saved experience (`fact_store/`, `profile_data.py`, `editor.py`) and
+the PDF builder (`latex/`). There is no separate web service.
 
 ### Key Highlights
 - **Zero Hallucinations Guarantee**: Every bullet point generated cites a verified `fact_id` from your master fact store. The AI calibrates and highlights your true experience—it never invents jobs or skills.

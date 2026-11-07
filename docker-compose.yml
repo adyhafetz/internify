@@ -1,20 +1,10 @@
 services:
-  fastapi-service:
-    build: .
-    container_name: internify-fastapi
-    env_file: .env
-    volumes:
-      - ./output:/app/output
-      - ./service:/app/service
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-
   telegram-bot:
     build: .
     container_name: internify-telegram-bot
-    command: ["python", "-m", "bot.main"]
     env_file: .env
+    environment:
+      DASHBOARD_HOST: 0.0.0.0   # inside the container; the port below is only published on this computer
     ports:
       # Live agent dashboard: open http://localhost:8080 (bound to localhost only)
       - "127.0.0.1:8080:8080"
@@ -22,8 +12,6 @@ services:
       - ./output:/app/output
       - ./service:/app/service
       - ./bot:/app/bot
-    depends_on:
-      - fastapi-service
     restart: unless-stopped
 
   # Optional: puts the bot's website (home, privacy, terms, live dashboard) on your own domain through

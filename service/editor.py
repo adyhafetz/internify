@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-from service.admin import (
+from service.profile_data import (
     SKILL_CATEGORIES,
     AddSkillsRequest,
     NewFactBullet,

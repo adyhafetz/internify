@@ -20,7 +20,7 @@ from bot.extraction import (ParsedResume, ParsedHeader, ParsedEducation, ParsedE
                             ParsedLeadership, ParsedBullet)
 from service import importer
 from service.fact_store.store import load_facts, load_skeleton
-from service.admin import _load_facts_raw, _load_skeleton_raw
+from service.profile_data import _load_facts_raw, _load_skeleton_raw
 
 RESUME_LINES = ["Ady Student", "ady_student@uni.edu.my | +60 12-345 6789 | github.com/adystudent",
                 "EDUCATION", "Universiti Example, B.Sc. Computer Science, CGPA 3.7", "EXPERIENCE",

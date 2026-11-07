@@ -127,8 +127,8 @@ print("run 3d ok: fallbacks off -> no paste request")
 
 # 4. pipeline error shows readable reason, trackers marked failed
 jobflow.scrape_job_url = fake_scrape
-from fastapi import HTTPException
-def boom(req, ask=None): raise HTTPException(status_code=500, detail="Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
+from service.pipeline import PipelineError
+def boom(req, ask=None): raise PipelineError("Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
 jobflow.run_pipeline = boom
 d = run("https://x.com/jobs/3")
 last = d.edits[-1]

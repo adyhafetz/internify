@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import sqlite3
 import logging
-from datetime import datetime
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -40,7 +39,7 @@ def init_db() -> None:
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_job_link ON applications(job_link)")
-        # The morning scan: where to look, what it has already seen, and its settings
+        # The daily job check: where to look, what it has already seen, and its settings
         conn.execute("""
             CREATE TABLE IF NOT EXISTS watch_sources (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,28 +75,6 @@ def is_duplicate_url(url: str) -> bool:
     with _get_connection() as conn:
         cur = conn.execute("SELECT id FROM applications WHERE LOWER(TRIM(job_link)) = ?", (clean_url,))
         return cur.fetchone() is not None
-
-
-def add_application(
-    company: str,
-    job_title: str,
-    location: str = "",
-    job_description: str = "",
-    job_requirements: str = "",
-    job_link: str = "",
-    status: str = "Processing",
-) -> int:
-    """Inserts a new application record and returns its ID."""
-    with _get_connection() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO applications (company, job_title, location, job_description, job_requirements, job_link, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (company, job_title, location, job_description, job_requirements, job_link, status),
-        )
-        conn.commit()
-        return cur.lastrowid
 
 
 def upsert_application(

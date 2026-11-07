@@ -2,7 +2,7 @@
 
 Shared by two callers that talk to the user differently:
   * the Telegram handler (you sent a link): shows live progress, may ask you questions, replies in the chat;
-  * the morning scan (the Matcher picked the job): runs quietly and sends one message per resume.
+  * the daily job check (the Matcher picked the job): runs quietly and sends one message per resume.
 Each passes a "reporter" that knows how to tell the user things; the steps themselves are the same."""
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from bot.services.drive import upload_to_drive
 from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
 from bot.services.sheets import append_application, find_row_by_url, update_application_status
 from service import events
-from service.main import run_pipeline
+from service.pipeline import run_pipeline
 from service.models import ProcessRequest
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
                      interactive: bool, intro: str = "") -> JobOutcome:
     """Run the whole flow for one link. ``reporter`` has: ``notice(text)``, ``fail(text)``, ``finished(outcome)``
     and ``deliver(outcome, caption_html)``. ``interactive`` lets the Scout and the Archivist ask the user questions;
-    the morning scan passes False because nobody is awake to answer."""
+    the daily job check passes False because nobody is awake to answer."""
 
     async def fail(text: str) -> JobOutcome:
         await reporter.fail(text)
@@ -165,7 +165,7 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
         ), ask)
     except Exception as err:
         logger.error("Resume pipeline error: %s", err)
-        reason = getattr(err, "detail", err)  # HTTPException carries the readable text in .detail
+        reason = err   # PipelineError carries plain-language text
         _record_failure(db_id, sheet_row, str(reason))
         return await fail(f"❌ Something went wrong while writing your resume.\nReason: {reason}")
 

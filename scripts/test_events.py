@@ -12,7 +12,7 @@ os.environ["OUTPUT_DIR"] = tempfile.mkdtemp()
 from service import events
 from service.models import (JobPosting, FactBullet, FactBulletWithScore, GeneratedResume, ResumeBullet,
                             CriticFeedback, ProcessRequest)
-import service.main as main
+import service.pipeline as main
 import service.agentic.loop as loop
 from bot.progress import TelegramProgress
 

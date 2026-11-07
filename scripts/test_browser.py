@@ -18,7 +18,7 @@ from telegram.error import BadRequest
 from telegram.ext import ApplicationHandlerStop
 from service import editor, importer
 from service.editor import EditError
-from service.admin import (add_experience, AddExperienceRequest, add_project, AddProjectRequest, NewFactBullet,
+from service.profile_data import (add_experience, AddExperienceRequest, add_project, AddProjectRequest, NewFactBullet,
                            add_education, AddEducationRequest, add_leadership, AddLeadershipRequest,
                            _load_facts_raw, _load_skeleton_raw)
 from bot.handlers import profile_hub as eb
@@ -339,7 +339,7 @@ print("D2 ok: skills by category: add (duplicates reported), remove by tapping, 
 # add something: menu -> describe in your own words -> entry shown with what was understood
 text, menu = tap(ctx, "xp:n")
 assert [b.text for b in buttons(menu)] == ["💼 A job or internship", "🛠 A project", "🏅 A leadership role or activity", "🎓 A degree", "🔧 Skills", "⬅ Back to profile"]
-from service.admin import AddExperienceRequest as _AER, AddProjectRequest as _APR, AddEducationRequest as _AEdR, AddLeadershipRequest as _ALR
+from service.profile_data import AddExperienceRequest as _AER, AddProjectRequest as _APR, AddEducationRequest as _AEdR, AddLeadershipRequest as _ALR
 eb.extract_experience = lambda t: _AER(title="Data Intern", company="Globex", location="KL", dates="2025", bullets=[NewFactBullet(text="Cleaned data with pandas", tech_tags=["pandas"])],
                                        suggested_skills={"Frameworks & Libraries": ["pandas"]})
 eb.extract_project = lambda t: _APR(name="Chatbot", tech_stack="Python", date="Jan 2025", bullets=[NewFactBullet(text="Built a chatbot")])

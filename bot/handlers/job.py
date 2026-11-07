@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.handlers.common import restricted
 from bot.jobflow import html_escape as _html, score_emoji, tailor_job

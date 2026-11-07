@@ -3,10 +3,10 @@ import html
 import os
 import logging
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
+from telegram.ext import ContextTypes
 from bot.handlers.common import restricted
 from bot.services.drive import upload_to_drive
-from service.admin import generate_master_resume
+from service.profile_data import generate_master_resume
 
 logger = logging.getLogger(__name__)
 

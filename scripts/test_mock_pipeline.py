@@ -17,13 +17,13 @@ sys.path.insert(0, os.path.abspath("."))
 
 from bot.services.db import (
     init_db,
-    add_application,
+    upsert_application,
     update_application,
     is_duplicate_url,
     get_recent_applications,
 )
 from service.models import ProcessRequest
-from service.main import process
+from service.pipeline import process
 
 
 def run_test():
@@ -58,7 +58,7 @@ def run_test():
     # 3. Test duplicate check & initial record insertion
     print("\n[Step 2] Testing SQLite application logging...")
     assert not is_duplicate_url(mock_url), "New URL should not be a duplicate"
-    app_id = add_application(
+    app_id = upsert_application(
         company=mock_job["company"],
         job_title=mock_job["job_title"],
         location=mock_job["location"],

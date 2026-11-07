@@ -112,7 +112,7 @@ def _analyse(raw_text: str) -> tuple[str, str, list[str], list[str]]:
     """Blocking. (role, company, covered, missing): which of the job's tools and requirements your bullets cover."""
     from service.extraction.extractor import extract_job_posting
     from service.fact_store.store import load_facts
-    from service.main import _coverage
+    from service.pipeline import _coverage
     from service.retrieval.retriever import retrieve_relevant_facts
     job = extract_job_posting(raw_text)
     covered, missing = _coverage(job, retrieve_relevant_facts(job, load_facts()))

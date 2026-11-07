@@ -24,13 +24,13 @@ AGENTS: dict[str, dict[str, str]] = {
     "scribe":    {"name": "Scribe",    "role": "Writes tailored bullets",        "emoji": "✍️"},
     "critic":    {"name": "Critic",    "role": "Checks claims and scores fit",   "emoji": "🛡️"},
     "publisher": {"name": "Publisher", "role": "Builds PDF, files it, logs it",  "emoji": "📎"},
-    # The morning scan: these two work before the six above, on a schedule
+    # The daily job check: these two work before the six above, on a schedule
     "discoverer": {"name": "Discoverer", "role": "Finds new jobs for you",       "emoji": "🔎"},
     "matcher":    {"name": "Matcher",    "role": "Picks the best fits",          "emoji": "🎯"},
 }
 
 # The six agents that work on one job, in order (the Telegram progress line counts these). The two scan agents
-# (Discoverer, Matcher) work before them, once a morning.
+# (Discoverer, Matcher) work before them, once a day.
 PIPELINE = ["scout", "analyst", "archivist", "scribe", "critic", "publisher"]
 
 # Event kinds

@@ -1,4 +1,4 @@
-"""Where the morning scan looks, what it has already seen, and its settings.
+"""Where the daily job check looks, what it has already seen, and its settings.
 
 A source is a career page or a job board. Job boards on Greenhouse or Lever are recognised from the link and read
 through their public job-listing APIs (structured data, no scraping). Anything else is a "page": the Discoverer reads

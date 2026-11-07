@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from service import config
-from service.admin import (
+from service.profile_data import (
     SKILL_CATEGORIES,
     AddEducationRequest,
     AddExperienceRequest,

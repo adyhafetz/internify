@@ -520,7 +520,7 @@ function runEvent(ev) {
     S = fresh(ev.run_id, ev.ts); S.scan = { trigger: d.trigger || "" }; callout.classList.remove("show");
     ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
     addLog(ev, "ok", "Daily job check", d.trigger === "manual" ? "You asked for a check" : "The daily check started");
-    say("discoverer", "Good morning. I'm checking your job pages.", "");
+    say("discoverer", "I'm checking your job pages.", "");
     return;
   }
   if (d.state === "started") {
@@ -551,7 +551,7 @@ function runEvent(ev) {
   }
   if (d.state === "finished" && d.scan) {
     S.final = d; addLog(ev, "ok", "Daily job check", `Done: ${d.found || 0} new jobs, ${d.shortlisted || 0} picked, ${d.tailored || 0} resumes written`, d.note || "");
-    setState("you", "done"); say("you", d.note ? d.note : "Your morning summary is in your chat.", ""); renderTable(); setProgress();
+    setState("you", "done"); say("you", d.note ? d.note : "Your summary is in your chat.", ""); renderTable(); setProgress();
     return;
   }
   if (d.state === "finished") {

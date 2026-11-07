@@ -75,6 +75,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /profile – see and edit everything on your resume: contact details, education, jobs, projects, "
         "leadership and skills. Tap anything to edit, delete or add a line, and use ➕ Add something for new entries "
         "(you describe it in your own words). No IDs to look up.\n\n"
+        "Find jobs for me\n"
+        "• Every day I check the job pages you choose, pick the ones that match you best and write a resume for each. "
+        "Choose the pages in /profile → Job pages I check, and tap Check now to try it.\n\n"
         "• /cancel – stop whatever I'm asking you"
     )
 

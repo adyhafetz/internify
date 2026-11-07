@@ -1,6 +1,5 @@
 from __future__ import annotations
 import logging
-import os
 from typing import Optional
 from bot import config
 from bot.services.google_auth import get_google_credentials

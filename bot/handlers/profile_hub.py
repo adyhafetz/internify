@@ -28,7 +28,7 @@ from bot import config
 from bot.handlers.common import restricted
 from bot.services import watchlist
 from service import editor
-from service.admin import (
+from service.profile_data import (
     _load_skeleton_raw,
     add_education,
     add_experience,

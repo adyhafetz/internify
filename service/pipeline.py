@@ -5,9 +5,6 @@ import re
 import time
 from typing import Callable, Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-
 from service import config
 from service.models import FactBulletWithScore, ProcessRequest, ProcessResponse, SkillAnswer
 from service.extraction.extractor import extract_job_posting
@@ -15,7 +12,6 @@ from service.fact_store.store import load_facts, load_skeleton
 from service.retrieval.retriever import retrieve_relevant_facts
 from service.agentic.loop import run_generator_critic_loop
 from service.latex.compile import compile_tex, TexCompileError
-from service.admin import router as admin_router
 from service import events
 
 logger = logging.getLogger(__name__)
@@ -23,8 +19,10 @@ logger = logging.getLogger(__name__)
 # Called with the tools the job wants that the user has no saved experience for; returns the user's answers.
 SkillAsker = Callable[[list[str]], list[SkillAnswer]]
 
-app = FastAPI(title="Internify Resume Service")
-app.include_router(admin_router)
+
+class PipelineError(Exception):
+    """The run could not finish. The message is plain language and is shown to the user."""
+
 
 
 def _slugify(*parts: str) -> str:
@@ -80,26 +78,6 @@ def _apply_answers(answers: list[SkillAnswer], candidate_facts: list[FactBulletW
     return candidate_facts, covered, missing, new_ids
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.get("/files/{filename}")
-def get_file(filename: str):
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
-    file_path = os.path.join(config.OUTPUT_DIR, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path, media_type="application/pdf", filename=filename)
-
-
-@app.post("/process", response_model=ProcessResponse)
-def process(request: ProcessRequest) -> ProcessResponse:
-    return run_pipeline(request)
-
-
 def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = None) -> ProcessResponse:
     """The whole tailoring run. ``ask_skills`` lets the Archivist ask the user about missing tools."""
     raw_text = (
@@ -114,7 +92,7 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         job = extract_job_posting(raw_text)
     except Exception as e:
         events.emit("analyst", events.FAIL, f"Extraction failed: {e}")
-        raise HTTPException(status_code=422, detail=f"Couldn't understand the job posting ({e})")
+        raise PipelineError(f"Couldn't understand the job posting ({e})")
     events.emit(
         "analyst", events.DONE,
         f"Found {len(job.core_tech_stack)} technologies, {len(job.hard_requirements)} requirements",
@@ -127,7 +105,7 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
     facts = load_facts()
     if not facts:
         events.emit("archivist", events.FAIL, "No saved experience")
-        raise HTTPException(status_code=500, detail="Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
+        raise PipelineError("Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
 
     skeleton = load_skeleton()
     events.emit("archivist", events.START, f"Searching {len(facts)} verified facts")
@@ -171,7 +149,7 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         )
     except Exception as e:
         events.emit("scribe", events.FAIL, f"Writing failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Writing and checking the resume failed ({e})")
+        raise PipelineError(f"Writing and checking the resume failed ({e})")
 
     filename_base = _slugify(job.company, job.role, str(int(time.time())))
 
@@ -193,6 +171,5 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         resume_status=loop_result.status,
         score=loop_result.feedback.score,
         pdf_path=pdf_path,
-        pdf_download_url=f"http://fastapi-service:8000/files/{os.path.basename(pdf_path)}",
         comment=loop_result.feedback.revision_notes,
     )

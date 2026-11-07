@@ -63,7 +63,7 @@ async def post_init(application) -> None:
         logger.warning("Could not set the bot's menu or description automatically: %s", e)
     from bot import scanner
     when = scanner.schedule(application)
-    logger.info("Morning scan: %s", when or "off")
+    logger.info("Daily job check: %s", when or "off")
 
 
 def create_bot_app():
@@ -110,6 +110,9 @@ def create_bot_app():
 
 
 def main():
+    if not config.ALLOWED_USER_IDS:
+        logger.warning("TELEGRAM_ALLOWED_USER_IDS is empty: anyone who finds your bot can use it and spend your OpenAI credit. "
+                       "Add your Telegram user ID to .env.")
     logger.info("Initializing database...")
     init_db()
     if config.DASHBOARD_ENABLED:

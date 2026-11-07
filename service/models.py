@@ -154,7 +154,6 @@ class ProcessResponse(BaseModel):
     resume_status: str 
     score: float
     pdf_path: Optional[str] = None
-    pdf_download_url: Optional[str] = None
     comment: str
 
 

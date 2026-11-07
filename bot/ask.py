@@ -22,7 +22,7 @@ from telegram import Update
 from bot import config
 from bot.extraction import extract_skills, extract_tech_tags
 from service import events
-from service.admin import (
+from service.profile_data import (
     AddSkillsRequest,
     NewFactBullet,
     _load_facts_raw,
@@ -155,7 +155,7 @@ class SkillQuestioner:
                     where=names.get(where, ""), text=text)
         await self.bot.send_message(
             self.chat_id,
-            f"✅ Saved! I'll use it in this resume, and it's now part of your saved experience for future jobs.",
+            "✅ Saved! I'll use it in this resume, and it's now part of your saved experience for future jobs.",
         )
         return SkillAnswer(skill=skill, has=True, fact=fact)
 

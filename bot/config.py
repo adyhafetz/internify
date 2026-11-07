@@ -30,7 +30,7 @@ GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
 
 # Live dashboard (served from the bot process; shows the agents working in real time)
 DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "true").strip().lower() in ("1", "true", "yes")
-DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0").strip()
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1").strip()
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
 # Key that protects the live dashboard when it is reachable from the internet (empty = open, fine on localhost).
 # Open https://<your-domain>/live?key=<DASHBOARD_KEY> once; the browser then remembers it.
@@ -45,7 +45,7 @@ ASK_TIMEOUT_SECONDS = int(os.getenv("ASK_TIMEOUT_SECONDS", "120"))
 SCOUT_FALLBACKS = os.getenv("SCOUT_FALLBACKS", "true").strip().lower() in ("1", "true", "yes")
 SCOUT_BUDGET_SECONDS = int(os.getenv("SCOUT_BUDGET_SECONDS", "150"))
 
-# The morning scan: finds new jobs on the sources you watch, picks the best fits, tailors a resume for each.
+# The daily job check: finds new jobs on the sources you watch, picks the best fits, tailors a resume for each.
 SCAN_ENABLED = os.getenv("SCAN_ENABLED", "true").strip().lower() in ("1", "true", "yes")
 SCAN_TIME = os.getenv("SCAN_TIME", "08:00").strip()                 # HH:MM, in SCAN_TIMEZONE
 SCAN_TIMEZONE = os.getenv("SCAN_TIMEZONE", "UTC").strip()           # for example Asia/Kuala_Lumpur

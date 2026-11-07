@@ -80,7 +80,7 @@ FAIL_REASONS = {
 
 
 def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
-    """One resume through the six agents. ask=False is how a morning scan works: it never stops to question you."""
+    """One resume through the six agents. ask=False is how the daily job check works: it never stops to question you."""
     ev.emit("publisher", ev.PROGRESS, "New URL, not in tracker yet", duplicate=False)
     ev.emit("scout", ev.START, "Opening the job page", url=url)
     total = len(ROUTES)

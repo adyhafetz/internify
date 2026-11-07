@@ -1,4 +1,4 @@
-"""Offline test of the morning scan: watchlist, Discoverer, Matcher, scanner orchestration. Websites and AI are faked."""
+"""Offline test of the daily job check: watchlist, Discoverer, Matcher, scanner orchestration. Websites and AI are faked."""
 from __future__ import annotations
 import asyncio, os, sys, tempfile, types
 import httpx

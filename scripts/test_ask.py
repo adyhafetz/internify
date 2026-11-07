@@ -1,6 +1,6 @@
 """Offline test of the Archivist's question flow (Telegram buttons/typing, saving, timeouts) and its use in the pipeline."""
 from __future__ import annotations
-import asyncio, json, os, shutil, sys, tempfile, types
+import asyncio, os, shutil, sys, tempfile, types
 
 sys.path.insert(0, os.path.abspath("."))
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
@@ -16,7 +16,7 @@ service_config.EMBEDDING_CACHE_PATH = os.path.join(tmp, "cache.json")
 from telegram.ext import ApplicationHandlerStop
 from bot import ask, config
 from service import events
-from service.admin import _load_facts_raw, _load_skeleton_raw
+from service.profile_data import _load_facts_raw, _load_skeleton_raw
 
 ask.extract_tech_tags = lambda text: ["Helm", "Docker"]
 ask.extract_skills = lambda s: types.SimpleNamespace(category="Developer Tools & Infra", items=[s])
@@ -145,7 +145,7 @@ async def main():
 asyncio.run(main())
 
 # G. inside the pipeline: the answer joins the facts, the tool counts as covered, and the dashboard is told
-import service.main as main_mod
+import service.pipeline as main_mod
 from service.models import (JobPosting, FactBullet, FactBulletWithScore, GeneratedResume, ResumeBullet,
                             CriticFeedback, ProcessRequest, SkillAnswer)
 import service.agentic.loop as loop_mod

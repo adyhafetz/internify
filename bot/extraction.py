@@ -1,12 +1,10 @@
 from __future__ import annotations
-import json
 import logging
-from typing import Optional
 from pydantic import BaseModel, Field
 
 from service import config
-from service.clients import instructor_client, openai_client
-from service.admin import (
+from service.clients import instructor_client
+from service.profile_data import (
     AddEducationRequest,
     AddExperienceRequest,
     AddProjectRequest,
