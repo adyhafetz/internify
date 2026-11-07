@@ -9,7 +9,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 
 from bot.handlers.common import restricted
-from bot.services.scraper import scrape_job_url
+from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
 from bot.services.db import (
     is_duplicate_url,
     upsert_application,
@@ -23,15 +23,12 @@ from service.models import ProcessRequest
 from service.main import run_pipeline
 from service import events
 from bot.progress import TelegramProgress
-from bot.ask import SkillQuestioner
+from bot.ask import SkillQuestioner, ask_for_job_text
 from bot import config
 
 logger = logging.getLogger(__name__)
 
 URL_REGEX = re.compile(r"https?://[^\s<>\"']+")
-
-
-MIN_PAGE_CHARS = 100  # a page with less text than this is a block page or an empty shell
 
 
 def score_emoji(score: float) -> str:
@@ -61,6 +58,13 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"  {score_emoji(score)} Match {score:.0f}% · {_html(app['status'])} · {str(app.get('created_at', ''))[:10]}{drive}\n"
         )
     await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
+def _fallback_source(page: Page) -> str:
+    """Plain-language description of where the posting came from when it was not the page the user sent."""
+    return {"reader": "a page-rendering service",
+            "archive": page.note,
+            "search": f"the same posting ({page.note})"}.get(page.method, page.label)
 
 
 def _record_failure(db_id: int, sheet_row: Optional[int], comment: str, score: float = 0.0, resume_status: str = "Failed") -> None:
@@ -101,22 +105,35 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "ℹ️ This link is already in your tracker. I'll tailor a fresh resume and update the existing entry."
         )
 
-    # 2. Scout reads the page
+    # 2. Scout reads the page. If it is blocked or empty, Scout tries other routes (each one is shown), and as a
+    #    last resort asks you to paste the job description.
     events.emit("scout", events.START, "Opening the job page", url=job_url)
     try:
-        page_text = await scrape_job_url(job_url)
+        page = await scrape_job_url(job_url)
+        if page is None and config.SCOUT_FALLBACKS:
+            pasted = await ask_for_job_text(context.bot, update.effective_chat.id, asyncio.get_running_loop(), MIN_PAGE_CHARS)
+            if pasted:
+                page = Page(text=pasted, method="pasted", label="the text you pasted", source_url=job_url, via_fallback=True)
     except Exception as err:
         logger.error("Scraping error: %s", err)
         events.emit("scout", events.FAIL, f"Scraping failed: {err}")
         await fail(f"❌ Couldn't read the job page.\nReason: {err}")
         return
-    if not page_text or len(page_text) < MIN_PAGE_CHARS:
-        events.emit("scout", events.FAIL, "Page returned too little text (anti-bot wall or JavaScript)")
-        await fail("❌ Couldn't read the job page.\nIt may be blocking automated visitors or need JavaScript. Try a different link.")
+    if page is None:
+        events.emit("scout", events.FAIL, "No route could read the page")
+        await fail("❌ Couldn't read the job page, even after trying other ways in.\n"
+                   "It may be blocking automated visitors. Try a different link, or send the link again and paste the job text when I ask.")
         return
-    events.emit("scout", events.DONE, f"Read {len(page_text):,} characters from the page",
-                chars=len(page_text), preview=page_text[:1500], url=job_url)
+    events.emit("scout", events.DONE, f"Read {len(page.text):,} characters from the page",
+                chars=len(page.text), preview=page.text[:1500], url=job_url, method=page.method, label=page.label,
+                via_fallback=page.via_fallback, note=page.note, source_url=page.source_url)
     events.emit("scout", events.HANDOFF, "Raw job posting text", to="analyst")
+    if page.via_fallback and page.method != "pasted":
+        await update.effective_message.reply_text(
+            f"ℹ️ I couldn't open that page directly, so I used {_fallback_source(page)}. "
+            "Please check that the company and role look right."
+        )
+    page_text = page.text
 
     # 3. Analyst turns the page into a clean job posting
     events.emit("analyst", events.START, "Normalizing the raw page into a clean job posting")

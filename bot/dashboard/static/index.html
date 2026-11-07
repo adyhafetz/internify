@@ -253,6 +253,17 @@ details.tech[open] > summary { margin-bottom: 8px; }
 .qrow small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .newbadge { display: inline-block; font-size: 11px; font-weight: 700; color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--ok) 50%, var(--line)); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
 .mcard.new { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); background: color-mix(in srgb, var(--ok) 7%, var(--panel)); }
+
+/* ===== Scout trying other ways in ===== */
+.tries { display: grid; gap: 6px; margin-bottom: 12px; }
+.try { display: flex; gap: 10px; align-items: baseline; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 12px; font-size: 14px; animation: slide .4s ease both; }
+.try .ti { width: 20px; flex: none; text-align: center; font-weight: 700; }
+.try.failed { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.try.failed .ti { color: var(--bad); }
+.try.ok { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok) 9%, var(--panel)); }
+.try.ok .ti { color: var(--ok); }
+.try.trying .ti { color: var(--c-scout); animation: blink 1s infinite; }
+.try small { color: var(--muted); display: block; font-size: 12.5px; }
 </style>
 </head>
 <body>
@@ -263,7 +274,8 @@ details.tech[open] > summary { margin-bottom: 8px; }
     <div class="urlbar" title="Paste the job link in Telegram. It appears here."><span>Job link</span><b id="url">Waiting for a job link from Telegram…</b></div>
     <span class="live" id="live"><i></i><span id="livetxt">connecting</span></span>
     <button class="btn" id="demo">▶ Demo run</button>
-    <button class="btn" id="demo2" title="Show the Scout recovering from a blocked page">Demo: blocked page</button>
+    <button class="btn" id="demo2" title="Show the Scout finding another way in when the page is blocked">Demo: blocked page</button>
+    <button class="btn" id="demo3" title="Show every route failing, so the Scout asks you to paste the job text">Demo: paste the text</button>
   </div>
 
   <div class="hero">
@@ -346,7 +358,7 @@ function resetState() {
   edges = {};
   st = { raw:"", terms:[], draftIdx:0, scores:[], threshold:85, steps:{}, rawEl:null,
     focus:"idle", fv:0, lastFv:-1, drafts:[], critics:[], blocked:0, covered:[], missing:[], facts:[], totalFacts:0,
-    cap:{}, pub:{}, typed:false, final:null, failed:null, qa:[], seen:{}, pendingFocus:null, dwellTimer:null, focusSince:0 };
+    cap:{}, pub:{}, typed:false, final:null, failed:null, qa:[], tries:[], scoutAsk:false, seen:{}, pendingFocus:null, dwellTimer:null, focusSince:0 };
   focusTimer && clearTimeout(focusTimer);
   $("url").textContent = "Waiting for a job link from Telegram…";
   $("job").innerHTML = '<div class="empty">Nothing read yet.</div>';
@@ -664,6 +676,16 @@ function story(ev) {
   const c = caption(ev);
   if (c && k !== "handoff") { $("bb-" + a).textContent = c; st.cap[GROUP[a]] = c; }
 
+  if (a === "scout") {
+    if (k === "progress" && d.status) {
+      let row = st.tries.find(x => x.n === d.attempt);
+      if (!row) { row = { n: d.attempt, label: d.label }; st.tries.push(row); }
+      row.status = d.status; row.reason = d.reason || row.reason; row.note = d.note || row.note;
+    }
+    if (k === "ask") st.scoutAsk = true;
+    if (k === "done" || k === "fail") st.scoutAsk = false;
+    if (k === "done") st.scoutVia = d;
+  }
   if (a === "archivist" && k === "ask") { st.qa = (d.skills || []).map((skill, i) => ({ skill, state: i === 0 ? "asking" : "queued" })); st.fv++; }
   if (a === "archivist" && k === "progress" && d.skill && (d.answer || d.saved)) {
     const i = st.qa.findIndex(x => x.skill === d.skill);
@@ -739,6 +761,22 @@ function startFocusTyping() { if (st.focus === "scout") { st.typed = false; st.f
 function bulletFlagged(w, b) { return w.some(x => x.includes(b.text.slice(0, 30)) || x.includes(b.fact_id)); }
 
 const an = (key, i) => { if (st.seen[key]) return 'style="animation:none"'; st.seen[key] = 1; return `style="animation-delay:${animate ? i * 80 : 0}ms"`; };
+const cap1 = (t) => t ? t[0].toUpperCase() + t.slice(1) : t;
+function triesHtml() {
+  // Only worth showing once something went wrong or a second route was needed
+  if (st.tries.length < 2 && !st.tries.some(x => x.status === "failed")) return "";
+  const icon = { trying: "⏳", failed: "✕", ok: "✓", skipped: "–" };
+  const first = st.tries.length > 1 || st.tries.some(x => x.status === "failed");
+  return `<div class="sect">${st.scoutAsk || st.tries.some(x => x.status === "ok") || first ? "Trying other ways in" : ""}</div><div class="tries">` +
+    st.tries.map((t, i) => `<div class="try ${t.status}" ${an("try" + t.n + t.status, 0)}><span class="ti">${icon[t.status] || "·"}</span>
+      <span><b>${esc(cap1(t.label))}</b>${t.status === "failed" ? ` — ${esc(t.reason)}` : ""}${t.status === "trying" ? "…" : ""}${t.status === "ok" && t.note ? `<small>${esc(t.note)}</small>` : ""}</span></div>`).join("") + `</div>`;
+}
+function pasteCard() {
+  return `<div class="qcard"><h4>❓ The Scout needs your help</h4>
+    <p>No route could read this page. It may be blocking robots.</p>
+    <p>Answer on Telegram: <b>paste the job description</b> and I'll use that instead.</p>
+    <span class="qwait"><i></i><i></i><i></i> waiting for you to paste it</span></div>`;
+}
 function qaHtml(compact) {
   const rows = st.qa.map(q => {
     if (q.state === "asking") return `<div class="qcard"><h4>❓ The Archivist needs your help</h4>
@@ -758,8 +796,12 @@ function viewBody(f) {
   if (f === "idle") return `<p class="fsub" style="font-size:15px;max-width:640px">Send a job link to your Telegram bot. Six AI agents will read it, match it to <b>your real experience</b>, write the resume, check that nothing is made up, and file it. Or press <b>Demo run</b> above to see it without a link.</p>`;
 
   if (f === "scout") {
-    if (!st.raw) return `<div class="rawwrap"><div class="skel"><i style="width:90%"></i><i style="width:76%"></i><i style="width:84%"></i><i style="width:55%"></i><i style="width:80%"></i></div><div class="cursor on" id="fcursor" style="left:60%;top:30px"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
-    return `<div class="rawwrap"><pre class="raw fraw" id="fraw"></pre><div class="cursor" id="fcursor"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
+    const cursor = `<div class="cursor on" id="fcursor" style="left:60%;top:30px"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div>`;
+    const tries = triesHtml();
+    if (st.scoutAsk) return tries + pasteCard();
+    if (st.failed && !st.raw) return tries + `<div class="catch"><b>Couldn't read this page by any route.</b> ${esc(st.failed)}</div>`;
+    if (!st.raw) return tries + `<div class="rawwrap"><div class="skel"><i style="width:90%"></i><i style="width:76%"></i><i style="width:84%"></i><i style="width:55%"></i><i style="width:80%"></i></div>${cursor}</div>`;
+    return tries + `<div class="rawwrap"><pre class="raw fraw" id="fraw"></pre><div class="cursor" id="fcursor"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 2l16 9-7 2-3 7z" fill="#3b82f6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Scout</span></div></div>`;
   }
   if (f === "analyst") {
     if (!(j.stack || []).length && !(j.reqs || []).length) return `<div class="skel"><i style="width:60%"></i><i style="width:80%"></i><i style="width:45%"></i></div>` + (j.company ? `<div class="rolecard" style="margin-top:14px">${esc(j.role)} at ${esc(j.company)}</div>` : "");
@@ -898,7 +940,8 @@ async function replay(id) {
 buildAgents(); resetState();
 window.addEventListener("resize", () => drawEdges());
 $("demo").onclick = () => fetch("/api/simulate", { method: "POST" });
-$("demo2").onclick = () => fetch("/api/simulate?fail_scrape=true", { method: "POST" });
+$("demo2").onclick = () => fetch("/api/simulate?scenario=blocked", { method: "POST" });
+$("demo3").onclick = () => fetch("/api/simulate?scenario=paste", { method: "POST" });
 if (REPLAY) replay(REPLAY); else connect();
 })();
 </script>

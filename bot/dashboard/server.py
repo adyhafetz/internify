@@ -123,11 +123,12 @@ def pdf(filename: str):
 
 
 @app.post("/api/simulate")
-def simulate(fail_scrape: bool = False):
-    """Play a scripted run through the real event bus. Needs no API keys."""
+def simulate(scenario: str = "normal"):
+    """Play a scripted run through the real event bus. Needs no API keys.
+    scenario: normal | blocked (Scout finds another way in) | paste (no route works, Scout asks you to paste)"""
     from bot.dashboard.simulate import run_simulation
 
-    threading.Thread(target=run_simulation, kwargs={"fail_scrape": fail_scrape}, daemon=True).start()
+    threading.Thread(target=run_simulation, kwargs={"scenario": scenario}, daemon=True).start()
     return JSONResponse({"started": True})
 
 

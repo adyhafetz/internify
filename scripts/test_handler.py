@@ -11,6 +11,7 @@ from service.models import ProcessResponse
 import bot.handlers.job as job
 from bot.services import db
 from bot.extraction import NormalizedJob
+from bot.services.scraper import Page
 
 db.init_db()
 pdf = os.path.join(tmp, "r.pdf"); open(pdf, "wb").write(b"%PDF")
@@ -18,7 +19,7 @@ calls = {"append": 0, "sheet_update": 0}
 sheet_rows: dict[str, int] = {}
 
 
-async def fake_scrape(url): return "Job text " * 50
+async def fake_scrape(url): return Page(text="Job text " * 50, method="direct", label="a normal visit", source_url=url, via_fallback=False)
 def fake_norm(text): return NormalizedJob(company="A&B_Corp *Inc*", job_title="Dev <Intern>", location="Remote", job_description="d", job_requirements="r")
 seen_ask = []
 def fake_process(req, ask=None):
@@ -84,15 +85,44 @@ assert calls["append"] == appends_before, "must reuse the existing sheet row, no
 assert len(db.get_recent_applications(limit=50)) == apps_before, "must reuse the existing database row"
 print("run 2 ok: repeat link reused rows, resume delivered")
 
-# 3. page that can't be read
-async def blocked(url): return "tiny"
-job.scrape_job_url = blocked
+# 3. page that can't be read by any route, and the user doesn't paste anything
+async def nothing(url): return None
+async def no_paste(bot, chat_id, loop, min_chars): return None
+job.scrape_job_url, job.ask_for_job_text = nothing, no_paste
 c = run("https://x.com/jobs/2")
 last = c.edits[-1]
-assert "Couldn't read the job page" in last and not c.docs, c.edits
+assert "Couldn't read the job page, even after trying other ways in" in last and not c.docs, c.edits
 rid = events.bus.latest_run_id()
 assert events.bus.get_run(rid)[-1]["data"]["state"] == "failed", "run must be closed as failed"
-print("run 3 ok:", last.replace("\n", " "))
+print("run 3 ok:", last.replace("\n", " ")[:110])
+
+# 3b. ...but the user pastes the job text when Scout asks: the run carries on and is delivered
+pasted_calls = []
+async def paste(bot, chat_id, loop, min_chars): pasted_calls.append(min_chars); return "Pasted job description. " * 20
+job.ask_for_job_text = paste
+c = run("https://x.com/jobs/2b")
+assert c.docs and pasted_calls == [100], (c.sent, c.edits)
+assert not any("couldn't open that page directly" in t for t in c.sent), "pasted text needs no 'I used a copy' warning"
+print("run 3b ok: pasted text -> resume delivered")
+
+# 3c. Scout used a saved copy from the web archive: the user is told where the text came from
+async def archived(url): return Page(text="Job text " * 50, method="archive", label="a saved copy from the web archive",
+                                     source_url="https://web.archive.org/x", via_fallback=True, note="a saved copy from 12 Mar 2026, which may be out of date")
+job.scrape_job_url = archived
+c = run("https://x.com/jobs/2c")
+note = next(t for t in c.sent if "couldn't open that page directly" in t)
+assert "a saved copy from 12 Mar 2026, which may be out of date" in note and "check that the company and role look right" in note, note
+assert c.docs
+print("run 3c ok:", note.replace("\n", " "))
+
+# 3d. fallbacks switched off: no paste request, plain failure
+bot_config.SCOUT_FALLBACKS = False
+job.scrape_job_url = nothing
+job.ask_for_job_text = lambda *a: (_ for _ in ()).throw(AssertionError("must not ask to paste when fallbacks are off"))
+c = run("https://x.com/jobs/2d")
+assert "Couldn't read the job page" in c.edits[-1] and not c.docs
+bot_config.SCOUT_FALLBACKS = True
+print("run 3d ok: fallbacks off -> no paste request")
 
 # 4. pipeline error shows readable reason, trackers marked failed
 job.scrape_job_url = fake_scrape

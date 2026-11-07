@@ -105,6 +105,14 @@ class EventBus:
 
 bus = EventBus()
 
+# How the Scout got the posting when it was not by simply opening the page (wording for each route)
+_GOT = {"scrapingant": "Got the posting through a scraping service", "reader": "Got the posting through a page-rendering service",
+        "archive": "Got a saved copy of the posting from the web archive", "search": "Found the same posting on another site",
+        "pasted": "Using the text you pasted"}
+_READ = {"scrapingant": "Read the posting through a scraping service", "reader": "Read the posting through a page-rendering service",
+         "archive": "Read a saved copy of the posting from the web archive", "search": "Read the same posting from another site",
+         "pasted": "Read the text you pasted"}
+
 
 def describe(ev: dict[str, Any]) -> Optional[str]:
     """One plain-language line for an event, with its numbers. Shared by Telegram and the dashboard,
@@ -113,17 +121,30 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
     if k in (HANDOFF, RUN):
         return None
     if k == ASK:
+        if a == "scout":
+            return "Asking you to paste the job text… (check Telegram)"
         return f"Asking you about {', '.join(d.get('skills', []))}… (check Telegram)"
 
     def n(word: str, count: int) -> str:
         return f"{count} {word}{'' if count == 1 else 's'}"
 
     if a == "scout":
+        if k == PROGRESS and d.get("status"):
+            label, i, total, status = str(d.get("label", "")), int(d.get("attempt", 1)), int(d.get("total", 1)), d["status"]
+            if status == "trying": return "Opening the job page…" if i == 1 else f"Trying another way in: {label}… ({i} of {total})"
+            if status == "failed":
+                return f"{label[:1].upper()}{label[1:]} didn't work: {d.get('reason')}." + (" Trying another way in…" if i < total else "")
+            if status == "ok": return None if i == 1 else _GOT.get(d.get("method"), f"Got the posting from {label}")
+            if status == "skipped": return "Out of time, stopping the search"
         if k == START: return "Opening the job page…"
         if k == PROGRESS:
             return "That didn't work, trying another way in…" if ("switching" in m.lower() or "failed" in m.lower()) else "Fetching the page…"
-        if k == DONE: return f"Read the whole posting ({int(d.get('chars', 0)):,} characters)"
-        if k == FAIL: return "Couldn't read this page. It may be blocking automated visitors"
+        if k == DONE:
+            chars = f"{int(d.get('chars', 0)):,}"
+            if d.get("via_fallback"):
+                return f"{_READ.get(d.get('method'), 'Read the posting from ' + str(d.get('label')))} ({chars} characters)"
+            return f"Read the whole posting ({chars} characters)"
+        if k == FAIL: return "Couldn't read this page by any route"
     elif a == "analyst":
         if k == START: return "Working out exactly what the job wants…"
         if k == PROGRESS and d.get("company"): return f"This is a {d.get('role')} role at {d.get('company')}"

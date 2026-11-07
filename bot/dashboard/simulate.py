@@ -61,7 +61,26 @@ def _b(rows):
     return [{"fact_id": f, "entry_id": e, "text": t} for f, e, t in rows]
 
 
-def run_simulation(url: str = URL, fail_scrape: bool = False, speed: float = 1.0) -> str:
+def _attempt(n, total, method, label, status, **extra):
+    ev.emit("scout", ev.PROGRESS, label, attempt=n, total=total, method=method, label=label, status=status, **extra)
+
+
+ROUTES = [
+    ("direct", "a normal visit"),
+    ("reader", "a page-rendering service"),
+    ("archive", "a saved copy from the web archive"),
+    ("search", "the same posting on another site"),
+]
+FAIL_REASONS = {
+    "direct": "the site blocked us (HTTP 403)",
+    "reader": "the page came back empty",
+    "archive": "the web archive has no saved copy",
+    "search": "no other site had a matching posting",
+}
+
+
+def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0) -> str:
+    """scenario: normal | blocked (page blocked, another route works) | paste (every route fails, user pastes the text)."""
     def wait(sec: float) -> None:
         time.sleep(sec / max(speed, 0.1))
 
@@ -70,17 +89,27 @@ def run_simulation(url: str = URL, fail_scrape: bool = False, speed: float = 1.0
 
     ev.emit("publisher", ev.PROGRESS, "New URL, not in tracker yet", duplicate=False)
     ev.emit("scout", ev.START, "Opening the job page", url=url)
-    wait(0.8)
-    ev.emit("scout", ev.PROGRESS, "Fetching page through ScrapingAnt", method="scrapingant")
-    wait(1.0)
-    if fail_scrape:
-        ev.emit("scout", ev.PROGRESS, "ScrapingAnt returned 403, switching to direct fetch", method="direct")
-        wait(1.0)
-        ev.emit("scout", ev.FAIL, "Page returned too little text (anti-bot wall or JavaScript)")
-        ev.emit_run("failed", error="Scraping failed")
-        return rid
-    ev.emit("scout", ev.DONE, f"Read {len(RAW_TEXT):,} characters from the page",
-            chars=len(RAW_TEXT), preview=RAW_TEXT, url=url)
+    total = len(ROUTES)
+    via = dict(via_fallback=False, label="a normal visit", note="", method="direct")
+    if scenario == "normal":
+        _attempt(1, total, "direct", "a normal visit", "trying"); wait(1.6)
+        _attempt(1, total, "direct", "a normal visit", "ok", chars=len(RAW_TEXT))
+    else:
+        winner = 4 if scenario == "blocked" else None        # the 4th route (the same posting elsewhere) works
+        for n, (method, label) in enumerate(ROUTES, start=1):
+            _attempt(n, total, method, label, "trying"); wait(1.5)
+            if n == winner:
+                _attempt(n, total, method, label, "ok", chars=len(RAW_TEXT), note="found on jobs.example.org",
+                         source_url="https://jobs.example.org/software-engineering-intern")
+                via = dict(via_fallback=True, label=label, note="found on jobs.example.org", method=method)
+                break
+            _attempt(n, total, method, label, "failed", reason=FAIL_REASONS[method]); wait(0.7)
+        else:
+            ev.emit("scout", ev.ASK, "Asking you to paste the job description", paste=True)
+            wait(5.0)                                          # ...you copy the text from the page and paste it in Telegram
+            via = dict(via_fallback=True, label="the text you pasted", note="", method="pasted")
+    ev.emit("scout", ev.DONE, f"Read {len(RAW_TEXT):,} characters from the page", chars=len(RAW_TEXT),
+            preview=RAW_TEXT, url=url, source_url=url, **via)
     ev.emit("scout", ev.HANDOFF, "Raw job posting text", to="analyst")
     wait(1.2)
 

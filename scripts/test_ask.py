@@ -41,13 +41,18 @@ class FakeBot:
             data = reply_markup.inline_keyboard[action[1]][0].callback_data
             _, qid, value = data.split(":", 2)
             loop.call_later(0.05, ask.resolve, chat_id, int(qid), value)
-        elif action and action[0] == "type":
-            update = types.SimpleNamespace(effective_chat=types.SimpleNamespace(id=chat_id),
-                                           effective_message=types.SimpleNamespace(text=action[1]))
-            async def typed():
-                try: await ask.ask_text_handler(update, None)
-                except ApplicationHandlerStop: self.stopped = True
-            loop.call_later(0.05, lambda: asyncio.ensure_future(typed()))
+        elif action and action[0] in ("type", "type_many"):
+            texts = [action[1]] if action[0] == "type" else action[1]
+            self.replies, self.passed = [], []
+            for n, text in enumerate(texts):
+                async def reply_text(t, **kw): self.replies.append(t)
+                update = types.SimpleNamespace(effective_chat=types.SimpleNamespace(id=chat_id),
+                                               effective_message=types.SimpleNamespace(text=text, reply_text=reply_text))
+                async def typed(update=update):
+                    try: await ask.ask_text_handler(update, None)
+                    except ApplicationHandlerStop: self.stopped = True
+                    else: self.passed.append(update.effective_message.text)   # left for the normal handlers
+                loop.call_later(0.05 + 0.1 * n, lambda typed=typed: asyncio.ensure_future(typed()))
         return Msg(self, text)
 
 
@@ -108,6 +113,24 @@ async def main():
     update = types.SimpleNamespace(effective_chat=types.SimpleNamespace(id=CHAT), effective_message=types.SimpleNamespace(text="hello"))
     await ask.ask_text_handler(update, None)   # must not raise
     print("F ok: stale taps and unrelated text ignored")
+
+    # J. Scout asks the user to paste the job description when no route could read the page
+    long_text = "Software Engineer Intern. Build Python services. " * 6
+    bot = FakeBot([("type_many", ["ok", "https://x.com/another-job", long_text])])
+    rid = events.start_run(url="http://t")
+    got = await ask.ask_for_job_text(bot, CHAT, asyncio.get_running_loop(), 100)
+    assert got == long_text.strip(), got
+    assert any("a bit short" in r for r in bot.replies), bot.replies               # too-short reply is refused politely
+    assert bot.passed == ["https://x.com/another-job"], bot.passed                  # a new link is left for the job handler
+    assert any(e["agent"] == "scout" and e["kind"] == "ask" and "paste" in e["say"].lower() for e in events.bus.get_run(rid))
+    assert any("paste the job description" in t for t, _ in bot.sent)
+    print("J ok: paste request: short reply refused, new link not swallowed, real paste accepted")
+
+    # K. ...and Skip gives up cleanly
+    bot = FakeBot([("tap", 0)])
+    rid = events.start_run(url="http://t")
+    assert await ask.ask_for_job_text(bot, CHAT, asyncio.get_running_loop(), 100) is None
+    print("K ok: Skip -> no text")
 
 
 asyncio.run(main())

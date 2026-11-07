@@ -11,6 +11,7 @@ import asyncio
 import html
 import itertools
 import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -39,6 +40,7 @@ class _Waiter:
     stage: str  # "choice" (buttons) or "text" (typed answer)
     qid: int
     future: asyncio.Future
+    min_chars: int = 1  # shortest typed answer that counts (a pasted job description is long)
 
 
 _pending: dict[int, _Waiter] = {}   # chat id -> the question currently waiting for an answer
@@ -178,19 +180,19 @@ class SkillQuestioner:
         await self._close(msg, text, f"➡️ {_h(label)}" if label else "⏱ No answer, skipping")
         return value
 
-    async def _ask_text(self, text: str) -> Optional[str]:
+    async def _ask_text(self, text: str, min_chars: int = 1, timeout: Optional[float] = None) -> Optional[str]:
         """Ask for a typed answer (with a Skip button). Returns the text, or None if skipped or timed out."""
-        waiter = _Waiter("text", next(_qids), self.loop.create_future())
+        waiter = _Waiter("text", next(_qids), self.loop.create_future(), min_chars)
         _pending[self.chat_id] = waiter
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Skip", callback_data=f"ask:{waiter.qid}:skip")]])
         msg = await self.bot.send_message(self.chat_id, text, parse_mode="HTML", reply_markup=keyboard)
-        value = await self._wait(waiter)
+        value = await self._wait(waiter, timeout)
         await self._close(msg, text, "⏱ No answer, skipping" if value is None else ("➡️ Skipped" if value == "skip" else "➡️ Got it"))
         return None if value in (None, "skip") else value
 
-    async def _wait(self, waiter: _Waiter) -> Optional[str]:
+    async def _wait(self, waiter: _Waiter, timeout: Optional[float] = None) -> Optional[str]:
         try:
-            return await asyncio.wait_for(waiter.future, config.ASK_TIMEOUT_SECONDS)
+            return await asyncio.wait_for(waiter.future, timeout or config.ASK_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
             return None
         finally:
@@ -202,6 +204,23 @@ class SkillQuestioner:
             await msg.edit_text(f"{text}\n\n{outcome}", parse_mode="HTML")
         except Exception as e:
             logger.debug("Could not update question message: %s", e)
+
+
+async def ask_for_job_text(bot, chat_id: int, loop: asyncio.AbstractEventLoop, min_chars: int) -> Optional[str]:
+    """Last resort when no route could read the job page: ask the user to paste the job description."""
+    events.emit("scout", events.ASK, "Asking you to paste the job description", paste=True)
+    questioner = SkillQuestioner(bot, chat_id, loop)
+    lock = _locks.setdefault(chat_id, asyncio.Lock())
+    async with lock:
+        text = await questioner._ask_text(
+            "🔭 I couldn't read that page any way I tried. It may be blocking robots.\n\n"
+            "<b>Can you paste the job description here?</b> Open the page, select the text, copy it and send it to me "
+            "as a message. I'll use that instead.\n<i>Or tap Skip to give up on this link.</i>",
+            min_chars=min_chars, timeout=config.ASK_TIMEOUT_SECONDS * 2,
+        )
+    if text:
+        await bot.send_message(chat_id, "👍 Got it, I'll use the text you pasted.")
+    return text
 
 
 # ----- Telegram handlers (registered in bot/main.py) -----
@@ -222,5 +241,10 @@ async def ask_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     text = (update.effective_message.text or "").strip() if update.effective_message else ""
     if waiter is None or waiter.stage != "text" or waiter.future.done() or not text:
         return  # not an answer: let the normal handlers deal with this message
+    if len(text) < waiter.min_chars:
+        if re.search(r"https?://", text):
+            return  # a new job link, not the answer: let the job handler take it
+        await update.effective_message.reply_text("That looks a bit short. Please paste the whole job description, or tap Skip.")
+        raise ApplicationHandlerStop
     waiter.future.set_result(text)
     raise ApplicationHandlerStop

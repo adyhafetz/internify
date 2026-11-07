@@ -39,3 +39,8 @@ DASHBOARD_KEY = os.getenv("DASHBOARD_KEY", "").strip()
 # Archivist asks you (in Telegram) about tools the job wants that are missing from your saved experience.
 ASK_ABOUT_MISSING_SKILLS = os.getenv("ASK_ABOUT_MISSING_SKILLS", "true").strip().lower() in ("1", "true", "yes")
 ASK_TIMEOUT_SECONDS = int(os.getenv("ASK_TIMEOUT_SECONDS", "120"))
+
+# Scout: if the job page can't be read directly, try other routes (a page-rendering service, a saved copy from the
+# web archive, the same posting on another site) and finally ask you to paste the text. Off = only direct routes.
+SCOUT_FALLBACKS = os.getenv("SCOUT_FALLBACKS", "true").strip().lower() in ("1", "true", "yes")
+SCOUT_BUDGET_SECONDS = int(os.getenv("SCOUT_BUDGET_SECONDS", "150"))
