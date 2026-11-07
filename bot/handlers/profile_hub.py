@@ -125,6 +125,19 @@ def _schedule_text() -> str:
     return f"Every day at <b>{_h(config.SCAN_TIME)}</b> ({_h(config.SCAN_TIMEZONE)})"
 
 
+def _source_status(src) -> str:
+    """Plain-language result of the last visit."""
+    if not src.last_checked:
+        return "not checked yet"
+    day = src.last_checked[:10]
+    st = src.last_status or ""
+    if st.startswith("ok:"):
+        return f"checked {day}: {st[3:].strip()} found"
+    if st.startswith("failed:"):
+        return f"checked {day}: didn't answer ({st[7:].strip()})"
+    return f"checked {day}"
+
+
 def starters_screen(notice: str = "") -> Screen:
     """Well-known Malaysian job pages, one tap each."""
     have = {src.url.rstrip("/") for src in watchlist.list_sources()}
@@ -151,11 +164,12 @@ def watchlist_screen(notice: str = "") -> Screen:
     if sources:
         for src in sources:
             extra = " · from your jobs" if src.auto else ""
-            status = f" · {_h(src.last_status)}" if src.last_status else ""
-            lines.append(f"• <b>{_h(src.label)}</b> ({names[src.kind]}{extra}){status}")
+            lines.append(f'• <a href="{_h(src.url)}">{_h(src.label)}</a> ({names[src.kind]}{extra})\n   {_h(_source_status(src))}')
     else:
         lines.append("<i>Nothing here yet. Add a career page or a job-board link, for example https://boards.greenhouse.io/acme "
                      "or https://jobs.lever.co/acme. Boards on Greenhouse or Lever work best.</i>")
+    if sources:
+        lines += ["", "Tap ✕ to stop checking one."]
     chips = [_btn(_short(f"✕ {src.label}", 28), "wd", src.id) for src in sources]
     rows = [chips[i:i + 2] for i in range(0, len(chips), 2)]
     rows.append([_btn("➕ Add a link", "wa"), _btn("🇲🇾 Popular in Malaysia", "wm")])

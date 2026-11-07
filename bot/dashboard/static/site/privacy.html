@@ -9,7 +9,8 @@
 <h2>1. What data Internify handles</h2>
 <ul>
 <li><b>Your saved experience</b>: contact details, education, jobs, projects, leadership and skills that you type in or import from your own resume file.</li>
-<li><b>Job links and job text</b>: the links you send, the public job posting text found on those pages, and the pages you choose for the daily job check.</li>
+<li><b>Job links and job text</b>: the links you send and the public job posting text found on those pages.</li>
+<li><b>Pages for the daily job check</b>: the list of career pages and job boards you choose (or that are added from jobs you sent), when each was last visited, and which jobs have already been seen or matched.</li>
 <li><b>Your Telegram identity</b>: your Telegram user and chat ID, so the bot replies to you and, if configured, accepts messages only from you.</li>
 <li><b>Resumes it creates</b>: PDFs and a small history of applications (company, role, link, status, match score).</li>
 <li><b>Activity traces</b>: a record of each run (which step did what, job text and resume lines) kept on the server so the dashboard can replay it.</li>
@@ -19,9 +20,9 @@
 <h2>2. How the data is used, and who else receives it</h2>
 <p>It is used only to read jobs, write and check your resumes, save them, and track applications. It is not used for advertising, not sold, and not shared for any other purpose. To do that work it is sent to these services:</p>
 <ul>
-<li><b>OpenAI (API)</b>: the job text, your saved experience and the draft resume are sent to OpenAI's models to read, write and check. See <a href="https://openai.com/policies/privacy-policy">OpenAI's privacy policy</a> and its API data terms.</li>
+<li><b>OpenAI (API)</b>: the job text, your saved experience and the draft resume are sent to OpenAI's models to read, write and check. The public text of career pages you chose for the daily check is also sent, so the AI can pick out the job openings and compare them with your experience. See <a href="https://openai.com/policies/privacy-policy">OpenAI's privacy policy</a> and its API data terms.</li>
 <li><b>Telegram</b>: messages and PDFs are delivered through Telegram's bot service.</li>
-<li><b>Job pages and job boards</b>: Internify visits the job pages you send and the career pages you choose. If a page blocks automated visitors it may send <i>only that public job link</i> to a page-rendering service (Jina Reader), a scraping service (ScrapingAnt, if the operator set it up), the Internet Archive or a search engine (DuckDuckGo) to find a readable copy. No personal data or resume content is sent to these.</li>
+<li><b>Job pages and job boards</b>: Internify visits the job pages you send, and once a day (if the daily check is on) the career pages and job boards you chose. If a page blocks automated visitors it may send <i>only that public job link</i> to a page-rendering service (Jina Reader), a scraping service (ScrapingAnt, if the operator set it up), the Internet Archive or a search engine (DuckDuckGo) to find a readable copy. No personal data or resume content is sent to these.</li>
 <li><b>Google Drive and Google Sheets</b>: only if you connect your account (section 3).</li>
 </ul>
 

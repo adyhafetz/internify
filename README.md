@@ -25,7 +25,7 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ## 🖥️ Live Agent Dashboard
 
-While the bot runs, open **http://localhost:8080/live**. It's a single picture that fits your browser window (no scrolling): a ring of nine seats, **Telegram** (you) at the top and eight agents around it. The Discoverer and Matcher are grey with a dotted outline while no daily check is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
+While the bot runs, open **http://localhost:8080/live** (also reachable as `/dashboard`; if a key is set it asks for it). It's a single picture that fits your browser window (no scrolling): a ring of nine seats, **Telegram** (you) at the top and eight agents around it. The Discoverer and Matcher are grey with a dotted outline while no daily check is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
 | Seat | What it does |
 |---|---|
@@ -77,7 +77,7 @@ Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
 A check **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
 
-Manage it in `/profile` → **🔭 Job pages I check**: add or remove pages, **Check now**, pause or resume. Settings in `.env`:
+Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. Settings in `.env`:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -133,8 +133,9 @@ Open `.env` and fill in your keys:
 ```env
 OPENAI_API_KEY=sk-...
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_ALLOWED_USER_IDS=123456789
 ```
-*(Tip: Get your Bot Token from [@BotFather](https://t.me/BotFather) on Telegram in 30 seconds).*
+*(Get your Bot Token from [@BotFather](https://t.me/BotFather) in 30 seconds, and your user ID from [@userinfobot](https://t.me/userinfobot). Setting your user ID makes the bot answer only you; without it anyone who finds the bot can spend your OpenAI credit.)*
 
 ### 3. Launch with Docker Compose
 ```bash
@@ -148,10 +149,18 @@ That’s it! Open Telegram, message your bot `/start`, and you're good to go.
 Don't type your experience in one entry at a time. **Send the bot your current resume as a file** (PDF, Word `.docx` or text, up to 5 MB):
 
 1. The bot reads it and shows what it found: contact details, education, jobs, projects, leadership and skills.
-2. You choose **Replace what's saved** (the right choice on a fresh install, which starts with a sample profile; a backup is kept in `service/fact_store/backups/`), **Add to what's saved** (keeps what you have and skips entries already saved), or **Cancel**.
+2. You choose **Replace what's saved** (the right choice on a fresh install, which starts with a sample profile; a backup is kept in `output/data/backups/`), **Add to what's saved** (keeps what you have and skips entries already saved), or **Cancel**.
 3. Nothing is saved until you tap a button. Then check it with `/profile`.
 
-Afterwards, `/profile` lets you fix anything by tapping, and the typed `/add...` commands below stay available for adding new entries. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
+Afterwards, `/profile` lets you fix anything by tapping and add new entries. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
+
+### 5. Let it find jobs for you (optional)
+
+Open `/profile` → **🔭 Job pages I check**. Tap **🇲🇾 Popular in Malaysia** to add well-known job pages, or **➕ Add a link** for any career page or job board (Greenhouse and Lever boards work best). Tap **Check now** to try it and watch it on the dashboard. After that it runs every day at `SCAN_TIME`. Details: [The Daily Job Check](#️-the-daily-job-check-finds-jobs-for-you).
+
+### 6. Put the dashboard on your own subdomain (optional)
+
+Home page, privacy policy, terms and the private dashboard on `https://internify.yourdomain.dev`, plus moving Google from Testing to Production and getting a non-expiring refresh token: [`docs/domain_setup.md`](docs/domain_setup.md).
 
 ---
 

@@ -5,9 +5,19 @@ lives on one subdomain, `internify.adyhafetz.dev`, and the main domain is never 
 
 | Address | Who can open it | What it is |
 |---|---|---|
-| `https://internify.adyhafetz.dev/` | everyone | Home page |
-| `https://internify.adyhafetz.dev/privacy` and `/terms` | everyone | The pages Google asks for |
-| `https://internify.adyhafetz.dev/live?key=...` | only you | The live agent dashboard |
+| `https://internify.adyhafetz.dev/` | everyone | Home page (the one Google asks for) |
+| `https://internify.adyhafetz.dev/privacy` and `/terms` | everyone | Privacy policy and terms (Google asks for these too) |
+| `https://internify.adyhafetz.dev/dashboard` (same as `/live`) | only you | The live agent dashboard; it asks for your key |
+
+Why the home page is not the dashboard itself: Google (and anyone) must be able to open the home page without a
+key, and the dashboard shows your job text and resume lines. So `/` is a public page that explains Internify and has an
+"Open the live dashboard" button; `/dashboard` takes you to the dashboard and asks for your key if this browser
+does not have it yet.
+
+**New to domains? Four words.** *Domain*: `adyhafetz.dev`, which you own. *Subdomain*: a name in front of it,
+`internify.adyhafetz.dev`, which costs nothing and does not affect the main domain. *DNS record*: a line in Cloudflare
+that says where a name points. *Tunnel*: a private connection from Cloudflare to your server, so you never open a
+port.
 
 The bot's own web server serves all of it. A Cloudflare Tunnel connects the subdomain to your server, so no port
 has to be opened. Menu names in Cloudflare and Google change now and then; the idea of each step stays the same.
@@ -72,6 +82,10 @@ ever pasted a key anywhere public, create a new one.
 
 ## 2. The subdomain with a Cloudflare Tunnel
 
+**Before you start (one minute).** Because you bought the domain at Cloudflare, it already uses Cloudflare's DNS. Check:
+Cloudflare dashboard → **Websites** (or **Account home**) → click `adyhafetz.dev`. The Overview page should say
+**Active**. That is all the setup the domain needs; you do not change nameservers or add any record by hand.
+
 1. **Dashboard key.** On the server: `openssl rand -hex 16`. Put the result in `.env` as `DASHBOARD_KEY=...`.
 2. **Zero Trust.** In the Cloudflare dashboard open **Zero Trust** (left menu). The first time it asks you to pick a
    team name (anything) and the **Free** plan; it may ask for a card but charges nothing.
@@ -102,24 +116,31 @@ Cloudflare Pages); Internify keeps working on its subdomain.
 While the consent screen is in **Testing**, Google expires your refresh token after **7 days**, so Drive and Sheets
 stop working. In **Production** it does not expire.
 
+**Do you have to prove you own the domain to Google (Search Console) first? No, not to switch to Production for your
+own use.** Ownership proof is only required if you press "Prepare for verification" to remove the "unverified app"
+warning, and that route also needs a security review for the Drive permission, which is not worth it for a personal
+tool. So: do steps 1, 3, 4 and 5 below, and treat step 2 as optional.
+
 1. <https://console.cloud.google.com> → your project → **APIs & Services → Library**: make sure **Google Drive API**
    and **Google Sheets API** are enabled.
-2. **Verify your domain** (Google only accepts domains you own):
+2. **Optional: prove you own the domain.** Skip this unless Google's page shows a "domain not verified" notice you
+   want to clear.
    - Open <https://search.google.com/search-console> with the same Google account, **Add property → Domain**, enter
      `adyhafetz.dev`. It shows a TXT record starting `google-site-verification=`.
-   - In Cloudflare: **DNS → Records → Add record**: Type `TXT`, Name `@`, Content = that text. Save. This does not
-     affect your website or your portfolio later.
+   - In Cloudflare: **Websites → adyhafetz.dev → DNS → Records → Add record**: Type `TXT`, Name `@`, Content = that
+     text, Save. This does not affect your website or your portfolio later.
    - Back in Search Console press **Verify** (it can take a few minutes).
 3. **Consent screen**: **APIs & Services → OAuth consent screen** (called *Google Auth Platform* in newer menus).
    - **Branding**: App name `Internify`; your support email; **App home page** `https://internify.adyhafetz.dev/`;
      **Privacy policy** `https://internify.adyhafetz.dev/privacy`; **Terms of service**
      `https://internify.adyhafetz.dev/terms`; **Authorized domain** `adyhafetz.dev`; developer contact email.
-     Leave the logo empty (adding one triggers extra review).
+     Leave the logo empty (adding one triggers extra review). If a field complains the domain is not verified,
+     that is the optional step 2; you can still save and publish.
    - **Audience**: user type **External**.
    - **Data access / Scopes**: add `https://www.googleapis.com/auth/drive` and
      `https://www.googleapis.com/auth/spreadsheets`.
 4. **Audience → Publish app → Confirm**. The status becomes **In production**.
-5. You do **not** need to press "Prepare for verification". Verification is only for apps with many users. For
+5. Do **not** press "Prepare for verification". Verification is only for apps with many users. For
    your own use, Google shows an **"unverified app"** warning when you sign in: choose **Advanced → Go to Internify
    (unsafe)**. It is your own app, so that is expected. (Limit: 100 users, far more than you need.)
 6. **Get a new refresh token** (part 4). Tokens issued while in Testing keep expiring; only a new one is permanent.

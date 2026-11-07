@@ -38,6 +38,7 @@ class Source:
     label: str
     auto: bool
     last_status: str = ""
+    last_checked: str = ""   # UTC date and time of the last visit, "" if never
 
 
 class SourceError(ValueError):
@@ -87,7 +88,7 @@ def _clean(url: str) -> str:
 
 
 def _row(r) -> Source:
-    return Source(r["id"], r["url"], r["kind"], r["ident"], r["label"], bool(r["auto"]), r["last_status"] or "")
+    return Source(r["id"], r["url"], r["kind"], r["ident"], r["label"], bool(r["auto"]), r["last_status"] or "", r["last_checked"] or "")
 
 
 def add_source(url: str, auto: bool = False, label: str = "") -> Source:

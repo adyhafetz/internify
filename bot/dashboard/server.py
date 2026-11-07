@@ -25,14 +25,16 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 SITE_DIR = os.path.join(STATIC_DIR, "site")
 COOKIE = "internify_key"
-PUBLIC_PATHS = {"/", "/privacy", "/terms", "/healthz"}  # everything else needs the key (when one is set)
+PUBLIC_PATHS = {"/", "/privacy", "/terms", "/healthz", "/dashboard"}  # everything else needs the key (when one is set)
 
 app = FastAPI(title="Internify Dashboard", docs_url=None, redoc_url=None)
 
 PRIVATE_PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Private</title><body style="font:16px/1.6 system-ui;max-width:520px;margin:15vh auto;padding:0 18px;color:#1b1f27">
-<h1>This dashboard is private</h1><p>Open the link with your key, for example <code>/live?key=YOUR_KEY</code>. The browser remembers it afterwards.</p>
-<p><a href="/">Back to the home page</a></p>"""
+<title>Internify dashboard</title><body style="font:16px/1.6 system-ui;max-width:460px;margin:14vh auto;padding:0 18px;color:#0F172A;background:#F8FAFC">
+<h1 style="letter-spacing:-.03em">Dashboard key</h1><p>The live dashboard is private. Enter your key to open it. This browser remembers it afterwards.</p>
+<form method="get" action="/live"><input name="key" type="password" autofocus autocomplete="current-password" placeholder="Your key" style="font:inherit;padding:10px 14px;border:1px solid #DBE3EF;border-radius:999px;width:100%;margin-bottom:12px">
+<button style="font:600 15px system-ui;padding:11px 22px;border:0;border-radius:999px;background:#2563EB;color:#fff;cursor:pointer">Open dashboard</button></form>
+<p style="margin-top:28px"><a href="/" style="color:#2563EB">Back to the home page</a></p>"""
 
 
 def _token(key: str) -> str:
@@ -103,6 +105,12 @@ def terms():
 @app.get("/site/style.css")
 def site_css():
     return FileResponse(os.path.join(SITE_DIR, "style.css"), media_type="text/css")
+
+
+@app.get("/dashboard")
+def dashboard_alias():
+    """A friendly address for the dashboard: it sends you to /live (which asks for the key if needed)."""
+    return RedirectResponse("/live", status_code=307)
 
 
 @app.get("/live")

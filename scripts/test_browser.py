@@ -395,5 +395,16 @@ assert "✅ Added" in text and any(b.text.startswith("✓ ") for b in buttons(ma
 assert any(src.url == starter_pages.MALAYSIA[2][1] and src.label == starter_pages.MALAYSIA[2][0] for src in watchlist.list_sources())
 text, markup = tap(ctx, "xp:w")
 assert starter_pages.MALAYSIA[2][0] in text
+# E2 you can see which pages are checked (name, link, last result) and remove one by tapping ✕
+text, markup = tap(ctx, "xp:w")
+assert starter_pages.MALAYSIA[2][1] in text and "not checked yet" in text and "Tap ✕ to stop checking one" in text, text
+src = next(x for x in watchlist.list_sources() if x.url == starter_pages.MALAYSIA[2][1])
+watchlist.mark_checked(src.id, "ok: 12 jobs")
+text, markup = tap(ctx, "xp:w"); assert "12 jobs found" in text, text
+watchlist.mark_checked(src.id, "failed: the site blocked us (HTTP 403)")
+text, markup = tap(ctx, "xp:w"); assert "didn't answer (the site blocked us (HTTP 403))" in text
+text, markup = tap(ctx, f"xp:wd:{src.id}")
+assert "✕ Removed." in text and starter_pages.MALAYSIA[2][1] not in text and not any(x.id == src.id for x in watchlist.list_sources())
 print("E1 ok: Popular in Malaysia lists well-known pages, one tap adds one, it shows as added")
+print("E2 ok: the pages I check are listed with link and last result, and ✕ removes one")
 print("\n✅ browser test passed")

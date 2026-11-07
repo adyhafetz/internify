@@ -22,6 +22,10 @@ for path in ("/live", "/api/runs", "/api/agents", "/api/stream", "/pdf/x.pdf"):
     assert c.get(path).status_code == 401, path
 assert c.post("/api/simulate").status_code == 401
 assert c.get("/live?key=wrong").status_code == 401
+form = c.get("/live")
+assert form.status_code == 401 and 'name="key"' in form.text and 'action="/live"' in form.text, "an unauthenticated visitor gets a key form"
+r = c.get("/dashboard", follow_redirects=False)
+assert r.status_code == 307 and r.headers["location"] == "/live", "/dashboard is a friendly address for /live"
 print("dashboard, API and PDFs locked ✓")
 r = c.get("/live?key=s3cret key", headers={"x-forwarded-proto": "https"})
 assert r.status_code == 303 and r.headers["location"] == "/live", r.headers
