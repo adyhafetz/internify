@@ -106,7 +106,7 @@ exp = add_experience(AddExperienceRequest(title="C++ _Dev_ *Lead*", company="A&B
                      bullets=[NewFactBullet(text="Cut p99 latency_ms by 40% using *epoll* [see #12] & `perf`", tech_tags=["scikit_learn", "C++"])]))
 add_project(AddProjectRequest(name="my_app *v2*", tech_stack="Go", date="2025", bullets=[NewFactBullet(text="x_y_z")]))
 add_education(AddEducationRequest(institution="Uni_Name *X*", location="KL", degree_line="BSc [Hons]", dates="2025", courses=["C++ & Algo_1"]))
-from bot.handlers import facts as facts_h, skills as skills_h, education as edu_h
+from bot.handlers import skills as skills_h, education as edu_h
 
 
 class Cap:
@@ -119,12 +119,9 @@ def call(fn, *args):
     asyncio.run(fn(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=1, username="t")), ctx))
     return m.sent
 
-for label, fn, args in (("listentries", facts_h.listentries_command, ()), ("listfacts", facts_h.listfacts_command, (exp.entry_id,)),
-                        ("listfacts usage", facts_h.listfacts_command, ()), ("listfacts unknown", facts_h.listfacts_command, ("nope_id",)),
-                        ("listskills", skills_h.listskills_command, ()), ("listeducation", edu_h.listeducation_command, ())):
+for label, fn, args in (("listskills", skills_h.listskills_command, ()), ("listeducation", edu_h.listeducation_command, ())):
     for text, mode in call(fn, *args):
         shown = check(md(text)) if mode == "Markdown" else text
-        for must in ("exp_", "proj_", "latency_ms", "scikit_learn") if label in ("listentries", "listfacts") else ():
-            if must in text: assert must in shown, (label, must, shown)
-print("6 ok: /listentries, /listfacts (incl. usage and unknown id), /listskills, /listeducation render valid with awkward names")
+        assert "Uni_Name" in shown or label != "listeducation", shown      # underscores in names survive
+print("6 ok: /listskills and /listeducation render valid with awkward names (the /experience screens use HTML and are tested in test_browser)")
 print("\n✅ telegram safe-formatting test passed")

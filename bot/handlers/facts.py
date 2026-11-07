@@ -24,85 +24,18 @@ WAITING_UPDATE_FACT = 1
 
 
 @restricted
-async def listentries_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    skeleton = _load_skeleton_raw()
-    exps = skeleton.get("experience_entries", [])
-    projs = skeleton.get("project_entries", [])
-    leads = skeleton.get("leadership", [])
-
-    lines = ["📋 *All Resume Entries:*\n"]
-
-    lines.append("*Work Experiences:*")
-    if exps:
-        for e in exps:
-            lines.append(f"  • `{e['id']}`: {e['title']} @ {e['company']}")
-    else:
-        lines.append("  _None_")
-
-    lines.append("\n*Projects:*")
-    if projs:
-        for p in projs:
-            lines.append(f"  • `{p['id']}`: {p['name']}")
-    else:
-        lines.append("  _None_")
-
-    lines.append("\n*Leadership:*")
-    if leads:
-        for l in leads:
-            lines.append(f"  • {l['title']} @ {l['org']}")
-    else:
-        lines.append("  _None_")
-
-    lines.append("\n_Use `/listfacts <entry_id>` to view the specific bullets for an entry._")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-@restricted
-async def listfacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.effective_message.reply_text(
-            "Usage: `/listfacts <entry_id>`\n"
-            "_Run `/listentries` to see valid entry IDs (e.g. `exp_sample_tech` or `proj_sample_app`)._",
-            parse_mode="Markdown",
-        )
-        return
-
-    entry_id = context.args[0].strip()
-    facts = _load_facts_raw()
-    matching = [f for f in facts if f["entry_id"] == entry_id]
-
-    if not matching:
-        await update.effective_message.reply_text(
-            f"No fact bullets found for entry `{entry_id}`. Run `/listentries` to check IDs.",
-            parse_mode="Markdown",
-        )
-        return
-
-    lines = [f"📝 *Fact Bullets for* `{entry_id}`:\n"]
-    for f in matching:
-        fid = f["id"]
-        txt = f["text"]
-        tags = ", ".join(f.get("tech_tags", [])) or "None"
-        lines.append(f"• *ID:* `{fid}`\n  {txt}\n  _Tags: {tags}_\n")
-
-    lines.append("_To edit: `/updatefact <fact_id> <new text>`_\n_To delete: `/deletefact <fact_id>`_")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-@restricted
 async def update_fact_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Typed shortcut for people who know the bullet's id. Everyone else should use /experience."""
     if len(context.args) >= 2:
         fact_id = context.args[0].strip()
         new_text = " ".join(context.args[1:]).strip()
         return await _process_and_update_fact(update, fact_id, new_text)
 
     await update.effective_message.reply_text(
-        "📝 *Please enter the fact ID followed by the new bullet text:*\n\n"
-        "_Example: `fact_01 Developed backend APIs using FastAPI and reduced response time by 40%`_\n\n"
-        "(Or send /cancel to abort)",
-        parse_mode="Markdown",
+        "✏️ To edit a bullet point, open /experience, tap the job or project, and tap the ✏️ next to the line. "
+        "No IDs needed."
     )
-    return WAITING_UPDATE_FACT
+    return ConversationHandler.END
 
 
 async def update_fact_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -135,7 +68,8 @@ async def _process_and_update_fact(update: Update, fact_id: str, new_text: str):
 @restricted
 async def delete_fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: `/deletefact <fact_id>`", parse_mode="Markdown")
+        await update.effective_message.reply_text(
+            "🗑 To delete a bullet point, open /experience, tap the job or project, and tap the 🗑 next to the line.")
         return
 
     fact_id = context.args[0].strip()

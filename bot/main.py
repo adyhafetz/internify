@@ -47,11 +47,10 @@ from bot.handlers.skills import (
     delete_skill_command,
 )
 from bot.handlers.facts import (
-    listentries_command,
-    listfacts_command,
     get_facts_conversation_handler,
     delete_fact_command,
 )
+from bot.handlers.experience_browser import experience_command, xp_callback, xp_text_handler
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
@@ -83,32 +82,16 @@ async def post_init(application) -> None:
     commands = [
         BotCommand("start", "What I can do"),
         BotCommand("importresume", "Fill in your experience from your resume file"),
+        BotCommand("experience", "Browse and edit your experience"),
         BotCommand("history", "Jobs you've applied to"),
         BotCommand("resume", "Your general resume (PDF)"),
         BotCommand("myprofile", "Your contact details"),
-        BotCommand("setname", "Update your full name"),
-        BotCommand("setphone", "Update your phone number"),
-        BotCommand("setemail", "Update your email address"),
-        BotCommand("setlinkedin", "Update your LinkedIn URL"),
-        BotCommand("setgithub", "Update your GitHub URL"),
-        BotCommand("listeducation", "See your degrees"),
-        BotCommand("addeducation", "Add a degree"),
-        BotCommand("deleteeducation", "Remove a degree"),
-        BotCommand("addcourse", "Add a course to a degree"),
-        BotCommand("deletecourse", "Remove a course"),
         BotCommand("addexperience", "Add a job or internship"),
-        BotCommand("deleteexperience", "Remove a job or internship"),
-        BotCommand("addproject", "Add project"),
-        BotCommand("deleteproject", "Delete project"),
+        BotCommand("addproject", "Add a project"),
         BotCommand("addleadership", "Add a leadership role or activity"),
-        BotCommand("deleteleadership", "Remove a leadership role"),
-        BotCommand("listskills", "See your skills"),
+        BotCommand("addeducation", "Add a degree"),
         BotCommand("addskill", "Add skills"),
-        BotCommand("deleteskill", "Delete a skill"),
-        BotCommand("listentries", "Your saved jobs, projects and IDs"),
-        BotCommand("listfacts", "See the bullet points under an entry"),
-        BotCommand("updatefact", "Edit a bullet point"),
-        BotCommand("deletefact", "Remove a bullet point"),
+        BotCommand("listskills", "See your skills"),
         BotCommand("cancel", "Stop the current question"),
     ]
     try:
@@ -155,8 +138,9 @@ def create_bot_app():
     app.add_handler(CommandHandler("deleteleadership", delete_leadership_command))
     app.add_handler(CommandHandler("listskills", listskills_command))
     app.add_handler(CommandHandler("deleteskill", delete_skill_command))
-    app.add_handler(CommandHandler("listentries", listentries_command))
-    app.add_handler(CommandHandler("listfacts", listfacts_command))
+    # Browse and edit everything you've saved by tapping. /listentries and /listfacts [name] open the same screens.
+    app.add_handler(CommandHandler(["experience", "listentries", "listfacts"], experience_command))
+    app.add_handler(CallbackQueryHandler(xp_callback, pattern=r"^xp:"))
     app.add_handler(CommandHandler("deletefact", delete_fact_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
@@ -173,7 +157,8 @@ def create_bot_app():
 
     # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
     app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-1)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-2)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, xp_text_handler), group=-1)
 
     # Job URL Scrape & Tailor Ingestion Handler
     app.add_handler(get_job_url_handler())
