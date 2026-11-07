@@ -32,3 +32,6 @@ GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
 DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "true").strip().lower() in ("1", "true", "yes")
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0").strip()
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
+# Key that protects the live dashboard when it is reachable from the internet (empty = open, fine on localhost).
+# Open https://<your-domain>/live?key=<DASHBOARD_KEY> once; the browser then remembers it.
+DASHBOARD_KEY = os.getenv("DASHBOARD_KEY", "").strip()

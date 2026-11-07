@@ -25,7 +25,7 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ## 🖥️ Live Agent Dashboard
 
-While the bot runs, open **http://localhost:8080**. Send a job link in Telegram and watch six named agents work in real time, while the same progress streams into the chat:
+While the bot runs, open **http://localhost:8080/live**. Send a job link in Telegram and watch six named agents work in real time, while the same progress streams into the chat:
 
 | Agent | Job |
 |---|---|
@@ -38,9 +38,10 @@ While the bot runs, open **http://localhost:8080**. Send a job link in Telegram 
 
 - Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
 - **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
-- Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) and `python scripts/test_handler.py` (the Telegram flow with fake services).
+- Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what).
 - Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
+- Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
 
 ---
 

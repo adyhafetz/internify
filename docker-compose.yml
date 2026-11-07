@@ -25,3 +25,16 @@ services:
     depends_on:
       - fastapi-service
     restart: unless-stopped
+
+  # Optional: puts the bot's website (home, privacy, terms, live dashboard) on your own domain through
+  # Cloudflare, with no ports opened on the server. Start with:  docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: internify-tunnel
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - telegram-bot
+    restart: unless-stopped

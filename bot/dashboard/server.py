@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -9,20 +11,86 @@ import threading
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi import Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 
+from bot import config as bot_config
 from service import config as service_config
 from service import events
 
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+SITE_DIR = os.path.join(STATIC_DIR, "site")
+COOKIE = "internify_key"
+PUBLIC_PATHS = {"/", "/privacy", "/terms", "/healthz"}  # everything else needs the key (when one is set)
 
 app = FastAPI(title="Internify Dashboard", docs_url=None, redoc_url=None)
 
+PRIVATE_PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Private</title><body style="font:16px/1.6 system-ui;max-width:520px;margin:15vh auto;padding:0 18px;color:#1b1f27">
+<h1>This dashboard is private</h1><p>Open the link with your key, for example <code>/live?key=YOUR_KEY</code>. The browser remembers it afterwards.</p>
+<p><a href="/">Back to the home page</a></p>"""
+
+
+def _token(key: str) -> str:
+    return hashlib.sha256(f"internify:{key}".encode()).hexdigest()
+
+
+def _same(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode(), b.encode())
+
+
+@app.middleware("http")
+async def require_key(request: Request, call_next):
+    """The home, privacy and terms pages are public. The live dashboard, its API and the PDFs need DASHBOARD_KEY."""
+    key = bot_config.DASHBOARD_KEY
+    path = request.url.path
+    if not key or path in PUBLIC_PATHS or path.startswith("/site/"):
+        return await call_next(request)
+
+    supplied = request.query_params.get("key")
+    if supplied is not None and _same(supplied, key):
+        # Valid key in the link: remember it in a cookie, then reload the page without the key in the URL.
+        clean = request.url.remove_query_params("key")
+        resp = RedirectResponse(clean.path + (f"?{clean.query}" if clean.query else ""), status_code=303)
+        https = "https" in (request.headers.get("x-forwarded-proto", "") + request.headers.get("cf-visitor", ""))
+        resp.set_cookie(COOKIE, _token(key), max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax", secure=https)
+        return resp
+    if _same(request.cookies.get(COOKIE, ""), _token(key)):
+        return await call_next(request)
+    if path.startswith("/api/") or path.startswith("/pdf/"):
+        return JSONResponse({"detail": "Private. Open /live?key=... first."}, status_code=401)
+    return HTMLResponse(PRIVATE_PAGE, status_code=401)
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
 
 @app.get("/")
-def index():
+def home():
+    return FileResponse(os.path.join(SITE_DIR, "index.html"))
+
+
+@app.get("/privacy")
+def privacy():
+    return FileResponse(os.path.join(SITE_DIR, "privacy.html"))
+
+
+@app.get("/terms")
+def terms():
+    return FileResponse(os.path.join(SITE_DIR, "terms.html"))
+
+
+@app.get("/site/style.css")
+def site_css():
+    return FileResponse(os.path.join(SITE_DIR, "style.css"), media_type="text/css")
+
+
+@app.get("/live")
+def live():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
@@ -125,5 +193,5 @@ def start_dashboard(host: str = "0.0.0.0", port: int = 8080) -> threading.Thread
 
     t = threading.Thread(target=_run, name="dashboard", daemon=True)
     t.start()
-    logger.info("Dashboard available on http://localhost:%d", port)
+    logger.info("Dashboard available on http://localhost:%d/live%s", port, "  (protected by DASHBOARD_KEY)" if bot_config.DASHBOARD_KEY else "")
     return t
