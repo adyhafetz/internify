@@ -74,6 +74,42 @@ def add_application(
         return cur.lastrowid
 
 
+def upsert_application(
+    company: str,
+    job_title: str,
+    location: str = "",
+    job_description: str = "",
+    job_requirements: str = "",
+    job_link: str = "",
+    status: str = "Processing",
+) -> int:
+    """Re-tailoring a link that is already tracked refreshes its row instead of violating the UNIQUE job_link."""
+    clean_url = job_link.strip().lower()
+    with _get_connection() as conn:
+        row = conn.execute("SELECT id FROM applications WHERE LOWER(TRIM(job_link)) = ?", (clean_url,)).fetchone()
+        if row is None:
+            cur = conn.execute(
+                """
+                INSERT INTO applications (company, job_title, location, job_description, job_requirements, job_link, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (company, job_title, location, job_description, job_requirements, job_link, status),
+            )
+            conn.commit()
+            return cur.lastrowid
+        app_id = row[0]
+        conn.execute(
+            """
+            UPDATE applications SET company = ?, job_title = ?, location = ?, job_description = ?,
+                job_requirements = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (company, job_title, location, job_description, job_requirements, status, app_id),
+        )
+        conn.commit()
+        return app_id
+
+
 def update_application(
     app_id: int,
     status: Optional[str] = None,

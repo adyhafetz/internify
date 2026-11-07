@@ -10,11 +10,11 @@ from bot.handlers.common import restricted
 from bot.services.scraper import scrape_job_url
 from bot.services.db import (
     is_duplicate_url,
-    add_application as db_add_application,
+    upsert_application as db_add_application,
     update_application as db_update_application,
     get_recent_applications,
 )
-from bot.services.sheets import is_duplicate_job, append_application, update_application_status
+from bot.services.sheets import is_duplicate_job, find_row_by_url, append_application, update_application_status
 from bot.services.drive import upload_to_drive
 from bot.extraction import normalize_job_posting
 from service.models import ProcessRequest
@@ -82,8 +82,7 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_dup_sqlite or is_dup_sheet:
         events.emit("publisher", events.PROGRESS, "This URL is already in your tracker", duplicate=True)
         await update.effective_message.reply_text(
-            "⚠️ *Notice:* You already have an application logged for this URL in your Tracker.",
-            parse_mode="Markdown",
+            "ℹ️ This link is already in your tracker. I'll tailor a fresh resume and update the existing entry."
         )
     else:
         events.emit("publisher", events.PROGRESS, "New URL, not in tracker yet", duplicate=False)
@@ -125,27 +124,35 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         description=job.job_description, requirements=job.job_requirements,
     )
 
-    # 4. Log initial row to SQLite (Always) & Google Sheets (Optional Cloud)
-    db_app_id = db_add_application(
-        company=job.company,
-        job_title=job.job_title,
-        location=job.location,
-        job_description=job.job_description,
-        job_requirements=job.job_requirements,
-        job_link=job_url,
-        status="Processing",
-    )
-
-    sheet_row_num = await asyncio.to_thread(
-        append_application,
-        company=job.company,
-        job_title=job.job_title,
-        location=job.location,
-        job_description=job.job_description,
-        job_requirements=job.job_requirements,
-        job_link=job_url,
-        status="New",
-    )
+    # 4. Log initial row to SQLite (Always) & Google Sheets (Optional Cloud).
+    #    A link that is already tracked is re-tailored: its existing rows are reused, never duplicated.
+    try:
+        db_app_id = db_add_application(
+            company=job.company,
+            job_title=job.job_title,
+            location=job.location,
+            job_description=job.job_description,
+            job_requirements=job.job_requirements,
+            job_link=job_url,
+            status="Processing",
+        )
+        sheet_row_num = await asyncio.to_thread(find_row_by_url, job_url) if is_dup_sheet else None
+        if sheet_row_num is None:
+            sheet_row_num = await asyncio.to_thread(
+                append_application,
+                company=job.company,
+                job_title=job.job_title,
+                location=job.location,
+                job_description=job.job_description,
+                job_requirements=job.job_requirements,
+                job_link=job_url,
+                status="New",
+            )
+    except Exception as track_err:
+        logger.error("Tracker error: %s", track_err)
+        events.emit("publisher", events.FAIL, f"Couldn't update the tracker: {track_err}")
+        await fail(f"❌ Couldn't update the application tracker: {track_err}")
+        return
 
     # 5. Run agentic loop (Retrieval + Generator + Critic) off the event loop so live updates keep flowing
     try:

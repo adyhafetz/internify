@@ -64,6 +64,25 @@ def is_duplicate_job(job_url: str) -> bool:
         return False
 
 
+def find_row_by_url(job_url: str) -> Optional[int]:
+    """Returns the sheet row number already holding this job link, or None."""
+    ws = _get_worksheet()
+    if not ws:
+        return None
+    try:
+        headers = ws.row_values(1)
+        if "Job Link" not in headers:
+            return None
+        col_idx = headers.index("Job Link") + 1
+        target = job_url.strip().lower()
+        for i, u in enumerate(ws.col_values(col_idx)[1:], start=2):  # row 1 is the header
+            if u and u.strip().lower() == target:
+                return i
+    except Exception as e:
+        logger.warning("Error locating existing row in Google Sheet: %s", e)
+    return None
+
+
 def append_application(
     company: str,
     job_title: str,
