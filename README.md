@@ -36,10 +36,11 @@ While the bot runs, open **http://localhost:8080/live**. Send a job link in Tele
 | 🛡️ Critic | Verifies every claim and scores ATS fit, sends notes back to Scribe |
 | 📎 Publisher | Compiles the PDF (self-repairing LaTeX), uploads to Drive, logs the tracker |
 
+- **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
 - **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
 

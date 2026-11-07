@@ -37,15 +37,19 @@ FACTS = [
     ("proj2_f1", "proj2", "Implemented graph algorithms and data structures for a route planner in Python", ["Python", "Algorithms"], 0.64),
     ("exp2_f1", "exp2", "Wrote SQL migrations and query optimizations that cut report time by 40%", ["PostgreSQL", "SQL"], 0.62),
 ]
+# What the user "tells" the Archivist when it asks about Kubernetes (becomes a new saved bullet point)
+NEW_FACT = ("exp1_f3", "exp1", "Deployed our API to Kubernetes with Helm charts for zero-downtime releases", ["Kubernetes", "Helm"], 1.0)
 
 DRAFT1 = [
     ("exp1_f1", "exp1", "Built FastAPI and PostgreSQL REST APIs handling 2,000+ daily requests"),
+    ("exp1_f3", "exp1", "Deployed APIs to Kubernetes with Helm charts for zero-downtime releases"),
     ("exp1_f2", "exp1", "Containerized services with Docker and automated deploys with GitHub Actions CI/CD"),
-    ("proj1_f1", "proj1", "Engineered a Kubernetes-orchestrated agentic pipeline for resume tailoring"),
+    ("proj1_f1", "proj1", "Engineered an agentic pipeline with Redis caching for resume tailoring"),
     ("exp2_f1", "exp2", "Optimized PostgreSQL queries, cutting report time by 40%"),
 ]
 DRAFT2 = [
     ("exp1_f1", "exp1", "Built FastAPI and PostgreSQL REST APIs handling 2,000+ daily requests"),
+    ("exp1_f3", "exp1", "Deployed APIs to Kubernetes with Helm charts for zero-downtime releases"),
     ("exp1_f2", "exp1", "Containerized microservices with Docker and automated Git-based CI/CD deploys"),
     ("proj1_f1", "proj1", "Engineered a Python agentic pipeline with retrieval and a generator-critic loop"),
     ("exp2_f1", "exp2", "Optimized PostgreSQL queries, cutting report time by 40%"),
@@ -94,14 +98,23 @@ def run_simulation(url: str = URL, fail_scrape: bool = False, speed: float = 1.0
 
     ev.emit("archivist", ev.START, "Searching 31 verified facts")
     wait(1.6)
+    ev.emit("archivist", ev.ASK, "Asking you about Kubernetes", skills=["Kubernetes"])
+    wait(3.2)                                  # ...you read the question on Telegram and tap Yes
+    ev.emit("archivist", ev.PROGRESS, "Said yes", skill="Kubernetes", answer="yes")
+    wait(3.0)                                  # ...pick where you used it, type one sentence
+    ev.emit("archivist", ev.PROGRESS, "Saved", skill="Kubernetes", saved=True,
+            where="Software Engineer Intern at Acme", text=NEW_FACT[2])
+    wait(1.6)
     covered = ["Python", "FastAPI", "PostgreSQL", "Docker", "REST APIs", "Python backend frameworks",
                "Relational databases", "Docker containerization", "Git workflows",
-               "Data structures and algorithms", "CI/CD pipelines"]
+               "Data structures and algorithms", "CI/CD pipelines", "Kubernetes"]
+    all_facts = [NEW_FACT] + FACTS
     ev.emit("archivist", ev.DONE,
-            f"Selected {len(FACTS)} of 31 facts; {len(covered)} requirements covered, 1 not found",
-            total_facts=31,
-            facts=[{"id": i, "entry_id": e, "text": t, "tags": g, "score": s} for i, e, t, g, s in FACTS],
-            covered=covered, missing=["Kubernetes"])
+            f"Selected {len(all_facts)} of 32 facts (1 new from you); {len(covered)} requirements covered, 0 not found",
+            total_facts=32,
+            facts=[{"id": i, "entry_id": e, "text": t, "tags": g, "score": sc, "new": i == NEW_FACT[0]}
+                   for i, e, t, g, sc in all_facts],
+            covered=covered, missing=[])
     ev.emit("archivist", ev.HANDOFF, "Ranked facts to tailor from", to="scribe")
     wait(1.0)
 
@@ -111,11 +124,11 @@ def run_simulation(url: str = URL, fail_scrape: bool = False, speed: float = 1.0
     ev.emit("scribe", ev.HANDOFF, "Draft 1 for review", to="critic", iteration=1)
     ev.emit("critic", ev.START, "Checking every claim against your facts and scoring ATS fit", iteration=1)
     wait(1.8)
-    bad = 'Bullet "Engineered a Kubernetes-orchestrated agentic pipeline" adds Kubernetes, which is not in fact proj1_f1'
+    bad = 'Bullet "Engineered an agentic pipeline with Redis caching" adds Redis, which is not in fact proj1_f1'
     ev.emit("critic", ev.DONE, "Draft 1 scored 40/100, 1 unsupported claim(s) caught", iteration=1, score=40.0,
-            unsupported=[bad], notes="Remove the Kubernetes claim and add the route-planner project to show algorithms.",
+            unsupported=[bad], notes="Remove the Redis claim and add the route-planner project to show algorithms.",
             coverage_notes="Good Python and PostgreSQL coverage.", threshold=85.0)
-    ev.emit("critic", ev.HANDOFF, "Remove the Kubernetes claim; add algorithms evidence", to="scribe", iteration=1)
+    ev.emit("critic", ev.HANDOFF, "Remove the Redis claim; add algorithms evidence", to="scribe", iteration=1)
     wait(1.0)
 
     ev.emit("scribe", ev.START, "Draft 2: revising from Critic's notes", iteration=2)
@@ -125,8 +138,8 @@ def run_simulation(url: str = URL, fail_scrape: bool = False, speed: float = 1.0
     ev.emit("critic", ev.START, "Checking every claim against your facts and scoring ATS fit", iteration=2)
     wait(1.6)
     ev.emit("critic", ev.DONE, "Draft 2 scored 88/100, all claims verified", iteration=2, score=88.0,
-            unsupported=[], notes="Strong match. Kubernetes is the only requirement without evidence.",
-            coverage_notes="All other stack items covered.", threshold=85.0)
+            unsupported=[], notes="Strong match. Every requirement now has evidence.",
+            coverage_notes="All stack items covered.", threshold=85.0)
     ev.emit("critic", ev.HANDOFF, "Approved draft, score 88", to="publisher")
     wait(1.0)
 

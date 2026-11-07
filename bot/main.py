@@ -7,6 +7,8 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 from bot import config
@@ -53,6 +55,7 @@ from bot.handlers.facts import (
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
+from bot.ask import ask_callback, ask_text_handler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -161,6 +164,10 @@ def create_bot_app():
     app.add_handler(CallbackQueryHandler(delete_experience_callback, pattern=r"^del_exp:"))
     app.add_handler(CallbackQueryHandler(delete_project_callback, pattern=r"^del_proj:"))
     app.add_handler(CallbackQueryHandler(delete_leadership_callback, pattern=r"^del_lead:"))
+
+    # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
+    app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-1)
 
     # Job URL Scrape & Tailor Ingestion Handler
     app.add_handler(get_job_url_handler())

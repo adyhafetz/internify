@@ -237,6 +237,22 @@ details.tech { margin-top: 14px; }
 details.tech > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 2px; user-select: none; }
 details.tech[open] > summary { margin-bottom: 8px; }
 .agents .bubble { font-size: 12.5px; }
+
+/* ===== the Archivist asking you ===== */
+.agent[data-state="asking"] .avatar { border-color: var(--warn); transform: scale(1.08); animation: pulse 1.2s ease-in-out infinite; --c: var(--warn); }
+.agent[data-state="asking"] .badge { display: grid; background: var(--warn); }
+.qa { display: grid; gap: 10px; margin-bottom: 14px; }
+.qcard { border: 1.5px solid var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--panel)); border-radius: 14px; padding: 14px 16px; animation: slide .4s ease both; }
+.qcard h4 { margin: 0 0 4px; font-size: 16px; }
+.qcard p { margin: 0 0 6px; }
+.qwait { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 13px; }
+.qwait i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); animation: blink 1.2s infinite; }
+.qwait i:nth-child(2) { animation-delay: .2s; } .qwait i:nth-child(3) { animation-delay: .4s; }
+.qrow { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 9px 13px; font-size: 14px; animation: slide .4s ease both; }
+.qrow.ok { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok) 9%, var(--panel)); }
+.qrow small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.newbadge { display: inline-block; font-size: 11px; font-weight: 700; color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--ok) 50%, var(--line)); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
+.mcard.new { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); background: color-mix(in srgb, var(--ok) 7%, var(--panel)); }
 </style>
 </head>
 <body>
@@ -330,7 +346,7 @@ function resetState() {
   edges = {};
   st = { raw:"", terms:[], draftIdx:0, scores:[], threshold:85, steps:{}, rawEl:null,
     focus:"idle", fv:0, lastFv:-1, drafts:[], critics:[], blocked:0, covered:[], missing:[], facts:[], totalFacts:0,
-    cap:{}, pub:{}, typed:false, final:null, failed:null, seen:{}, pendingFocus:null, dwellTimer:null, focusSince:0 };
+    cap:{}, pub:{}, typed:false, final:null, failed:null, qa:[], seen:{}, pendingFocus:null, dwellTimer:null, focusSince:0 };
   focusTimer && clearTimeout(focusTimer);
   $("url").textContent = "Waiting for a job link from Telegram…";
   $("job").innerHTML = '<div class="empty">Nothing read yet.</div>';
@@ -360,7 +376,7 @@ function setAgent(k, state, text) {
   if (state) el.dataset.state = state;
   if (text != null) $("bb-"+k).textContent = text;
   const bd = $("bd-"+k);
-  bd.textContent = state === "fail" ? "✕" : state === "waiting" ? "…" : "✓";
+  bd.textContent = state === "fail" ? "✕" : state === "asking" ? "?" : state === "waiting" ? "…" : "✓";
 }
 
 /* ---------------- hand-off edges ---------------- */
@@ -538,7 +554,8 @@ function apply(ev) {
   const a = ev.agent, d = ev.data || {};
   logRow(ev);
 
-  if (ev.kind === "start") setAgent(a, "working", ev.message);
+  if (ev.kind === "ask") setAgent(a, "asking", ev.say || ev.message);
+  else if (ev.kind === "start") setAgent(a, "working", ev.message);
   else if (ev.kind === "progress") { $("bb-"+a).textContent = ev.message; if (a === "scout") { if (st.raw === "") $("bb-scout").textContent = ev.message; } }
   else if (ev.kind === "done") setAgent(a, "done", ev.message);
   else if (ev.kind === "fail") setAgent(a, "fail", ev.message);
@@ -647,6 +664,18 @@ function story(ev) {
   const c = caption(ev);
   if (c && k !== "handoff") { $("bb-" + a).textContent = c; st.cap[GROUP[a]] = c; }
 
+  if (a === "archivist" && k === "ask") { st.qa = (d.skills || []).map((skill, i) => ({ skill, state: i === 0 ? "asking" : "queued" })); st.fv++; }
+  if (a === "archivist" && k === "progress" && d.skill && (d.answer || d.saved)) {
+    const i = st.qa.findIndex(x => x.skill === d.skill);
+    if (i >= 0) {
+      st.qa.slice(0, i).forEach(x => { if (["asking", "queued", "yes"].includes(x.state)) x.state = "no"; });   // earlier ones are over
+      const q = st.qa[i];
+      if (d.saved) { q.state = "saved"; q.where = d.where || ""; q.text = d.text || ""; }
+      else q.state = d.answer;
+      const next = st.qa.find(x => x.state === "queued");
+      if (["saved", "no", "timeout"].includes(q.state) && next) next.state = "asking";
+    }
+  }
   if (a === "archivist" && k === "done") { st.covered = d.covered || []; st.missing = d.missing || []; st.facts = d.facts || []; st.totalFacts = d.total_facts || 0; }
   if (a === "scribe" && k === "done") st.drafts.push({ it: d.iteration, bullets: d.bullets });
   if (a === "critic" && k === "done") { st.critics.push({ it: d.iteration, score: d.score, unsupported: d.unsupported || [], notes: d.notes }); st.blocked += (d.unsupported || []).length; st.threshold = d.threshold || st.threshold; }
@@ -663,7 +692,7 @@ function story(ev) {
 
   // which agent group is the star of the stage right now
   const isDupNote = a === "publisher" && d.duplicate !== undefined;
-  if (!isDupNote && (k === "start" || k === "fail" || k === "done" || (a === "analyst" && k === "progress"))) requestFocus(GROUP[a]);
+  if (!isDupNote && (k === "start" || k === "fail" || k === "done" || (a === "analyst" && k === "progress") || k === "ask")) requestFocus(GROUP[a]);
   if (k === "done" && GROUP[a] === st.focus) st.focusSince = Date.now();   // the dwell clock starts when the content appears
   st.fv++;
   renderHero(); renderFocus();
@@ -687,8 +716,8 @@ function renderHero() {
   let furthest = -1;
   $("stepper").innerHTML = AGENT_ORDER.map((k, i) => {
     const state = $("ag-" + k) ? $("ag-" + k).dataset.state : "idle";
-    if (state === "working" || state === "done" || state === "fail") furthest = Math.max(furthest, i);
-    return `<i style="--c: var(--c-${k})" class="${state === "done" ? "on" : state === "working" ? "now" : ""}"></i>`;
+    if (state === "working" || state === "done" || state === "fail" || state === "asking") furthest = Math.max(furthest, i);
+    return `<i style="--c: var(--c-${k})" class="${state === "done" ? "on" : state === "working" || state === "asking" ? "now" : ""}"></i>`;
   }).join("");
   $("stepn").textContent = st.final ? "All 6 steps complete" : furthest < 0 ? "Not started" : `Step ${furthest + 1} of 6 · ${AGENTS[AGENT_ORDER[furthest]].name}: ${AGENTS[AGENT_ORDER[furthest]].role.toLowerCase()}`;
 
@@ -710,6 +739,20 @@ function startFocusTyping() { if (st.focus === "scout") { st.typed = false; st.f
 function bulletFlagged(w, b) { return w.some(x => x.includes(b.text.slice(0, 30)) || x.includes(b.fact_id)); }
 
 const an = (key, i) => { if (st.seen[key]) return 'style="animation:none"'; st.seen[key] = 1; return `style="animation-delay:${animate ? i * 80 : 0}ms"`; };
+function qaHtml(compact) {
+  const rows = st.qa.map(q => {
+    if (q.state === "asking") return `<div class="qcard"><h4>❓ The Archivist needs your help</h4>
+      <p>This job asks for <b>${esc(q.skill)}</b>, but it isn't in your saved experience.</p>
+      <p>Answer on Telegram: <b>do you have real experience with it?</b></p>
+      <span class="qwait"><i></i><i></i><i></i> waiting for your answer</span></div>`;
+    if (q.state === "yes") return `<div class="qrow ok">✓ <b>${esc(q.skill)}</b>: you said yes<small>Now telling the Archivist where you used it…</small></div>`;
+    if (q.state === "saved") return `<div class="qrow ok">✓ <b>${esc(q.skill)}</b>: saved to your experience<small>${q.text ? `“${esc(q.text)}”${q.where ? " · " + esc(q.where) : ""}` : "Added to your skills"}</small></div>`;
+    if (q.state === "no") return `<div class="qrow"><b>${esc(q.skill)}</b>: you said no<small>The resume won't claim it.</small></div>`;
+    if (q.state === "timeout") return `<div class="qrow"><b>${esc(q.skill)}</b>: no answer<small>Skipped, moving on.</small></div>`;
+    return compact ? "" : `<div class="qrow"><b>${esc(q.skill)}</b><small>Next question…</small></div>`;
+  }).join("");
+  return rows ? `<div class="qa">${rows}</div>` : "";
+}
 function viewBody(f) {
   const j = st.job || {};
   if (f === "idle") return `<p class="fsub" style="font-size:15px;max-width:640px">Send a job link to your Telegram bot. Six AI agents will read it, match it to <b>your real experience</b>, write the resume, check that nothing is made up, and file it. Or press <b>Demo run</b> above to see it without a link.</p>`;
@@ -725,11 +768,12 @@ function viewBody(f) {
       <div class="sect">Skills they expect (${(j.reqs||[]).length})</div><div class="bigchips">${(j.reqs||[]).map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>`;
   }
   if (f === "archivist") {
+    if (!st.facts.length && st.qa.length) return qaHtml(false);
     if (!st.facts.length) return `<div class="skel"><i style="width:70%"></i><i style="width:55%"></i><i style="width:82%"></i></div>`;
     const needs = [...st.missing.map(t => ({ t, ok: false })), ...st.covered.map(t => ({ t, ok: true }))];   // gaps first: they are the interesting part
-    return `<div class="match" id="match"><svg id="msvg"></svg>
+    return qaHtml(true) + `<div class="match" id="match"><svg id="msvg"></svg>
       <div class="mcol"><h3>Your experience · ${st.facts.length} of ${st.totalFacts} match</h3>${st.facts.map((x, i) =>
-        `<div class="mcard" data-i="${i}" data-tags='${esc(JSON.stringify(x.tags))}' ${an("m" + x.id, i)}>${esc(x.text)}</div>`).join("")}</div>
+        `<div class="mcard${x.new ? " new" : ""}" data-i="${i}" data-tags='${esc(JSON.stringify(x.tags))}' ${an("m" + x.id, i)}>${x.new ? '<span class="newbadge">New from your answer</span><br>' : ""}${esc(x.text)}</div>`).join("")}</div>
       <div class="mcol"><h3>What the job needs · ${st.covered.length} of ${needs.length} matched</h3>${needs.map((n, i) =>
         `<div class="need ${n.ok ? "ok" : "miss"}" data-term="${esc(n.t)}" ${an("n" + n.t, 4 + i)}>${n.ok ? "✓" : "?"} ${esc(n.t)}<b>${n.ok ? "" : "not in your experience"}</b></div>`).join("")}</div></div>`;
   }

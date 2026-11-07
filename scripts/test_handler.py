@@ -20,13 +20,15 @@ sheet_rows: dict[str, int] = {}
 
 async def fake_scrape(url): return "Job text " * 50
 def fake_norm(text): return NormalizedJob(company="A&B_Corp *Inc*", job_title="Dev <Intern>", location="Remote", job_description="d", job_requirements="r")
-def fake_process(req):
+seen_ask = []
+def fake_process(req, ask=None):
+    seen_ask.append(ask)
     events.emit("scribe", events.START, "x", iteration=1)
     return ProcessResponse(resume_status="Excellent", score=88.0, pdf_path=pdf, comment="Add Kubernetes <b>")
 def fake_find(url): return sheet_rows.get(url)
 def fake_append(**kw): calls["append"] += 1; sheet_rows[kw["job_link"]] = 7; return 7
 def fake_sheet_update(*a, **kw): calls["sheet_update"] += 1
-job.scrape_job_url, job.normalize_job_posting, job.process = fake_scrape, fake_norm, fake_process
+job.scrape_job_url, job.normalize_job_posting, job.run_pipeline = fake_scrape, fake_norm, fake_process
 job.find_row_by_url, job.append_application, job.update_application_status = fake_find, fake_append, fake_sheet_update
 job.upload_to_drive = lambda path, name: "https://drive.google.com/x?a=1&b=2"
 
@@ -48,8 +50,9 @@ class Incoming:
 
 def run(text):
     inc = Incoming(text)
-    update = types.SimpleNamespace(effective_message=inc, effective_user=types.SimpleNamespace(id=1, username="t", first_name="T"))
-    asyncio.run(job.job_url_handler(update, None))
+    update = types.SimpleNamespace(effective_message=inc, effective_chat=types.SimpleNamespace(id=7),
+                                   effective_user=types.SimpleNamespace(id=1, username="t", first_name="T"))
+    asyncio.run(job.job_url_handler(update, types.SimpleNamespace(bot=object())))
     return inc
 
 
@@ -63,12 +66,22 @@ assert a.status.deleted, "progress message should be removed after delivery"
 assert calls["append"] == 1
 print("run 1 ok:", cap.replace("\n", " | ")[:140])
 
+from bot import config as bot_config
+from bot.ask import SkillQuestioner
+assert isinstance(seen_ask[-1], SkillQuestioner), "the pipeline must be given the questioner so the Archivist can ask"
+bot_config.ASK_ABOUT_MISSING_SKILLS = False
+run("https://x.com/jobs/ask-off")
+assert seen_ask[-1] is None, "feature switched off: no questions"
+bot_config.ASK_ABOUT_MISSING_SKILLS = True
+print("ask wiring ok: questioner passed when on, nothing passed when off")
+
 # 2. same link again: no crash, rows reused, user told why
+appends_before, apps_before = calls["append"], len(db.get_recent_applications(limit=50))
 b = run("https://x.com/jobs/1")
 assert any("already in your tracker" in str(t) for t in b.sent), b.sent
 assert b.docs, "should still deliver a fresh resume"
-assert calls["append"] == 1, "must reuse the existing sheet row, not append another"
-assert len(db.get_recent_applications(limit=10)) == 1, "must reuse the existing database row"
+assert calls["append"] == appends_before, "must reuse the existing sheet row, not append another"
+assert len(db.get_recent_applications(limit=50)) == apps_before, "must reuse the existing database row"
 print("run 2 ok: repeat link reused rows, resume delivered")
 
 # 3. page that can't be read
@@ -84,8 +97,8 @@ print("run 3 ok:", last.replace("\n", " "))
 # 4. pipeline error shows readable reason, trackers marked failed
 job.scrape_job_url = fake_scrape
 from fastapi import HTTPException
-def boom(req): raise HTTPException(status_code=500, detail="Your saved experience is empty. Add some with /addexperience or /addproject first.")
-job.process = boom
+def boom(req, ask=None): raise HTTPException(status_code=500, detail="Your saved experience is empty. Add some with /addexperience or /addproject first.")
+job.run_pipeline = boom
 d = run("https://x.com/jobs/3")
 last = d.edits[-1]
 assert "Your saved experience is empty" in last and "500:" not in last, last

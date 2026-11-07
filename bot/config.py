@@ -35,3 +35,7 @@ DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
 # Key that protects the live dashboard when it is reachable from the internet (empty = open, fine on localhost).
 # Open https://<your-domain>/live?key=<DASHBOARD_KEY> once; the browser then remembers it.
 DASHBOARD_KEY = os.getenv("DASHBOARD_KEY", "").strip()
+
+# Archivist asks you (in Telegram) about tools the job wants that are missing from your saved experience.
+ASK_ABOUT_MISSING_SKILLS = os.getenv("ASK_ABOUT_MISSING_SKILLS", "true").strip().lower() in ("1", "true", "yes")
+ASK_TIMEOUT_SECONDS = int(os.getenv("ASK_TIMEOUT_SECONDS", "120"))

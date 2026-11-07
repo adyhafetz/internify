@@ -112,6 +112,8 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
     a, k, d, m = ev.get("agent"), ev.get("kind"), ev.get("data") or {}, ev.get("message") or ""
     if k in (HANDOFF, RUN):
         return None
+    if k == ASK:
+        return f"Asking you about {', '.join(d.get('skills', []))}… (check Telegram)"
 
     def n(word: str, count: int) -> str:
         return f"{count} {word}{'' if count == 1 else 's'}"
@@ -129,12 +131,17 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
             return f"The job wants {n('tool', len(d.get('core_tech_stack', [])))} and {n('skill', len(d.get('hard_requirements', [])))}"
         if k == FAIL: return "Couldn't understand this posting"
     elif a == "archivist":
+        if k == PROGRESS and d.get("saved"): return f"Saved your {d.get('skill')} experience ✓"
+        if k == PROGRESS and d.get("answer") == "yes": return f"You've used {d.get('skill')}. Let's add it"
+        if k == PROGRESS and d.get("answer") == "no": return f"No problem, skipping {d.get('skill')}"
+        if k == PROGRESS and d.get("answer") == "timeout": return f"No answer about {d.get('skill')}, moving on"
         if k == START:
             digits = "".join(ch if ch.isdigit() else " " for ch in m).split()
             return f"Searching your {n('saved experience', int(digits[0]))}…" if digits else "Searching your saved experiences…"
         if k == DONE:
             covered, total = len(d.get("covered", [])), len(d.get("covered", [])) + len(d.get("missing", []))
-            return f"Found {len(d.get('facts', []))} that fit · {covered} of {total} needs matched"
+            new = sum(1 for f in d.get("facts", []) if f.get("new"))
+            return f"Found {len(d.get('facts', []))} that fit{f' ({new} new from you)' if new else ''} · {covered} of {total} needs matched"
         if k == FAIL: return "Your saved experience is empty. Add some with /addexperience first"
     elif a == "scribe":
         if k == START:

@@ -43,7 +43,7 @@ class TelegramProgress:
         if agent not in ORDER or not say or data.get("duplicate") is not None:
             return  # hand-offs, run markers and the tracker note don't change the current step
         meta = events.AGENTS[agent]
-        icon = "❌" if ev["kind"] == events.FAIL else "✅" if ev["kind"] == events.DONE else "⏳"
+        icon = {events.FAIL: "❌", events.DONE: "✅", events.ASK: "❓"}.get(ev["kind"], "⏳")
         with self._lock:
             if agent == "critic" and ev["kind"] == events.DONE and "score" in data:
                 self._scores.append(float(data["score"]))

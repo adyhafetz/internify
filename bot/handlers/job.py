@@ -20,9 +20,11 @@ from bot.services.sheets import find_row_by_url, append_application, update_appl
 from bot.services.drive import upload_to_drive
 from bot.extraction import normalize_job_posting
 from service.models import ProcessRequest
-from service.main import process
+from service.main import run_pipeline
 from service import events
 from bot.progress import TelegramProgress
+from bot.ask import SkillQuestioner
+from bot import config
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +153,13 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 5. Archivist, Scribe and Critic do the tailoring. Runs off the event loop so live updates keep flowing.
     try:
-        result = await asyncio.to_thread(process, ProcessRequest(
+        # The Archivist may stop to ask you about a tool the job wants that you haven't saved experience for.
+        ask = SkillQuestioner(context.bot, update.effective_chat.id, asyncio.get_running_loop()) \
+            if config.ASK_ABOUT_MISSING_SKILLS else None
+        result = await asyncio.to_thread(run_pipeline, ProcessRequest(
             company=job.company, job_title=job.job_title, location=job.location,
             job_description=job.job_description, job_requirements=job.job_requirements, job_link=job_url,
-        ))
+        ), ask)
     except Exception as err:
         logger.error("Resume pipeline error: %s", err)
         reason = getattr(err, "detail", err)  # HTTPException carries the readable text in .detail
@@ -219,7 +224,10 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_job_url_handler() -> MessageHandler:
+    # block=False: the run takes a while and may wait for your answer to a question, and the bot must keep
+    # receiving messages (your answers, /history, ...) in the meantime.
     return MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(r"https?://"),
         job_url_handler,
+        block=False,
     )

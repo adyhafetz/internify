@@ -40,7 +40,7 @@ async def run():
     rid = events.start_run(url="http://x")
     prog = TelegramProgress(msg, rid, asyncio.get_running_loop())
     req = ProcessRequest(company="Acme", job_title="Intern", location="R", job_description="d", job_requirements="r", job_link="http://x")
-    res = await asyncio.to_thread(main.process, req)   # same call shape as the bot handler
+    res = await asyncio.to_thread(main.run_pipeline, req)   # same call shape as the bot handler
     await asyncio.sleep(1.6)
     await prog.close()
     events.emit_run("finished")   # same task/context as start_run, like the real handler

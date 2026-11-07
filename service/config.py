@@ -23,3 +23,6 @@ EMBEDDING_CACHE_PATH = os.getenv("EMBEDDING_CACHE_PATH", "service/fact_store/emb
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 TEX_TEMPLATE_PATH = os.getenv("TEX_TEMPLATE_PATH", "service/latex/jake_template.tex.jinja")
 MAX_BULLETS_PER_ENTRY = int(os.getenv("MAX_BULLETS_PER_ENTRY", "4"))
+
+# The Archivist may ask the user about job requirements that are missing from their saved experience.
+MAX_SKILL_QUESTIONS = int(os.getenv("MAX_SKILL_QUESTIONS", "2"))
