@@ -41,7 +41,7 @@ While the bot runs, open **http://localhost:8080/live**. Send a job link in Tele
 - Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
 - **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import and the manual commands), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import and the manual commands), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
 

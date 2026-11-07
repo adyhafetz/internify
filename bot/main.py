@@ -55,6 +55,8 @@ from bot.handlers.facts import (
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
+from telegram.request import HTTPXRequest
+from bot.telegram_safe import SafeBot
 from bot.ask import ask_callback, ask_text_handler
 from bot.handlers.importresume import importresume_command, resume_document_handler, import_callback
 
@@ -121,16 +123,13 @@ def create_bot_app():
         logger.error("TELEGRAM_BOT_TOKEN is not set in environment or .env file!")
         sys.exit(1)
 
-    app = (
-        ApplicationBuilder()
-        .token(config.TELEGRAM_BOT_TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(60.0)
-        .pool_timeout(30.0)
-        .post_init(post_init)
-        .build()
+    # SafeBot converts the Markdown-style messages to safe HTML, so names or bullet points containing _ * [ can
+    # never make Telegram reject a message ("Can't parse entities").
+    bot = SafeBot(
+        token=config.TELEGRAM_BOT_TOKEN,
+        request=HTTPXRequest(connect_timeout=30.0, read_timeout=30.0, write_timeout=60.0, pool_timeout=30.0),
     )
+    app = ApplicationBuilder().bot(bot).post_init(post_init).build()
 
     # Conversation Handlers (FSM: /setname, /addexperience, etc.)
     app.add_handler(get_profile_conversation_handler())
