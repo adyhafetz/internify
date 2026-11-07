@@ -1,7 +1,7 @@
 """Small AI helpers for the places where plain rules are weak: telling a real job posting from a login page,
 reading an unfamiliar career page, judging whether two pages are the same job, and explaining a match in one sentence.
 
-Every helper fails open: if the AI call errors or AI_HELPERS is off, the caller carries on with its plain rules,
+Every helper fails open: if the AI call errors or there is no OpenAI key, the caller carries on with its plain rules,
 so a flaky model can never stop a job."""
 from __future__ import annotations
 
@@ -13,14 +13,13 @@ from urllib.parse import urljoin, urldefrag
 
 from pydantic import BaseModel, Field
 
-from bot import config
 from service import config as service_config
 
 logger = logging.getLogger(__name__)
 
 
 def enabled() -> bool:
-    return bool(config.AI_HELPERS and service_config.OPENAI_API_KEY)
+    return bool(service_config.OPENAI_API_KEY)
 
 
 def _ask(model: str, response_model, system: str, user: str):

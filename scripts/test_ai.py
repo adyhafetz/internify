@@ -11,7 +11,7 @@ from bot.services import ai, db, discovery, scraper, watchlist
 from service import config as sc, events
 
 db.init_db()
-config.AI_HELPERS = True; sc.OPENAI_API_KEY = "sk-test"
+sc.OPENAI_API_KEY = "sk-test"
 CALLS = []
 
 def fake(answers):
@@ -28,9 +28,9 @@ assert asyncio.run(ai.looks_like_posting("Sign in to continue " * 20)) == (False
 assert asyncio.run(ai.looks_like_posting("Backend intern. Python, SQL. " * 20)) == (True, "")
 ai._ask = fake({"_PostingCheck": RuntimeError("model down")})
 assert asyncio.run(ai.looks_like_posting("anything")) == (True, ""), "fails open"
-config.AI_HELPERS = False
-assert asyncio.run(ai.looks_like_posting("Sign in")) == (True, "") and CALLS[-1][1] == "_PostingCheck", "off means no call"
-config.AI_HELPERS = True
+sc.OPENAI_API_KEY = ""; n = len(CALLS)
+assert asyncio.run(ai.looks_like_posting("Sign in")) == (True, "") and len(CALLS) == n, "no key means no call"
+sc.OPENAI_API_KEY = "sk-test"
 print("A1 ok: posting check rejects a login page, fails open")
 
 # ---- Scout chain: the first route returns a login page, the AI sends it on to the next route

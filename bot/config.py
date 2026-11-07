@@ -43,9 +43,6 @@ ASK_TIMEOUT_SECONDS = int(os.getenv("ASK_TIMEOUT_SECONDS", "120"))
 # Scout: if the job page can't be read directly, try other routes (a page-rendering service, a saved copy from the
 # web archive, the same posting on another site) and finally ask you to paste the text. Off = only direct routes.
 SCOUT_FALLBACKS = os.getenv("SCOUT_FALLBACKS", "true").strip().lower() in ("1", "true", "yes")
-# Let small AI helpers handle what plain rules do badly: spotting login pages, reading unfamiliar career pages, and
-# explaining a match in a sentence. Needs OPENAI_API_KEY; each falls back to plain rules if the AI call fails.
-AI_HELPERS = os.getenv("AI_HELPERS", "true").strip().lower() in ("1", "true", "yes")
 SCOUT_BUDGET_SECONDS = int(os.getenv("SCOUT_BUDGET_SECONDS", "150"))
 
 # The morning scan: finds new jobs on the sources you watch, picks the best fits, tailors a resume for each.

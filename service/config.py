@@ -5,15 +5,14 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-# Cheap model for extraction and critique, stronger model for the actual rewrite.
-EXTRACTOR_MODEL = os.getenv("EXTRACTOR_MODEL", "gpt-4o-mini")
-CRITIC_MODEL = os.getenv("CRITIC_MODEL", "gpt-4o-mini")
-GENERATOR_MODEL = os.getenv("GENERATOR_MODEL", "gpt-4o")
+# A small model for reading, a mid-size one for writing and checking.
+EXTRACTOR_MODEL = os.getenv("EXTRACTOR_MODEL", "gpt-5.4-nano")
+CRITIC_MODEL = os.getenv("CRITIC_MODEL", "gpt-5.4-mini")
+GENERATOR_MODEL = os.getenv("GENERATOR_MODEL", "gpt-5.4-mini")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 # Reading a whole resume is a one-off job where accuracy matters more than cost, so use the stronger model.
 IMPORT_MODEL = os.getenv("IMPORT_MODEL", GENERATOR_MODEL)
-# The small AI helpers (checking a page is a real job posting, reading career pages, explaining a match). They
-# default to the extractor model; set them to override.
+# The small AI helpers (checking a page is a real job posting, reading career pages, explaining a match) use the extractor model.
 SCOUT_MODEL = os.getenv("SCOUT_MODEL", EXTRACTOR_MODEL)
 DISCOVERER_MODEL = os.getenv("DISCOVERER_MODEL", EXTRACTOR_MODEL)
 MATCHER_MODEL = os.getenv("MATCHER_MODEL", EXTRACTOR_MODEL)

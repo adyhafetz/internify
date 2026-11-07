@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath("."))
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(), "app.db")
 from bot import config, scanner
-config.AI_HELPERS = False   # plain-rules behaviour; the AI helpers are covered in test_ai.py
+from bot.services import ai as _ai; _ai.enabled = lambda: False   # plain-rules behaviour; the AI helpers are covered in test_ai.py
 from bot.jobflow import JobOutcome
 from bot.services import db, discovery, matcher, scraper, watchlist
 from service import events

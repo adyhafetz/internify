@@ -65,7 +65,7 @@ While the bot runs, open **http://localhost:8080/live**. It's a single picture t
 | Discoverer | Greenhouse and Lever are read directly; for any other career page a model lists the real openings (invented links are dropped) |
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
 
-Every small helper falls back to plain rules if its model call fails, and `AI_HELPERS=false` turns them all off. See `.env.example`.
+Every small helper falls back to plain rules if its model call fails.
 
 ## ☀️ The Daily Job Check (finds jobs for you)
 
@@ -188,20 +188,17 @@ See our [Cloud VPS Deployment Guide](docs/vps_deployment_guide.md) for details.
 
 ---
 
-## 💰 Cost & Model Tuning
+## 💰 Cost & Models
 
-Internify is engineered for extreme cost efficiency:
-* **Extractor**: `gpt-4o-mini` (~$0.0005 per run)
-* **Critic**: `gpt-4o-mini` (~$0.0005 per run)
-* **Generator**: `gpt-4o` (~$0.01 per run)
+Internify uses three OpenAI models, set in `.env`:
 
-**Total cost per tailored resume is roughly 1 to 2 cents (\$0.01–\$0.02).**
+| Job | Model | List price per 1M tokens (input / output) |
+|---|---|---|
+| Reading postings (Analyst, Scout and Discoverer helpers, Matcher) | `gpt-5.4-nano` | $0.20 / $1.25 |
+| Writing and checking (Scribe, Critic) | `gpt-5.4-mini` | $0.75 / $4.50 |
+| Finding your matching experience | `text-embedding-3-small` | very low |
 
-### Running for less than a fraction of a cent (<$0.002):
-Change the generator model in `.env`:
-```env
-GENERATOR_MODEL=gpt-4o-mini
-```
+I haven't measured the cost per resume with these models, so check your usage on the OpenAI dashboard after the first few. To spend less, set `GENERATOR_MODEL=gpt-5.4-nano`; to write better, try a bigger model there.
 
 ---
 
