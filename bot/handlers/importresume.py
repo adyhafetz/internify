@@ -79,7 +79,7 @@ async def importresume_command(update: Update, context: ContextTypes.DEFAULT_TYP
         "• PDF, Word (.docx) or text files, up to 5 MB\n"
         "• I show you what I found first, and nothing is saved until you confirm\n"
         "• The file is read by the AI service you set up, and I don't keep it\n\n"
-        "You can still add or change anything afterwards: /experience lets you tap any line to edit or delete it."
+        "You can still add or change anything afterwards: /profile lets you tap any line to edit or delete it."
     )
 
 
@@ -129,7 +129,7 @@ def build_summary(report, mode: str) -> str:
     lines += [f"⚠️ {_h(w)}" for w in report.warnings[:4]]
     if report.backup_dir:
         lines += ["", f"💾 Your previous profile is backed up in <code>{_h(report.backup_dir)}</code>."]
-    lines += ["", "Check it with /experience: tap any job or project to see its bullet points, and tap ✏️ or 🗑 to fix them. "
+    lines += ["", "Check it with /profile: tap any job or project to see its bullet points, and tap ✏️ or 🗑 to fix them. "
               "Then send me a job link!"]
     return "\n".join(lines)
 

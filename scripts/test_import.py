@@ -219,26 +219,24 @@ holder, status, _ = upload("x.txt", ("some unrelated text. " * 30).encode())
 assert "couldn't find any resume sections" in holder.log[-1]
 print("4d ok: wrong file type, oversize file and a non-resume are refused politely")
 
-# ------------------------------------------------------------------ 5. the manual commands still work (they used to error after saving)
-from bot.handlers import experience as exp_h, project as proj_h, education as edu_h
-extraction_calls = types.SimpleNamespace()
-from service.admin import AddExperienceRequest, AddProjectRequest, AddEducationRequest, NewFactBullet
-exp_h.extract_experience = lambda text: AddExperienceRequest(title="Dev", company="Foo", location="KL", dates="2025", bullets=[NewFactBullet(text="Did things")])
-proj_h.extract_project = lambda text: AddProjectRequest(name="Bar", tech_stack="Go", date="Jan 2025", bullets=[NewFactBullet(text="Built Bar")])
-edu_h.extract_education = lambda text: AddEducationRequest(institution="Baz Uni", location="KL", degree_line="BSc", dates="2025")
+# ------------------------------------------------------------------ 5. adding by typing (the same flow as "➕ Add something")
+from bot.handlers import profile_hub as hub
+from service.admin import AddExperienceRequest, AddProjectRequest, AddEducationRequest, AddLeadershipRequest, NewFactBullet
+hub.extract_experience = lambda text: AddExperienceRequest(title="Dev", company="Foo", location="KL", dates="2025", bullets=[NewFactBullet(text="Did things")])
+hub.extract_project = lambda text: AddProjectRequest(name="Bar", tech_stack="Go", date="Jan 2025", bullets=[NewFactBullet(text="Built Bar")])
+hub.extract_education = lambda text: AddEducationRequest(institution="Baz Uni", location="KL", degree_line="BSc", dates="2025")
+hub.extract_leadership = lambda text: AddLeadershipRequest(title="Lead", org="Qux", location="KL", dates="2025", bullets=["Led"])
+
 
 class Cmd:
     def __init__(self): self.sent = []
     async def reply_text(self, t, **kw): self.sent.append(t)
-def run_cmd(fn, text):
-    m = Cmd(); asyncio.run(fn(types.SimpleNamespace(effective_message=m), text)); return m.sent[-1]
 
-for label, fn, text in (("experience", exp_h._process_and_save_experience, "x"), ("project", proj_h._process_and_save_project, "x"),
-                        ("education", edu_h._process_and_save_education, "x")):
-    last = run_cmd(fn, text)
-    assert "❌" not in last and "Added" in last, (label, last)
-class A: args = ["exp_foo"]
-m = Cmd(); asyncio.run(exp_h.delete_experience_command(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=1, username="t")), A()))
-assert "❌" not in m.sent[-1] and "Deleted experience" in m.sent[-1], m.sent
-print("5 ok: /addexperience, /addproject, /addeducation and /deleteexperience no longer report an error after succeeding")
+
+for label, kind in (("job", "exp"), ("project", "proj"), ("degree", "edu"), ("leadership role", "lead")):
+    m = Cmd()
+    asyncio.run(hub.make_add_command(kind)(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=1, username="t")),
+                                           types.SimpleNamespace(args=["some", "text"], user_data={})))
+    assert "❌" not in m.sent[-1] and "✅ Added" in m.sent[-1], (label, m.sent)     # used to report an error right after saving
+print("5 ok: /addexperience, /addproject, /addeducation and /addleadership save and show the result without an error")
 print("\n✅ import test passed")

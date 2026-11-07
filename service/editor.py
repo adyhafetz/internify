@@ -14,8 +14,13 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from service.admin import (
+    SKILL_CATEGORIES,
+    AddSkillsRequest,
     NewFactBullet,
     UpdateFactRequest,
+    UpdateHeaderRequest,
+    add_skills,
+    update_header,
     _load_facts_raw,
     _load_skeleton_raw,
     _save_skeleton_raw,
@@ -254,3 +259,110 @@ def remove_course(ref: str, index: int) -> str:
     name = entry["courses"].pop(index)
     _save_skeleton_raw(sk)
     return name
+
+
+# ---------------------------------------------------------------- contact details
+
+CONTACT_FIELDS = (("name", "Name"), ("phone", "Phone"), ("email", "Email"),
+                  ("linkedin_url", "LinkedIn"), ("github_url", "GitHub"))
+_REQUIRED = {"name"}
+
+
+def get_contact() -> list[tuple[str, str, str]]:
+    """[(field, label, value)] as shown at the top of the resume. LinkedIn/GitHub show their short form."""
+    header = _load_skeleton_raw()["header"]
+    shown = {"linkedin_url": header.get("linkedin_display", ""), "github_url": header.get("github_display", "")}
+    return [(key, label, shown.get(key) or header.get(key, "")) for key, label in CONTACT_FIELDS]
+
+
+def _profile_url(value: str, site: str, path: str, label: str) -> str:
+    """Accept a full link, 'site.com/name' or just the name, and return a full https link."""
+    if re.match(r"^https?://", value, re.I):
+        return value
+    if site in value.lower():
+        return "https://" + value.lstrip("/")
+    if re.fullmatch(r"[A-Za-z0-9._%-]+", value):
+        return f"https://{site}/{path}{value}"
+    raise EditError(f"That doesn't look like a {label} link. Send the full link, for example https://{site}/{path}yourname")
+
+
+def set_contact(field: str, value: str) -> str:
+    """Save one contact detail. '-' clears an optional one. Returns the cleaned value that was saved."""
+    if field not in dict(CONTACT_FIELDS):
+        raise EditError("Unknown contact field.")
+    value = re.sub(r"\s+", " ", (value or "")).strip()
+    if value == "-":
+        if field in _REQUIRED:
+            raise EditError("Your name can't be removed. Send your new name instead.")
+        value = ""
+    elif not value:
+        raise EditError("That was empty. Please send the text.")
+    if value and len(value) > 200:
+        raise EditError("That's too long for a contact detail.")
+    if field == "name" and not re.search(r"[^\W\d_]", value):
+        raise EditError("That doesn't look like a name. Please send your full name.")
+    if value and field == "email" and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+        raise EditError("That doesn't look like an email address. Send it like name@example.com.")
+    if value and field == "linkedin_url":
+        value = _profile_url(value, "linkedin.com", "in/", "LinkedIn")
+    if value and field == "github_url":
+        value = _profile_url(value, "github.com", "", "GitHub")
+    update_header(UpdateHeaderRequest(**{field: value}))
+    return value
+
+
+# ---------------------------------------------------------------- skills
+
+@dataclass(frozen=True)
+class Skill:
+    token: str
+    name: str
+
+
+def _skill_token(name: str) -> str:
+    return hashlib.sha1(name.lower().encode("utf-8")).hexdigest()[:8]
+
+
+def list_skill_categories() -> list[tuple[int, str, int]]:
+    """[(position, category name, how many skills)] in a fixed order."""
+    skills = _load_skeleton_raw().get("skills", {})
+    return [(i, c, len(skills.get(c, []))) for i, c in enumerate(SKILL_CATEGORIES)]
+
+
+def get_skills(category_index: int) -> tuple[str, list[Skill]]:
+    if not 0 <= category_index < len(SKILL_CATEGORIES):
+        raise EditError("Unknown skill category.")
+    category = SKILL_CATEGORIES[category_index]
+    return category, [Skill(_skill_token(n), n) for n in _load_skeleton_raw().get("skills", {}).get(category, [])]
+
+
+def add_skills_text(category_index: int, text: str) -> tuple[list[str], list[str]]:
+    """Add skills typed as 'Python, Go, Rust' (commas, semicolons or new lines). Returns (added, already_there)."""
+    category, current = get_skills(category_index)
+    have = {s.name.lower() for s in current}
+    added: list[str] = []
+    already: list[str] = []
+    for raw in re.split(r"[,;\n]+", text or ""):
+        name = re.sub(r"\s+", " ", raw).strip()
+        if not name:
+            continue
+        if len(name) > 40:
+            raise EditError(f"“{name[:30]}…” is too long for a skill. Separate skills with commas.")
+        (already if name.lower() in have else added).append(name)
+        have.add(name.lower())
+    if not added and not already:
+        raise EditError("I didn't find any skills in that. Send them separated by commas, like: Python, Go, Rust")
+    if added:
+        add_skills(AddSkillsRequest(category=category, items=added))
+    return added, already
+
+
+def remove_skill(category_index: int, token: str) -> str:
+    category, current = get_skills(category_index)
+    skill = next((s for s in current if s.token == token), None)
+    if skill is None:
+        raise EditError("That skill has already changed. Open the category again.")
+    sk = _load_skeleton_raw()
+    sk["skills"][category] = [n for n in sk["skills"][category] if n != skill.name]
+    _save_skeleton_raw(sk)
+    return skill.name

@@ -13,44 +13,14 @@ from telegram.ext import (
 
 from bot import config
 from bot.handlers.common import start_command, help_command, cancel_command
-from bot.handlers.profile import (
-    myprofile_command,
-    get_profile_conversation_handler,
-    profile_button_callback,
+from service.editor import EXP, PROJ, LEAD, EDU
+from bot.handlers.profile_hub import (
+    profile_command,
+    make_add_command,
+    addskill_command,
+    xp_callback,
+    xp_text_handler,
 )
-from bot.handlers.education import (
-    listeducation_command,
-    get_education_conversation_handler,
-    delete_education_command,
-    delete_education_callback,
-    add_course_command,
-    delete_course_command,
-)
-from bot.handlers.experience import (
-    get_experience_conversation_handler,
-    delete_experience_command,
-    delete_experience_callback,
-)
-from bot.handlers.project import (
-    get_project_conversation_handler,
-    delete_project_command,
-    delete_project_callback,
-)
-from bot.handlers.leadership import (
-    get_leadership_conversation_handler,
-    delete_leadership_command,
-    delete_leadership_callback,
-)
-from bot.handlers.skills import (
-    listskills_command,
-    get_skills_conversation_handler,
-    delete_skill_command,
-)
-from bot.handlers.facts import (
-    get_facts_conversation_handler,
-    delete_fact_command,
-)
-from bot.handlers.experience_browser import experience_command, xp_callback, xp_text_handler
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
@@ -79,26 +49,25 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def post_init(application) -> None:
+    # The slash menu: only the main things. Everything on your resume is behind /profile (including adding things).
     commands = [
-        BotCommand("start", "What I can do"),
-        BotCommand("importresume", "Fill in your experience from your resume file"),
-        BotCommand("experience", "Browse and edit your experience"),
+        BotCommand("profile", "See and edit everything on your resume"),
+        BotCommand("importresume", "Fill it in from your current resume (PDF or Word)"),
         BotCommand("history", "Jobs you've applied to"),
-        BotCommand("resume", "Your general resume (PDF)"),
-        BotCommand("myprofile", "Your contact details"),
-        BotCommand("addexperience", "Add a job or internship"),
-        BotCommand("addproject", "Add a project"),
-        BotCommand("addleadership", "Add a leadership role or activity"),
-        BotCommand("addeducation", "Add a degree"),
-        BotCommand("addskill", "Add skills"),
-        BotCommand("listskills", "See your skills"),
-        BotCommand("cancel", "Stop the current question"),
+        BotCommand("resume", "Download your general resume (PDF)"),
+        BotCommand("help", "Everything I can do"),
+        BotCommand("cancel", "Stop the current step"),
     ]
     try:
         await application.bot.set_my_commands(commands)
-        logger.info("Successfully registered bot command menu with Telegram.")
+        # Shown on the empty chat screen, before the user has typed anything: tells them the main action.
+        await application.bot.set_my_short_description("Send me a job link and I'll write a 1-page resume from your real experience.")
+        await application.bot.set_my_description(
+            "Send me a job link and I'll write a 1-page resume tailored to that job, using only your real experience, "
+            "and send you the PDF.\n\nFirst, tap Start and send me your current resume file so I know your experience.")
+        logger.info("Successfully registered the bot's command menu and description with Telegram.")
     except Exception as e:
-        logger.warning("Could not set bot commands automatically: %s", e)
+        logger.warning("Could not set the bot's menu or description automatically: %s", e)
 
 
 def create_bot_app():
@@ -114,41 +83,23 @@ def create_bot_app():
     )
     app = ApplicationBuilder().bot(bot).post_init(post_init).build()
 
-    # Conversation Handlers (FSM: /setname, /addexperience, etc.)
-    app.add_handler(get_profile_conversation_handler())
-    app.add_handler(get_education_conversation_handler())
-    app.add_handler(get_experience_conversation_handler())
-    app.add_handler(get_project_conversation_handler())
-    app.add_handler(get_leadership_conversation_handler())
-    app.add_handler(get_skills_conversation_handler())
-    app.add_handler(get_facts_conversation_handler())
-
-    # Standalone Commands
+    # Standalone commands
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("cancel", cancel_command))
-    app.add_handler(CommandHandler("myprofile", myprofile_command))
-    app.add_handler(CommandHandler("listeducation", listeducation_command))
-    app.add_handler(CommandHandler("deleteeducation", delete_education_command))
-    app.add_handler(CommandHandler("addcourse", add_course_command))
-    app.add_handler(CommandHandler("deletecourse", delete_course_command))
-    app.add_handler(CommandHandler("deleteexperience", delete_experience_command))
-    app.add_handler(CommandHandler("deleteproject", delete_project_command))
-    app.add_handler(CommandHandler("deleteleadership", delete_leadership_command))
-    app.add_handler(CommandHandler("listskills", listskills_command))
-    app.add_handler(CommandHandler("deleteskill", delete_skill_command))
-    # Browse and edit everything you've saved by tapping. /listentries and /listfacts [name] open the same screens.
-    app.add_handler(CommandHandler(["experience", "listentries", "listfacts"], experience_command))
-    app.add_handler(CallbackQueryHandler(xp_callback, pattern=r"^xp:"))
-    app.add_handler(CommandHandler("deletefact", delete_fact_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
-    # Inline Keyboard Button Callbacks (Delete confirmations)
-    app.add_handler(CallbackQueryHandler(delete_education_callback, pattern=r"^del_edu:"))
-    app.add_handler(CallbackQueryHandler(delete_experience_callback, pattern=r"^del_exp:"))
-    app.add_handler(CallbackQueryHandler(delete_project_callback, pattern=r"^del_proj:"))
-    app.add_handler(CallbackQueryHandler(delete_leadership_callback, pattern=r"^del_lead:"))
+    # Everything on your resume, by tapping. The other names are quiet shortcuts to the same screens.
+    app.add_handler(CommandHandler(
+        ["profile", "experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills"], profile_command))
+    app.add_handler(CallbackQueryHandler(xp_callback, pattern=r"^xp:"))
+    # Typed adds (the same flow as "➕ Add something")
+    app.add_handler(CommandHandler("addexperience", make_add_command(EXP)))
+    app.add_handler(CommandHandler("addproject", make_add_command(PROJ)))
+    app.add_handler(CommandHandler("addleadership", make_add_command(LEAD)))
+    app.add_handler(CommandHandler("addeducation", make_add_command(EDU)))
+    app.add_handler(CommandHandler("addskill", addskill_command))
 
     # Import an existing resume: /importresume, then send the file; buttons confirm before anything is saved
     app.add_handler(CommandHandler("importresume", importresume_command))

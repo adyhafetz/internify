@@ -33,13 +33,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Hi {name}! I'm Internify.\n\n"
         "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, "
         "then send you the PDF.\n\n"
-        "• Send me your current resume file (PDF or Word) and I'll fill in your experience for you\n"
-        "• Paste a job link to get a tailored resume\n"
-        "• /myprofile – your name and contact details\n"
+        "First, tell me about you:\n"
+        "• Send me your current resume file (PDF or Word) and I'll fill in your experience\n"
+        "• or use /profile to add it yourself\n\n"
+        "Other things:\n"
+        "• /profile – see and edit everything on your resume\n"
         "• /history – jobs you've applied to\n"
         "• /resume – your general resume, not tailored to any job\n"
-        "• /help – everything I can do\n\n"
-        "Tip: you can type a command with its value, like /setname John Doe, or just /setname and I'll ask you."
+        "• /help – everything I can do"
     )
 
 
@@ -51,21 +52,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Paste a job link – I write a resume for that job\n"
         "• /history – jobs you've applied to\n"
         "• /resume – your general resume (not tailored)\n\n"
-        "Your details\n"
-        "• /myprofile – see your contact details\n"
-        "• /setname, /setphone, /setemail, /setlinkedin, /setgithub – change them\n\n"
-        "Your experience (what I choose from)\n"
-        "• /importresume – send your current resume file (PDF/Word) and I'll fill this in for you\n"
-        "• /addexperience – add a job or internship\n"
-        "• /addproject – add a project\n"
-        "• /addleadership – add a leadership role or activity\n"
-        "• /addeducation – add a degree\n"
-        "• /addskill – add skills\n"
-        "Or describe each one in your own words and I'll turn it into resume bullet points.\n\n"
-        "See and edit what's saved\n"
-        "• /experience – open your degrees, jobs, projects and leadership roles, then tap to edit, add or delete "
-        "any line. No IDs to look up.\n"
-        "• /listskills, /addskill, /deleteskill [skill] – your skills\n\n"
+        "Tell me about you\n"
+        "• /importresume – send your current resume file (PDF or Word) and I'll fill everything in\n"
+        "• /profile – see and edit everything on your resume: contact details, education, jobs, projects, "
+        "leadership and skills. Tap anything to edit, delete or add a line, and use ➕ Add something for new entries. "
+        "No IDs to look up.\n\n"
+        "Typing shortcuts (optional)\n"
+        "• /addexperience, /addproject, /addleadership, /addeducation – describe it in your own words\n"
+        "• /addskill Docker, Kubernetes – add skills\n"
+        "• /profile acme – jump straight to one entry by name\n\n"
         "• /cancel – stop whatever I'm asking you"
     )
 
@@ -74,5 +69,3 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await update.effective_message.reply_text("🛑 Okay, cancelled.")
-    return ConversationHandler.END
-

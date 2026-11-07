@@ -99,29 +99,9 @@ app = create_bot_app()
 assert isinstance(app.bot, SafeBot)
 print("5 ok: the application uses SafeBot")
 
-# 6. the real handlers, with awkward data
-from service.admin import (add_experience, AddExperienceRequest, NewFactBullet, add_project, AddProjectRequest,
-                           add_education, AddEducationRequest)
-exp = add_experience(AddExperienceRequest(title="C++ _Dev_ *Lead*", company="A&B_Corp <Ltd>", location="KL", dates="2024",
-                     bullets=[NewFactBullet(text="Cut p99 latency_ms by 40% using *epoll* [see #12] & `perf`", tech_tags=["scikit_learn", "C++"])]))
-add_project(AddProjectRequest(name="my_app *v2*", tech_stack="Go", date="2025", bullets=[NewFactBullet(text="x_y_z")]))
-add_education(AddEducationRequest(institution="Uni_Name *X*", location="KL", degree_line="BSc [Hons]", dates="2025", courses=["C++ & Algo_1"]))
-from bot.handlers import skills as skills_h, education as edu_h
-
-
-class Cap:
-    def __init__(self): self.sent = []
-    async def reply_text(self, text, **kw): self.sent.append((text, kw.get("parse_mode")))
-
-
-def call(fn, *args):
-    m = Cap(); ctx = types.SimpleNamespace(args=list(args))
-    asyncio.run(fn(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=1, username="t")), ctx))
-    return m.sent
-
-for label, fn, args in (("listskills", skills_h.listskills_command, ()), ("listeducation", edu_h.listeducation_command, ())):
-    for text, mode in call(fn, *args):
-        shown = check(md(text)) if mode == "Markdown" else text
-        assert "Uni_Name" in shown or label != "listeducation", shown      # underscores in names survive
-print("6 ok: /listskills and /listeducation render valid with awkward names (the /experience screens use HTML and are tested in test_browser)")
+# 6. the remaining Markdown users (the bot's error handler shows an exception message that can hold anything)
+nasty = RuntimeError("Can't parse entities: can't find end of the entity starting at byte offset 527 *x* _y_ [z](")
+out = md(f"⚠️ *An unexpected error occurred:*\n`{nasty}`")
+check(out)
+print("6 ok: an error message containing markup characters is still valid")
 print("\n✅ telegram safe-formatting test passed")

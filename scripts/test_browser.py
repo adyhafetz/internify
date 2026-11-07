@@ -1,4 +1,4 @@
-"""Offline test of /experience: data operations for all entry kinds, screens, and the tap-and-type flows."""
+"""Offline test of /profile: data operations for every kind of entry, screens, and the tap-and-type flows."""
 from __future__ import annotations
 import asyncio, os, shutil, sys, tempfile, types
 from html.parser import HTMLParser
@@ -20,7 +20,7 @@ from service.editor import EditError
 from service.admin import (add_experience, AddExperienceRequest, add_project, AddProjectRequest, NewFactBullet,
                            add_education, AddEducationRequest, add_leadership, AddLeadershipRequest,
                            _load_facts_raw, _load_skeleton_raw)
-from bot.handlers import experience_browser as eb
+from bot.handlers import profile_hub as eb
 
 importer._clear_everything()
 add_education(AddEducationRequest(institution="Universiti Example", location="Selangor", degree_line="B.Sc. Computer Science",
@@ -120,6 +120,11 @@ def buttons(markup):
 
 def all_screens():
     yield "list", eb.list_screen()
+    yield "contact", eb.contact_screen()
+    yield "skills", eb.skills_screen()
+    yield "add menu", eb.add_menu_screen()
+    for i, _, _ in editor.list_skill_categories():
+        yield f"skill category {i}", eb.skill_category_screen(i)
     for e in editor.list_entries():
         yield e.label, eb.entry_screen(e.kind, e.ref)
         v = editor.get_entry(e.kind, e.ref)
@@ -199,14 +204,14 @@ def say(ctx, text):
 
 def command(args, text="/experience"):
     msg = FakeMsg(text); ctx = types.SimpleNamespace(args=args, user_data={})
-    asyncio.run(eb.experience_command(types.SimpleNamespace(effective_message=msg, effective_user=USER), ctx))
+    asyncio.run(eb.profile_command(types.SimpleNamespace(effective_message=msg, effective_user=USER), ctx))
     return msg.sent[-1]
 
 
 ctx = types.SimpleNamespace(user_data={})
 # C1 edit a bullet point: open list -> open job -> tap ✏️ 2 -> type the new text
 text, markup = tap(ctx, "xp:l")
-assert "Your experience" in text
+assert "Your profile" in text and [b.text for b in buttons(markup)][0] == "👤 Contact details" and [b.text for b in buttons(markup)][-2:][0].startswith("🔧 Skills") and [b.text for b in buttons(markup)][-1] == "➕ Add something"
 text, markup = tap(ctx, find(markup, "💼"))
 assert "1. Built REST APIs with FastAPI" in text and "2. Containerized with Docker" in text
 text, markup = tap(ctx, find(markup, "✏️ 2"))
@@ -283,7 +288,7 @@ text, lst = tap(ctx2, "xp:o:exp:gone:0"); assert "no longer exists" in text
 print("C7 ok: stale buttons say so instead of acting on the wrong line; re-tapping a screen is harmless")
 
 # C8 typed shortcuts open the same screens
-text, markup = command([]); assert "Your experience" in text
+text, markup = command([]); assert "Your profile" in text
 text, markup = command(["acme"]); assert "Software Intern · Acme Sdn Bhd" in text and "Bullet points" in text
 text, markup = command(["treasurer"]); assert "Treasurer · CS Society" in text, "a single match opens the entry directly"
 text, markup = command([ACME]); assert "Software Intern" in text
@@ -299,6 +304,104 @@ from bot.main import create_bot_app
 app = create_bot_app()
 assert -2 in app.handlers and -1 in app.handlers, "Archivist/Scout answers (-2) and experience edits (-1) need separate groups"
 names = {c for h in app.handlers[0] for c in getattr(h, "commands", [])}
-assert {"experience", "listentries", "listfacts"} <= names
+assert {"profile", "experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills"} <= names
 print("C9 ok: handlers registered (separate groups for the two typed-answer handlers)")
+
+# ================================================================== D. contact details, skills, adding, shortcuts, menu
+ctx = types.SimpleNamespace(user_data={})
+text, markup = tap(ctx, "xp:c")
+assert "Contact details" in text and "Name:" in text and "Email:" in text
+assert [b.text for b in buttons(markup)][:5] == ["✏️ Name", "✏️ Phone", "✏️ Email", "✏️ LinkedIn", "✏️ GitHub"]
+text, prompt = tap(ctx, find(markup, "✏️ GitHub")); assert "New GitHub" in text and "Send - to remove it" in text
+msg, consumed = say(ctx, "adystudent"); assert consumed and "✅ GitHub updated." in msg.sent[-1][0] and "github.com/adystudent" in msg.sent[-1][0]
+text, markup = tap(ctx, "xp:c"); tap(ctx, find(markup, "✏️ Email"))
+msg, consumed = say(ctx, "not an email"); assert consumed and "doesn't look like an email" in msg.sent[-1][0] and eb.WAIT_KEY in ctx.user_data, "bad value: explain, keep waiting"
+msg, _ = say(ctx, "a_b@uni.edu.my"); assert "✅ Email updated." in msg.sent[-1][0] and "a_b@uni.edu.my" in msg.sent[-1][0]
+text, markup = tap(ctx, "xp:c"); tap(ctx, find(markup, "✏️ LinkedIn")); msg, _ = say(ctx, "-")
+assert "<i>not set</i>" in msg.sent[-1][0] and _load_skeleton_raw()["header"]["linkedin_url"] == ""
+text, markup = tap(ctx, "xp:c"); tap(ctx, find(markup, "✏️ Name")); msg, _ = say(ctx, "-")
+assert "can't be removed" in msg.sent[-1][0] and eb.WAIT_KEY in ctx.user_data and _load_skeleton_raw()["header"]["name"] not in ("", "-"), "the name can never be removed or blanked"
+msg, _ = say(ctx, "12345"); assert "doesn't look like a name" in msg.sent[-1][0]
+msg, _ = say(ctx, "Ady Student"); assert "✅ Name updated." in msg.sent[-1][0] and "<b>Name:</b> Ady Student" in msg.sent[-1][0]
+tap(ctx, "xp:c")
+print("D1 ok: contact details are edited by tapping (bare GitHub name becomes a link, bad email refused, '-' removes an optional one, name can't be blanked)")
+
+# skills: categories -> category -> add by typing -> remove by tapping
+text, markup = tap(ctx, "xp:s")
+assert "Skills" in text and [b.text.split(" (")[0] for b in buttons(markup)][:5] == ["Languages", "Frameworks & Libraries", "Databases", "AI/ML", "Developer Tools & Infra"]
+text, cat = tap(ctx, find(markup, "Databases")); assert "Databases" in text and "No skills here yet" in text and "Tap a skill to remove it." not in text
+text, prompt = tap(ctx, find(cat, "➕ Add to Databases")); assert "separated by commas" in text
+msg, consumed = say(ctx, "Redis, redis , Neo4j"); shown, cat = msg.sent[-1]
+assert consumed and "✅ Added: Redis, Neo4j" in shown and "Already there: redis" in shown and "Tap a skill to remove it." in shown, shown   # the 2nd "redis" in one message is a duplicate
+tap(ctx, find(cat, "➕ Add to Databases")); msg, _ = say(ctx, "neo4j, Cassandra")
+assert "✅ Added: Cassandra" in msg.sent[-1][0] and "Already there: neo4j" in msg.sent[-1][0]
+cat = msg.sent[-1][1]; text, cat = tap(ctx, find(cat, "✕ Redis"))
+assert "✕ Removed Redis." in text and "Redis" not in [b.text[2:] for b in buttons(cat)]
+stale = find(cat, "✕ Neo4j"); tap(ctx, stale); text, _ = tap(ctx, stale); assert "already changed" in text, "a second tap on the same chip is harmless"
+cat = tap(ctx, find(tap(ctx, "xp:s")[1], "Languages"))[1]; tap(ctx, find(cat, "➕ Add to Languages")); msg, _ = say(ctx, ", ".join(f"Lang{i}" for i in range(20)))
+text, cat = tap(ctx, "xp:sc:0:0"); assert "page 1 of 2" in text and "Next ▶" in [b.text for b in buttons(cat)]
+text, cat = tap(ctx, "xp:sc:0:1"); assert "page 2 of 2" in text and "◀ Previous" in [b.text for b in buttons(cat)]
+print("D2 ok: skills by category: add (duplicates reported), remove by tapping, stale tap harmless, paged")
+
+# add something: menu -> describe in your own words -> entry shown with what was understood
+text, menu = tap(ctx, "xp:n")
+assert [b.text for b in buttons(menu)] == ["💼 A job or internship", "🛠 A project", "🏅 A leadership role or activity", "🎓 A degree", "🔧 Skills", "⬅ Back to profile"]
+from service.admin import AddExperienceRequest as _AER, AddProjectRequest as _APR, AddEducationRequest as _AEdR, AddLeadershipRequest as _ALR
+eb.extract_experience = lambda t: _AER(title="Data Intern", company="Globex", location="KL", dates="2025", bullets=[NewFactBullet(text="Cleaned data with pandas", tech_tags=["pandas"])],
+                                       suggested_skills={"Frameworks & Libraries": ["pandas"]})
+eb.extract_project = lambda t: _APR(name="Chatbot", tech_stack="Python", date="Jan 2025", bullets=[NewFactBullet(text="Built a chatbot")])
+eb.extract_education = lambda t: _AEdR(institution="Tech Uni", location="KL", degree_line="Diploma", dates="2020")
+eb.extract_leadership = lambda t: _ALR(title="Mentor", org="Code Club", location="KL", dates="2024", bullets=["Taught 20 students"])
+text, prompt = tap(ctx, find(menu, "💼")); assert "Describe your job or internship" in text and "For example" in text and ctx.user_data[eb.WAIT_KEY]["action"] == "new"
+msg, consumed = say(ctx, "I was a data intern at Globex")
+assert consumed and msg.sent[0][0].startswith("⏳"), "tells you it is working"
+shown = msg.sent[-1][0]; assert "✅ Added. Here's what I understood" in shown and "Data Intern · Globex" in shown and "1. Cleaned data with pandas" in shown and "New skills: pandas" in shown
+for what, mark in (("🛠", "Chatbot"), ("🎓", "Diploma"), ("🏅", "Mentor · Code Club")):
+    tap(ctx, find(tap(ctx, "xp:n")[1], what)); msg, _ = say(ctx, "text"); assert mark in msg.sent[-1][0], (what, msg.sent[-1][0])
+assert any(e.label == "Mentor · Code Club" for e in editor.list_entries()) and editor.get_entry("lead", next(e.ref for e in editor.list_entries() if "Code Club" in e.label)).items[0].text == "Taught 20 students"
+def boom(t): raise RuntimeError("the AI is down")
+eb.extract_project = boom
+tap(ctx, find(tap(ctx, "xp:n")[1], "🛠")); msg, consumed = say(ctx, "text")
+assert consumed and "couldn't save that" in msg.sent[-1][0] and "the AI is down" in msg.sent[-1][0] and eb.WAIT_KEY in ctx.user_data
+print("D3 ok: ➕ Add something -> describe it -> saved and shown (job, project, degree, leadership); an AI failure keeps the question open")
+
+# typed shortcuts
+def typed(cmd_factory, args, text):
+    msg = FakeMsg(text); c = types.SimpleNamespace(args=args, user_data={})
+    asyncio.run(cmd_factory(types.SimpleNamespace(effective_message=msg, effective_user=USER), c)); return msg, c
+eb.extract_project = lambda t: _APR(name="Chatbot2", tech_stack="Python", date="Jan 2025", bullets=[NewFactBullet(text="Built chatbot 2")])
+msg, c = typed(eb.make_add_command("proj"), ["a", "chatbot", "project"], "/addproject a chatbot project")
+assert "Chatbot2" in msg.sent[-1][0] and eb.WAIT_KEY not in c.user_data, "with text: saved at once"
+msg, c = typed(eb.make_add_command("proj"), [], "/addproject")
+assert c.user_data[eb.WAIT_KEY]["kind"] == "proj" and "Describe your project" in msg.sent[-1][0], "without text: asks"
+from types import SimpleNamespace as NS
+eb.extract_skills = lambda t: NS(category="Languages", items=["Zig"])
+msg, c = typed(eb.addskill_command, ["Zig"], "/addskill Zig"); assert "✅ Added to Languages: Zig" in msg.sent[-1][0]
+msg, c = typed(eb.addskill_command, [], "/addskill"); assert "Pick a category" in msg.sent[-1][0]
+for alias, expect in (("/myprofile", "Contact details"), ("/listskills", "<b>Skills</b>"), ("/listeducation", "Your profile"), ("/experience", "Your profile"), ("/listentries", "Your profile")):
+    msg, c = typed(eb.profile_command, [], alias); assert expect in msg.sent[-1][0], (alias, msg.sent[-1][0])
+msg, c = typed(eb.profile_command, ["acme"], "/listfacts@MyBot acme"); assert "Software Intern · Acme Sdn Bhd" in msg.sent[-1][0]
+c.user_data[eb.WAIT_KEY] = {"action": "edit", "at": 0}
+from bot.handlers.common import cancel_command
+asyncio.run(cancel_command(types.SimpleNamespace(effective_message=FakeMsg(), effective_user=USER), c)); assert c.user_data == {}
+print("D4 ok: typed /add… shortcuts (with and without text), /addskill, the shortcut names open the right screen, /cancel clears a waiting question")
+
+# the old commands are gone, and the menu and description say what the bot does
+registered = {c for g in app.handlers.values() for h in g for c in getattr(h, "commands", [])}
+gone = {"setname", "setphone", "setemail", "setlinkedin", "setgithub", "deleteeducation", "deleteexperience", "deleteproject",
+        "deleteleadership", "deleteskill", "deletecourse", "addcourse", "deletefact", "updatefact"}
+assert not (gone & registered), gone & registered
+assert not any(getattr(h, "pattern", None) and h.pattern.pattern.startswith("^(del_|edit_)") for g in app.handlers.values() for h in g)
+assert {"start", "help", "history", "cancel", "resume", "importresume", "profile", "addexperience", "addproject", "addleadership", "addeducation", "addskill"} <= registered
+sent = {}
+class _B:
+    async def set_my_commands(self, c): sent["commands"] = [(x.command, x.description) for x in c]
+    async def set_my_short_description(self, d): sent["short"] = d
+    async def set_my_description(self, d): sent["long"] = d
+from bot.main import post_init
+asyncio.run(post_init(types.SimpleNamespace(bot=_B())))
+assert [c for c, _ in sent["commands"]] == ["profile", "importresume", "history", "resume", "help", "cancel"], sent["commands"]
+assert all(3 <= len(d) <= 256 and d[0].isupper() for _, d in sent["commands"]) and "job link" in sent["short"] and "resume file" in sent["long"]
+print("D5 ok: old commands removed; the menu has 6 entries with clear descriptions; the bot description tells new users what to do:")
+for c, d in sent["commands"]: print(f"     /{c:13} {d}")
 print("\n✅ browser test passed")

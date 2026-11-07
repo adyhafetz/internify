@@ -117,9 +117,9 @@ Don't type your experience in one entry at a time. **Send the bot your current r
 
 1. The bot reads it and shows what it found: contact details, education, jobs, projects, leadership and skills.
 2. You choose **Replace what's saved** (the right choice on a fresh install, which starts with a sample profile; a backup is kept in `service/fact_store/backups/`), **Add to what's saved** (keeps what you have and skips entries already saved), or **Cancel**.
-3. Nothing is saved until you tap a button. Then check it with `/experience`.
+3. Nothing is saved until you tap a button. Then check it with `/profile`.
 
-Afterwards, `/experience` lets you fix anything by tapping, and the typed `/add...` commands below stay available for adding new entries. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
+Afterwards, `/profile` lets you fix anything by tapping, and the typed `/add...` commands below stay available for adding new entries. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
 
 ---
 
@@ -163,42 +163,29 @@ GENERATOR_MODEL=gpt-4o-mini
 
 ## 📱 Telegram Bot Commands Reference
 
-When you open the bot, click the native **`Menu`** button or type `/` to access all commands with autocompletion:
+Everything on your resume is behind one command, `/profile`. Tap, don't type IDs.
 
-| Category | Command | Description |
-|---|---|---|
-| **Start** | `/start` | Welcome message & quick overview |
-| | `/help` | Detailed command cheatsheet |
-| **Tracker** | `/history` | View recent applications tracked in SQLite |
-| **Master Resume**| `/resume` | Compile full untailored master resume PDF |
-| **Import** | `/importresume` (or just send the file) | Fill in your experience from your current resume (PDF/Word/text) |
-| **Browse & edit** | `/experience` | Open your degrees, jobs, projects and leadership roles as buttons. Tap one to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete or ➕ to add. No IDs. `/experience acme` jumps straight to an entry by name (also `/listentries` and `/listfacts <name>`). |
-| **Profile** | `/myprofile` | Interactive contact card with one-click edit buttons |
-| | `/setname [name]` | Update full name (prompted interactively if blank) |
-| | `/setphone [phone]` | Update phone number |
-| | `/setemail [email]` | Update email address |
-| | `/setlinkedin [url]` | Update LinkedIn profile URL |
-| | `/setgithub [url]` | Update GitHub profile URL |
-| **Education** | `/listeducation` | List all education entries & courses |
-| | `/addeducation [text]` | Add education details (AI-extracted from plain English) |
-| | `/deleteeducation` | Delete an education entry (with interactive buttons) |
-| | `/addcourse [id] [name]`| Add relevant coursework to a degree |
-| | `/deletecourse [id] [name]`| Remove coursework from a degree |
-| **Work Experience**| `/addexperience [text]` | Add work experience/internship (auto-extracts bullets & tech tags) |
-| | `/deleteexperience` | Delete experience entry (with interactive buttons) |
-| **Projects** | `/addproject [text]` | Add project (auto-extracts bullets & tech stack) |
-| | `/deleteproject` | Delete project (with interactive buttons) |
-| **Leadership** | `/addleadership [text]` | Add extracurricular or leadership role |
-| | `/deleteleadership` | Delete leadership entry |
-| **Skills & Facts** | `/listskills` | View master technical skills grouped by category |
-| | `/addskill [text]` | Add new skills (automatically categorized) |
-| | `/deleteskill [name]` | Remove a skill |
-| | `/listentries` | View all entry IDs for experiences & projects |
-| | `/listfacts [id]` | View all verified fact bullets for an entry |
-| | `/updatefact [id] [text]`| Edit bullet text (auto re-indexes embeddings) |
-| | `/deletefact [id]` | Delete a fact bullet |
-| **General** | `/cancel` | Cancel any active multi-step prompt |
-| **Tailor** | *Paste any Job URL* | Automatically scrapes, tailors, compiles, and sends PDF |
+The slash menu shows these six:
+
+| Command | What it does |
+|---|---|
+| `/profile` | **See and edit everything on your resume.** Contact details, education, jobs, projects, leadership and skills as buttons. Tap an entry to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete (it asks first) or ➕ to add a line. **➕ Add something** adds a whole job, project, leadership role or degree: you describe it in your own words and the AI turns it into bullet points. Skills are grouped by category: tap one to add (comma-separated) or remove. |
+| `/importresume` | Fill in everything from your current resume. Send a PDF, Word or text file (or just send the file), check the preview, then choose Replace or Add. |
+| `/history` | Jobs you've applied to, with match scores and links. |
+| `/resume` | Download your general resume (PDF), not tailored to any job. |
+| `/help` | Everything the bot can do. |
+| `/cancel` | Stop the current step, for example a question the bot is waiting for you to answer. |
+
+And the main action isn't a command: **send a job link** and you get a tailored 1-page PDF.
+
+Typing shortcuts, if you prefer them to buttons (not in the menu):
+
+| Shortcut | What it does |
+|---|---|
+| `/profile acme` | Jump straight to one entry by name (any word, any case). `/listfacts acme` does the same. |
+| `/addexperience`, `/addproject`, `/addleadership`, `/addeducation` | Add an entry. Put the description after the command to save at once, or send the command alone and the bot asks. |
+| `/addskill Docker, Kubernetes` | Add skills (the AI picks the category). |
+| `/myprofile`, `/listskills`, `/listeducation`, `/listentries`, `/experience` | Open the matching part of `/profile`. |
 
 ---
 
