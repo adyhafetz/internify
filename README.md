@@ -39,7 +39,7 @@ While the bot runs, open **http://localhost:8080**. Send a job link in Telegram 
 - Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
 - **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline check of the event plumbing: `python scripts/test_events.py`.
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) and `python scripts/test_handler.py` (the Telegram flow with fake services).
 - Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 
 ---

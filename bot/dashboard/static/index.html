@@ -614,50 +614,8 @@ const AV = { idle:"🤖", scout:"🔭", analyst:"🧠", archivist:"📚", draft:
 const AVC = { idle:"accent", scout:"scout", analyst:"analyst", archivist:"archivist", draft:"scribe", publish:"publisher", final:"publisher" };
 let focusTimer = null;
 
-function caption(ev) {
-  const a = ev.agent, k = ev.kind, d = ev.data || {}, m = ev.message || "";
-  if (a === "scout") {
-    if (k === "start") return "Opening the job page…";
-    if (k === "progress") return /switching|failed/i.test(m) ? "That didn't work, trying another way in…" : "Fetching the page…";
-    if (k === "done") return `Read the whole posting (${Number(d.chars || 0).toLocaleString()} characters)`;
-    if (k === "fail") return "Couldn't read this page. It may be blocking automated visitors";
-  }
-  if (a === "analyst") {
-    if (k === "start") return "Working out exactly what the job wants…";
-    if (k === "progress" && d.company) return `This is a ${d.role} role at ${d.company}`;
-    if (k === "done") return `The job wants ${plural((d.core_tech_stack||[]).length, "tool")} and ${plural((d.hard_requirements||[]).length, "skill")}`;
-    if (k === "fail") return "Couldn't understand this posting";
-  }
-  if (a === "archivist") {
-    const n = /(\d+)/.exec(m);
-    if (k === "start") return `Searching your ${n ? n[1] + " " : ""}saved experiences…`;
-    if (k === "done") { const c = (d.covered||[]).length, t = c + (d.missing||[]).length; return `Found ${d.facts.length} that fit · ${c} of ${t} needs matched`; }
-    if (k === "fail") return "Your experience bank is empty. Add some in Telegram first";
-  }
-  if (a === "scribe") {
-    if (k === "start") return (d.iteration||1) > 1 ? "Rewriting after the Critic's feedback…" : "Writing resume lines from your real experience…";
-    if (k === "done") return `Draft ${d.iteration} written · ${plural(d.bullets.length, "line")}`;
-    if (k === "fail") return "Couldn't write the resume";
-  }
-  if (a === "critic") {
-    if (k === "start") return "Checking every line is true…";
-    if (k === "done") { const n = (d.unsupported||[]).length;
-      return n ? `Caught ${plural(n, "invented claim")} · match ${pct(d.score)}%` : `Every line verified ✓ · match ${pct(d.score)}%`; }
-  }
-  if (a === "publisher") {
-    if (d.duplicate === true) return "This job is already in your tracker";
-    if (d.duplicate === false) return "Checked: new job, not applied to before";
-    if (k === "start") return "Building your 1-page PDF…";
-    if (d.repair_attempt) return "Spotted a formatting error and fixed it by itself";
-    if (m === "PDF compiled") return "PDF built ✓";
-    if (/^Uploading/.test(m)) return "Saving to Google Drive…";
-    if (/^Uploaded/.test(m)) return "Saved to Google Drive ✓";
-    if (/not configured/.test(m)) return "Google Drive not set up, kept a local copy";
-    if (k === "done") return "Resume ready, saved and logged ✓";
-    if (k === "fail") return "Couldn't build the PDF";
-  }
-  return null;
-}
+// Wording comes from the server (service/events.py describe) so Telegram and this page always agree.
+function caption(ev) { return ev.say || null; }
 
 function handoffLabel(ev) {
   const a = ev.agent, t = ev.to, d = ev.data || {}, last = st.critics[st.critics.length - 1];

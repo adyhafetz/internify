@@ -19,9 +19,7 @@ def restricted(func):
             logger.warning("Unauthorized access attempt by user %s (ID: %d)", user.username, user.id)
             if update.effective_message:
                 await update.effective_message.reply_text(
-                    "⛔ *Access Denied*\n"
-                    f"Your user ID (`{user.id}`) is not authorized to control this Internify bot.",
-                    parse_mode="Markdown",
+                    f"⛔ Sorry, this bot is private. Your user ID ({user.id}) isn't on its allowed list."
                 )
             return ConversationHandler.END
         return await func(update, context, *args, **kwargs)
@@ -30,62 +28,55 @@ def restricted(func):
 
 @restricted
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    text = (
-        f"👋 *Welcome to Internify, {user.first_name if user else 'there'}!*\n\n"
-        "I am your autonomous AI resume tailoring agent.\n\n"
-        "✨ *Quick Actions:*\n"
-        "• *Paste a Job URL*: Send any job link to tailor your resume and compile a 1-page PDF.\n"
-        "• `/resume`: Generate your full master resume PDF.\n"
-        "• `/myprofile`: View and edit your contact & header info.\n"
-        "• `/help`: View all available commands.\n\n"
-        "_Tip: For commands like `/setname`, you can either type `/setname John Doe` or just `/setname` to be prompted interactively!_"
+    name = update.effective_user.first_name if update.effective_user else "there"
+    await update.effective_message.reply_text(
+        f"👋 Hi {name}! I'm Internify.\n\n"
+        "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, "
+        "then send you the PDF.\n\n"
+        "• Paste a job link to get a tailored resume\n"
+        "• /myprofile – your name and contact details\n"
+        "• /history – jobs you've applied to\n"
+        "• /resume – your general resume, not tailored to any job\n"
+        "• /help – everything I can do\n\n"
+        "Tip: you can type a command with its value, like /setname John Doe, or just /setname and I'll ask you."
     )
-    await update.effective_message.reply_text(text, parse_mode="Markdown")
 
 
 @restricted
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "📚 *Internify Commands Cheat-Sheet*\n\n"
-        "*Profile*\n"
-        "• `/myprofile` – View contact information\n"
-        "• `/setname [name]` – Update full name\n"
-        "• `/setphone [phone]` – Update phone number\n"
-        "• `/setemail [email]` – Update email\n"
-        "• `/setlinkedin [url]` – Update LinkedIn link\n"
-        "• `/setgithub [url]` – Update GitHub link\n\n"
-        "*Education*\n"
-        "• `/listeducation` – List degrees and IDs\n"
-        "• `/addeducation [text]` – Add degree (interactive or text)\n"
-        "• `/deleteeducation [id]` – Remove an education entry\n"
-        "• `/addcourse [id] [course]` – Add relevant course to education\n"
-        "• `/deletecourse [id] [course]` – Remove a course\n\n"
-        "*Work Experience & Projects*\n"
-        "• `/addexperience [text]` – Add internship/job (auto-extracts bullets)\n"
-        "• `/deleteexperience [id]` – Remove experience entry\n"
-        "• `/addproject [text]` – Add project (auto-extracts bullets)\n"
-        "• `/deleteproject [id]` – Remove project\n"
-        "• `/addleadership [text]` – Add leadership / extracurricular\n"
-        "• `/deleteleadership [title]` – Remove leadership entry\n\n"
-        "*Skills & Facts*\n"
-        "• `/listskills` – View master skills by category\n"
-        "• `/addskill [text]` – Add skills\n"
-        "• `/deleteskill [skill]` – Remove skill\n"
-        "• `/listentries` – View all entry IDs\n"
-        "• `/listfacts [id]` – View fact bullets for an entry\n"
-        "• `/updatefact [id] [text]` – Edit a bullet text\n"
-        "• `/deletefact [id]` – Delete a fact bullet\n\n"
-        "*Resumes & Applications*\n"
-        "• `/resume` – Compile full untailored master resume PDF\n"
-        "• *Paste URL* – Tailor resume against any job description"
+    await update.effective_message.reply_text(
+        "📚 What I can do\n\n"
+        "Tailor a resume\n"
+        "• Paste a job link – I write a resume for that job\n"
+        "• /history – jobs you've applied to\n"
+        "• /resume – your general resume (not tailored)\n\n"
+        "Your details\n"
+        "• /myprofile – see your contact details\n"
+        "• /setname, /setphone, /setemail, /setlinkedin, /setgithub – change them\n\n"
+        "Your experience (what I choose from)\n"
+        "• /addexperience – add a job or internship\n"
+        "• /addproject – add a project\n"
+        "• /addleadership – add a leadership role or activity\n"
+        "• /addeducation – add a degree\n"
+        "• /addcourse [id] [course] – add a course to a degree\n"
+        "• /addskill – add skills\n"
+        "Describe it in your own words and I'll turn it into resume bullet points.\n\n"
+        "See and edit what's saved\n"
+        "• /listentries – your saved jobs, projects and their IDs\n"
+        "• /listfacts [id] – the bullet points saved under one of them\n"
+        "• /updatefact [id] [text] – edit a bullet point\n"
+        "• /listeducation, /listskills – see degrees and skills\n\n"
+        "Remove things\n"
+        "• /deleteexperience, /deleteproject, /deleteleadership, /deleteeducation [id]\n"
+        "• /deletefact [id] – remove a bullet point\n"
+        "• /deletecourse [id] [course], /deleteskill [skill]\n\n"
+        "• /cancel – stop whatever I'm asking you"
     )
-    await update.effective_message.reply_text(text, parse_mode="Markdown")
 
 
 @restricted
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.effective_message.reply_text("🛑 Current operation cancelled.", parse_mode="Markdown")
+    await update.effective_message.reply_text("🛑 Okay, cancelled.")
     return ConversationHandler.END
 

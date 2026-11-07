@@ -73,7 +73,7 @@ def process(request: ProcessRequest) -> ProcessResponse:
         job = extract_job_posting(raw_text)
     except Exception as e:
         events.emit("analyst", events.FAIL, f"Extraction failed: {e}")
-        raise HTTPException(status_code=422, detail=f"Extraction failed: {e}")
+        raise HTTPException(status_code=422, detail=f"Couldn't understand the job posting ({e})")
     events.emit(
         "analyst", events.DONE,
         f"Found {len(job.core_tech_stack)} technologies, {len(job.hard_requirements)} requirements",
@@ -85,8 +85,8 @@ def process(request: ProcessRequest) -> ProcessResponse:
 
     facts = load_facts()
     if not facts:
-        events.emit("archivist", events.FAIL, "Fact store is empty")
-        raise HTTPException(status_code=500, detail="Fact store is empty. Add your real bullets first.")
+        events.emit("archivist", events.FAIL, "No saved experience")
+        raise HTTPException(status_code=500, detail="Your saved experience is empty. Add some with /addexperience or /addproject first.")
 
     skeleton = load_skeleton()
     events.emit("archivist", events.START, f"Searching {len(facts)} verified facts")
@@ -112,8 +112,8 @@ def process(request: ProcessRequest) -> ProcessResponse:
             skeleton=skeleton,
         )
     except Exception as e:
-        events.emit("scribe", events.FAIL, f"Generator/critic loop failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Generator/critic loop failed: {e}")
+        events.emit("scribe", events.FAIL, f"Writing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Writing and checking the resume failed ({e})")
 
     filename_base = _slugify(job.company, job.role, str(int(time.time())))
 
@@ -127,7 +127,7 @@ def process(request: ProcessRequest) -> ProcessResponse:
             resume_status=loop_result.status,
             score=loop_result.feedback.score,
             pdf_path=None,
-            comment=f"PDF compile failed after retries: {e.log[:300]}",
+            comment=f"The PDF could not be built even after automatic repairs. Details: {e.log[:300]}",
         )
 
     events.emit("publisher", events.PROGRESS, "PDF compiled", pdf=os.path.basename(pdf_path))

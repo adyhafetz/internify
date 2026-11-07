@@ -58,9 +58,19 @@ assert ("critic", "handoff", "publisher") in seq and ("archivist", "handoff", "s
 arch = next(e for e in evs if e["agent"] == "archivist" and e["kind"] == "done")
 assert arch["data"]["missing"] == ["Kubernetes"], arch["data"]
 assert [e["data"]["score"] for e in evs if e["agent"] == "critic" and e["kind"] == "done"] == [40.0, 90.0]
-assert msg.texts and "Scribe" in msg.texts[-1] and "40 → 90" in msg.texts[-1], msg.texts[-1:]
+final = msg.texts[-1]
+# Telegram shows ONE current step in plain words, not a full list
+assert "Step 6 of 6" in final or "Step 5 of 6" in final, final
+assert "Scout" not in final and "Analyst" not in final, "should show only the current step"
+assert "40% → 90%" in final, final
+say = [e["say"] for e in evs if e.get("say")]
+assert "Found 1 that fit · 2 of 3 needs matched" in say, say
+assert "Searching your 1 saved experience…" in say, say
+assert "Caught" not in " ".join(say) and "Every line verified ✓ · match 90%" in say, say
+assert not any(w in " ".join(say).lower() for w in ("fact", "ats", "latex", "tectonic")), "jargon leaked into the shared wording"
 assert events.load_trace(rid), "trace not saved"
 # outside a run, emit is a harmless no-op
 events.use_run(None); events.emit("scout", "start", "x")
-print("\nTelegram progress message (final):\n" + msg.texts[-1])
+print("\nTelegram message (what the user sees at the end of the pipeline):\n" + msg.texts[-1])
+print("\nAll plain-language lines:\n  " + "\n  ".join(say))
 print("\n✅ events test passed")

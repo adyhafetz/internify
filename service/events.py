@@ -68,6 +68,9 @@ class EventBus:
                 while len(self._order) > MAX_RUNS_IN_MEMORY:
                     self._runs.pop(self._order.pop(0), None)
             event["seq"] = len(events)
+            say = describe(event)
+            if say:
+                event["say"] = say
             events.append(event)
             subs = list(self._subs)
         for cb in subs:
@@ -101,6 +104,60 @@ class EventBus:
 
 
 bus = EventBus()
+
+
+def describe(ev: dict[str, Any]) -> Optional[str]:
+    """One plain-language line for an event, with its numbers. Shared by Telegram and the dashboard,
+    so the wording lives in one place. Returns None for events that say nothing (hand-offs, run markers)."""
+    a, k, d, m = ev.get("agent"), ev.get("kind"), ev.get("data") or {}, ev.get("message") or ""
+    if k in (HANDOFF, RUN):
+        return None
+
+    def n(word: str, count: int) -> str:
+        return f"{count} {word}{'' if count == 1 else 's'}"
+
+    if a == "scout":
+        if k == START: return "Opening the job page…"
+        if k == PROGRESS:
+            return "That didn't work, trying another way in…" if ("switching" in m.lower() or "failed" in m.lower()) else "Fetching the page…"
+        if k == DONE: return f"Read the whole posting ({int(d.get('chars', 0)):,} characters)"
+        if k == FAIL: return "Couldn't read this page. It may be blocking automated visitors"
+    elif a == "analyst":
+        if k == START: return "Working out exactly what the job wants…"
+        if k == PROGRESS and d.get("company"): return f"This is a {d.get('role')} role at {d.get('company')}"
+        if k == DONE:
+            return f"The job wants {n('tool', len(d.get('core_tech_stack', [])))} and {n('skill', len(d.get('hard_requirements', [])))}"
+        if k == FAIL: return "Couldn't understand this posting"
+    elif a == "archivist":
+        if k == START:
+            digits = "".join(ch if ch.isdigit() else " " for ch in m).split()
+            return f"Searching your {n('saved experience', int(digits[0]))}…" if digits else "Searching your saved experiences…"
+        if k == DONE:
+            covered, total = len(d.get("covered", [])), len(d.get("covered", [])) + len(d.get("missing", []))
+            return f"Found {len(d.get('facts', []))} that fit · {covered} of {total} needs matched"
+        if k == FAIL: return "Your saved experience is empty. Add some with /addexperience first"
+    elif a == "scribe":
+        if k == START:
+            return "Rewriting after the Critic's feedback…" if int(d.get("iteration", 1)) > 1 else "Writing resume lines from your real experience…"
+        if k == DONE: return f"Draft {d.get('iteration')} written · {n('line', len(d.get('bullets', [])))}"
+        if k == FAIL: return "Couldn't write the resume"
+    elif a == "critic":
+        if k == START: return "Checking every line is true…"
+        if k == DONE:
+            bad, score = len(d.get("unsupported", [])), round(float(d.get("score", 0)))
+            return f"Caught {n('invented claim', bad)} · match {score}%" if bad else f"Every line verified ✓ · match {score}%"
+    elif a == "publisher":
+        if d.get("duplicate") is True: return "This job is already in your tracker"
+        if d.get("duplicate") is False: return "Checked: new job, not applied to before"
+        if k == START: return "Building your 1-page PDF…"
+        if d.get("repair_attempt"): return "Spotted a formatting error and fixed it by itself"
+        if m == "PDF compiled": return "PDF built ✓"
+        if m.startswith("Uploading"): return "Saving to Google Drive…"
+        if m.startswith("Uploaded"): return "Saved to Google Drive ✓"
+        if "not configured" in m: return "Google Drive not set up, kept a local copy"
+        if k == DONE: return "Resume ready, saved and logged ✓"
+        if k == FAIL: return "Couldn't build the PDF"
+    return None
 
 
 # ---------- Run context ----------

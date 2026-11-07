@@ -1,4 +1,4 @@
-"""Live progress message in Telegram, driven by the same events the dashboard shows."""
+"""Live progress in Telegram: one message that shows only the step happening right now."""
 from __future__ import annotations
 
 import asyncio
@@ -12,26 +12,25 @@ from service import events
 logger = logging.getLogger(__name__)
 
 MIN_EDIT_INTERVAL = 1.2  # seconds; Telegram throttles rapid message edits
-
-_ICON = {"idle": "⚪", "working": "⏳", "done": "✅", "fail": "❌"}
+ORDER = list(events.AGENTS)  # scout, analyst, archivist, scribe, critic, publisher
 
 
 class TelegramProgress:
-    """Edits one Telegram message to show each agent's state as events arrive."""
+    """Edits one Telegram message so it always shows the current step, e.g.
+        ⏳ Step 4 of 6 · ✍️ Scribe
+        Writing resume lines from your real experience…
+    The wording comes from ``events.describe`` so it matches the dashboard exactly."""
 
-    def __init__(self, message, run_id: str, loop: asyncio.AbstractEventLoop, header: str = "") -> None:
+    def __init__(self, message, run_id: str, loop: asyncio.AbstractEventLoop) -> None:
         self.message = message
         self.run_id = run_id
         self.loop = loop
-        self.header = header
-        self._state: dict[str, dict[str, str]] = {
-            a: {"state": "idle", "text": ""} for a in events.AGENTS
-        }
+        self._text = "🔎 Job link detected, waking up the agents…"
         self._scores: list[float] = []
         self._lock = threading.Lock()
         self._flush_pending = False
         self._flush_lock: Optional[asyncio.Lock] = None
-        self._last_text = ""
+        self._last_sent = ""
         self._last_edit = 0.0
         self._closed = False
         self._unsub = events.bus.subscribe(self._on_event)
@@ -40,28 +39,18 @@ class TelegramProgress:
     def _on_event(self, ev: dict[str, Any]) -> None:
         if ev.get("run_id") != self.run_id or self._closed:
             return
-        agent, kind = ev.get("agent"), ev.get("kind")
-        if agent not in self._state:
-            return
+        agent, say, data = ev.get("agent"), ev.get("say"), ev.get("data") or {}
+        if agent not in ORDER or not say or data.get("duplicate") is not None:
+            return  # hand-offs, run markers and the tracker note don't change the current step
+        meta = events.AGENTS[agent]
+        icon = "❌" if ev["kind"] == events.FAIL else "✅" if ev["kind"] == events.DONE else "⏳"
         with self._lock:
-            st = self._state[agent]
-            if kind == events.START:
-                st["state"] = "working"
-                st["text"] = ev["message"]
-            elif kind == events.PROGRESS:
-                st["text"] = ev["message"]
-            elif kind == events.DONE:
-                st["state"] = "done"
-                st["text"] = ev["message"]
-                if agent == "critic" and "score" in ev.get("data", {}):
-                    self._scores.append(float(ev["data"]["score"]))
-            elif kind == events.FAIL:
-                st["state"] = "fail"
-                st["text"] = ev["message"]
-            elif kind == events.HANDOFF:
-                target = ev.get("to")
-                if target in self._state and self._state[target]["state"] == "idle":
-                    self._state[target]["text"] = f"Waiting for {events.AGENTS[agent]['name']}"
+            if agent == "critic" and ev["kind"] == events.DONE and "score" in data:
+                self._scores.append(float(data["score"]))
+            text = f"{icon} Step {ORDER.index(agent) + 1} of {len(ORDER)} · {meta['emoji']} {meta['name']}\n{say}"
+            if self._scores:
+                text += "\n\n📈 Job match: " + " → ".join(f"{s:.0f}%" for s in self._scores)
+            self._text = text
             if self._flush_pending:
                 return
             self._flush_pending = True
@@ -70,21 +59,7 @@ class TelegramProgress:
         except Exception:
             self._flush_pending = False
 
-    # ----- rendering -----
-    def render(self) -> str:
-        lines = [self.header or "🤖 Internify agents at work", ""]
-        with self._lock:
-            for key, meta in events.AGENTS.items():
-                st = self._state[key]
-                line = f"{_ICON[st['state']]} {meta['emoji']} {meta['name']}"
-                if st["text"]:
-                    line += f" — {st['text'][:90]}"
-                lines.append(line)
-            if self._scores:
-                lines.append("")
-                lines.append("📈 ATS score: " + " → ".join(f"{s:.0f}" for s in self._scores))
-        return "\n".join(lines)
-
+    # ----- sending -----
     async def _flush(self) -> None:
         if self._flush_lock is None:
             self._flush_lock = asyncio.Lock()
@@ -94,14 +69,12 @@ class TelegramProgress:
                 await asyncio.sleep(wait)
             with self._lock:
                 self._flush_pending = False
-            if self._closed:
-                return
-            text = self.render()
-            if text == self._last_text:
+                text = self._text
+            if self._closed or text == self._last_sent:
                 return
             try:
                 await self.message.edit_text(text)
-                self._last_text = text
+                self._last_sent = text
             except Exception as e:  # "message is not modified", rate limits, network
                 logger.debug("Progress edit skipped: %s", e)
             self._last_edit = time.monotonic()
