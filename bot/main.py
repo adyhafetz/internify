@@ -177,6 +177,10 @@ def main():
     if config.DASHBOARD_ENABLED:
         from bot.dashboard.server import start_dashboard
         start_dashboard(config.DASHBOARD_HOST, config.DASHBOARD_PORT)
+    # Say plainly whether Google Drive/Sheets are connected (in the background; never blocks or stops the bot).
+    import threading
+    from bot.services.google_check import check_google_setup
+    threading.Thread(target=check_google_setup, name="google-check", daemon=True).start()
     logger.info("Starting Internify Telegram Bot runner...")
     app = create_bot_app()
     app.run_polling(allowed_updates=Update.ALL_TYPES)

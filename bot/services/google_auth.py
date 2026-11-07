@@ -6,6 +6,9 @@ from bot import config
 
 logger = logging.getLogger(__name__)
 
+# Which credential source was used last (for the startup self-check)
+credential_source: str = "none"
+
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -20,6 +23,9 @@ def get_google_credentials():
     2. token.json file (generated via scripts/get_google_token.py)
     3. Service Account JSON file (fallback)
     """
+    global credential_source
+    credential_source = "none"
+
     # 1. OAuth2 refresh token from environment variables
     if config.GOOGLE_REFRESH_TOKEN and config.GOOGLE_CLIENT_ID and config.GOOGLE_CLIENT_SECRET:
         try:
@@ -32,6 +38,7 @@ def get_google_credentials():
                 client_secret=config.GOOGLE_CLIENT_SECRET,
                 scopes=GOOGLE_SCOPES,
             )
+            credential_source = "refresh token in .env"
             return creds
         except Exception as e:
             logger.error("Failed to initialize Google OAuth2 credentials from env: %s", e)
@@ -42,6 +49,7 @@ def get_google_credentials():
         try:
             from google.oauth2.credentials import Credentials
             creds = Credentials.from_authorized_user_file(token_file, scopes=GOOGLE_SCOPES)
+            credential_source = f"file {token_file}"
             return creds
         except Exception as e:
             logger.error("Failed to load Google credentials from %s: %s", token_file, e)
@@ -55,6 +63,7 @@ def get_google_credentials():
                 sa_file,
                 scopes=GOOGLE_SCOPES,
             )
+            credential_source = f"service account file {sa_file}"
             return creds
         except Exception as e:
             logger.error("Failed to load Service Account credentials from %s: %s", sa_file, e)

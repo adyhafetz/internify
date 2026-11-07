@@ -196,6 +196,10 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if drive_link:
         caption += f'• ☁️ <a href="{_html(drive_link)}">Open in Google Drive</a>\n'
+    else:
+        caption += "• 💾 Saved on this computer only (Google Drive isn't connected)\n"
+    if not sheet_row:
+        caption += "• 📋 Not added to your Google Sheet (not connected)\n"
     caption += f"\n💡 <b>How it could be better:</b>\n<i>{_html(result.comment[:400])}</i>"
 
     await progress.close()
