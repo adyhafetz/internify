@@ -54,7 +54,7 @@ async def _process_and_save_project(update: Update, raw_text: str):
 
         await update.effective_message.reply_text(
             f"✅ *Project Added!*\n\n"
-            f"• *ID:* `{res.id}`\n"
+            f"• *ID:* `{res.entry_id}`\n"
             f"• *Project:* {req.name} ({req.date})\n"
             f"• *Tech Stack:* {req.tech_stack}\n\n"
             f"*Generated Fact Bullets:*\n{bullet_previews}\n\n"
@@ -74,7 +74,7 @@ async def delete_project_command(update: Update, context: ContextTypes.DEFAULT_T
         try:
             res = delete_project(proj_id)
             await update.effective_message.reply_text(
-                f"✅ Deleted project `{proj_id}` and purged {res.facts_deleted} associated fact bullets.",
+                f"✅ Deleted project `{proj_id}` and purged {len(res.fact_ids)} associated fact bullets.",
                 parse_mode="Markdown",
             )
         except Exception as e:
@@ -106,7 +106,7 @@ async def delete_project_callback(update: Update, context: ContextTypes.DEFAULT_
         try:
             res = delete_project(proj_id)
             await query.edit_message_text(
-                f"✅ Deleted project `{proj_id}` and purged {res.facts_deleted} associated fact bullets.",
+                f"✅ Deleted project `{proj_id}` and purged {len(res.fact_ids)} associated fact bullets.",
                 parse_mode="Markdown",
             )
         except Exception as e:

@@ -63,14 +63,21 @@ def render_tex(
     for bullet in resume.bullets:
         bullets_by_entry.setdefault(bullet.entry_id, []).append(escape_latex(bullet.text))
 
+    h = skeleton.header
+    # Only the contact details that exist, separated by "|" (an empty LinkedIn must not leave a stray separator).
+    # The visible email is escaped; inside \href the raw value is correct (underscores are fine there).
+    contact: list[str] = []
+    if h.phone.strip():
+        contact.append(escape_latex(h.phone))
+    if h.email.strip():
+        contact.append(rf"\href{{mailto:{h.email}}}{{\underline{{{escape_latex(h.email)}}}}}")
+    if h.linkedin_url.strip():
+        contact.append(rf"\href{{{h.linkedin_url}}}{{\underline{{{escape_latex(h.linkedin_display or h.linkedin_url)}}}}}")
+    if h.github_url.strip():
+        contact.append(rf"\href{{{h.github_url}}}{{\underline{{{escape_latex(h.github_display or h.github_url)}}}}}")
     header = {
-        "name": escape_latex(skeleton.header.name),
-        "phone": escape_latex(skeleton.header.phone),
-        "email": skeleton.header.email,  # inside \href{mailto:...}, left unescaped
-        "linkedin_url": skeleton.header.linkedin_url,
-        "linkedin_display": escape_latex(skeleton.header.linkedin_display),
-        "github_url": skeleton.header.github_url,
-        "github_display": escape_latex(skeleton.header.github_display),
+        "name": escape_latex(h.name),
+        "contact_line": " $|$ ".join(contact),
     }
 
     education = []

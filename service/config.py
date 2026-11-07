@@ -10,6 +10,8 @@ EXTRACTOR_MODEL = os.getenv("EXTRACTOR_MODEL", "gpt-4o-mini")
 CRITIC_MODEL = os.getenv("CRITIC_MODEL", "gpt-4o-mini")
 GENERATOR_MODEL = os.getenv("GENERATOR_MODEL", "gpt-4o")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+# Reading a whole resume is a one-off job where accuracy matters more than cost, so use the stronger model.
+IMPORT_MODEL = os.getenv("IMPORT_MODEL", GENERATOR_MODEL)
 
 SCORE_THRESHOLD = float(os.getenv("SCORE_THRESHOLD", "85"))
 MAX_GENERATOR_ITERATIONS = int(os.getenv("MAX_GENERATOR_ITERATIONS", "3"))

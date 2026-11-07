@@ -89,7 +89,7 @@ async def _process_and_save_education(update: Update, raw_text: str):
         res = add_education(req)
         await update.effective_message.reply_text(
             f"✅ *Education Added!*\n"
-            f"• *ID:* `{res.id}`\n"
+            f"• *ID:* `{res.entry_id}`\n"
             f"• *Institution:* {req.institution}\n"
             f"• *Degree:* {req.degree_line}\n"
             f"• *Dates:* {req.dates}\n"

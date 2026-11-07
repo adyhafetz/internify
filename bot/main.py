@@ -56,6 +56,7 @@ from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
 from bot.ask import ask_callback, ask_text_handler
+from bot.handlers.importresume import importresume_command, resume_document_handler, import_callback
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -79,6 +80,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 async def post_init(application) -> None:
     commands = [
         BotCommand("start", "What I can do"),
+        BotCommand("importresume", "Fill in your experience from your resume file"),
         BotCommand("history", "Jobs you've applied to"),
         BotCommand("resume", "Your general resume (PDF)"),
         BotCommand("myprofile", "Your contact details"),
@@ -164,6 +166,11 @@ def create_bot_app():
     app.add_handler(CallbackQueryHandler(delete_experience_callback, pattern=r"^del_exp:"))
     app.add_handler(CallbackQueryHandler(delete_project_callback, pattern=r"^del_proj:"))
     app.add_handler(CallbackQueryHandler(delete_leadership_callback, pattern=r"^del_lead:"))
+
+    # Import an existing resume: /importresume, then send the file; buttons confirm before anything is saved
+    app.add_handler(CommandHandler("importresume", importresume_command))
+    app.add_handler(MessageHandler(filters.Document.ALL, resume_document_handler, block=False))
+    app.add_handler(CallbackQueryHandler(import_callback, pattern=r"^imp:"))
 
     # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
     app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))

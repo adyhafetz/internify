@@ -41,7 +41,7 @@ While the bot runs, open **http://localhost:8080/live**. Send a job link in Tele
 - Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
 - **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import and the manual commands), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
 
@@ -111,6 +111,16 @@ docker compose up -d --build
 
 That’s it! Open Telegram, message your bot `/start`, and you're good to go.
 
+### 4. Fill in your experience: send your current resume
+
+Don't type your experience in one entry at a time. **Send the bot your current resume as a file** (PDF, Word `.docx` or text, up to 5 MB):
+
+1. The bot reads it and shows what it found: contact details, education, jobs, projects, leadership and skills.
+2. You choose **Replace what's saved** (the right choice on a fresh install, which starts with a sample profile; a backup is kept in `service/fact_store/backups/`), **Add to what's saved** (keeps what you have and skips entries already saved), or **Cancel**.
+3. Nothing is saved until you tap a button. Then check it with `/listentries` and `/listfacts`.
+
+The typed commands below (`/addexperience`, `/addproject`, `/updatefact`, ...) stay available for fixing or adding anything afterwards. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
+
 ---
 
 ## 💻 Local Run vs. Cloud VPS
@@ -161,6 +171,7 @@ When you open the bot, click the native **`Menu`** button or type `/` to access 
 | | `/help` | Detailed command cheatsheet |
 | **Tracker** | `/history` | View recent applications tracked in SQLite |
 | **Master Resume**| `/resume` | Compile full untailored master resume PDF |
+| **Import** | `/importresume` (or just send the file) | Fill in your experience from your current resume (PDF/Word/text) |
 | **Profile** | `/myprofile` | Interactive contact card with one-click edit buttons |
 | | `/setname [name]` | Update full name (prompted interactively if blank) |
 | | `/setphone [phone]` | Update phone number |

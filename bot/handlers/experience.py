@@ -54,7 +54,7 @@ async def _process_and_save_experience(update: Update, raw_text: str):
 
         await update.effective_message.reply_text(
             f"✅ *Work Experience Added!*\n\n"
-            f"• *ID:* `{res.id}`\n"
+            f"• *ID:* `{res.entry_id}`\n"
             f"• *Role:* {req.title} at {req.company}\n"
             f"• *Dates:* {req.dates} ({req.location})\n\n"
             f"*Generated Fact Bullets:*\n{bullet_previews}\n\n"
@@ -74,7 +74,7 @@ async def delete_experience_command(update: Update, context: ContextTypes.DEFAUL
         try:
             res = delete_experience(exp_id)
             await update.effective_message.reply_text(
-                f"✅ Deleted experience `{exp_id}` and purged {res.facts_deleted} associated fact bullets.",
+                f"✅ Deleted experience `{exp_id}` and purged {len(res.fact_ids)} associated fact bullets.",
                 parse_mode="Markdown",
             )
         except Exception as e:
@@ -106,7 +106,7 @@ async def delete_experience_callback(update: Update, context: ContextTypes.DEFAU
         try:
             res = delete_experience(exp_id)
             await query.edit_message_text(
-                f"✅ Deleted experience `{exp_id}` and purged {res.facts_deleted} associated fact bullets.",
+                f"✅ Deleted experience `{exp_id}` and purged {len(res.fact_ids)} associated fact bullets.",
                 parse_mode="Markdown",
             )
         except Exception as e:
