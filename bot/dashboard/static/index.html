@@ -114,10 +114,6 @@ body {
 .actor.dormant .nm, .actor.dormant .rl { color: var(--muted); }
 .actor.dormant .bdg { display: none; }
 .room.compact .actor.dormant { border: 0; } .room.compact .actor.dormant .av { background: transparent; border: 1.5px dashed var(--edge); box-shadow: none; }
-.actor .ai { position: absolute; right: 10px; bottom: -8px; padding: 1px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; background: var(--sky); color: var(--indigo); border: 1px solid var(--card); }
-:root[data-theme="dark"] .actor .ai { color: #BFDBFE; }
-.actor .ai.code { background: var(--line); color: var(--muted); } .actor.dormant .ai { opacity: .6; }
-.room.compact .actor .ai { right: auto; left: 50%; transform: translateX(-50%); bottom: 12px; display: none; }
 @keyframes breathe { 50% { transform: scale(1.07); } }
 @keyframes recv { 0% { box-shadow: 0 0 0 0 var(--glow); } 40% { box-shadow: 0 0 0 10px var(--glow); } 100% { box-shadow: var(--shadow); } }
 .room.compact .actor { flex-direction: column; gap: 5px; padding: 0; border: 0; background: transparent; box-shadow: none; border-radius: 0; text-align: center; }
@@ -132,7 +128,7 @@ body {
 .room.compact .table { padding: 6%; } .room.compact .table .role { font-size: 15px; } .room.compact .table .company { font-size: 12.5px; }
 .room.compact .table h2 { font-size: 14px; } .room.compact .table .sub, .room.compact .table .step { font-size: 11.5px; } .room.compact .table .mark { width: 42px; height: 42px; }
 
-.callout { position: absolute; z-index: 6; width: 244px; padding: 11px 14px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+.callout { position: absolute; z-index: 6; width: 380px; padding: 11px 14px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
   box-shadow: var(--shadow); opacity: 0; transform: translateY(4px); transition: opacity .25s, transform .25s; pointer-events: none; }
 .callout.show { opacity: 1; transform: none; }
 .callout .who { color: var(--blue); margin-bottom: 3px; }
@@ -298,7 +294,7 @@ function layout() {
   Object.assign(L, { W, H, cx, cy, cw, ch, compact, pos: {}, side: SIDE });
   const at = deg => ({ x: cx + rx * Math.cos(deg * Math.PI / 180), y: cy + ry * Math.sin(deg * Math.PI / 180) });
   RING.forEach((id, i) => { const q = at(-90 + i * 360 / N); L.pos[id] = { x: q.x, y: q.y, w: cw, h: ch, rect: { x: q.x - cw / 2, y: q.y - ch / 2, w: cw, h: ch } }; });
-  L.table = compact ? { x: cx, y: cy, w: 196, h: 150 } : { x: cx, y: cy, w: 280, h: 150 };
+  L.table = compact ? { x: cx, y: cy, w: 176, h: 140 } : { x: cx, y: cy, w: 280, h: 150 };
   layer.setAttribute("viewBox", `0 0 ${W} ${H}`);
   place();
 }
@@ -307,7 +303,7 @@ function layout() {
 function buildActors() {
   ACTORS.forEach(a => {
     const d = html("div", "actor idle"); d.id = "a-" + a.id; d.setAttribute("aria-label", `${a.name}: ${a.role}`);
-    d.innerHTML = `<div class="av"><svg viewBox="0 0 24 24">${ICONS[a.id]}</svg><span class="bdg"></span></div><div><div class="nm"></div><div class="rl"></div></div><span class="ai code">Code</span>`;
+    d.innerHTML = `<div class="av"><svg viewBox="0 0 24 24">${ICONS[a.id]}</svg><span class="bdg"></span></div><div><div class="nm"></div><div class="rl"></div></div>`;
     d.querySelector(".nm").textContent = a.name; d.querySelector(".rl").textContent = a.role;
     actorsEl.appendChild(d);
   });
@@ -316,13 +312,6 @@ function buildActors() {
 /* the two overnight agents are asleep (grey, dotted outline) unless a daily check is running; everyone else is always ready */
 const OVERNIGHT = ["discoverer", "matcher"];
 function syncDormant() { const on = !!(S.scan && !S.final && !S.failed); OVERNIGHT.forEach(id => { const d = $("#a-" + id); if (d) d.classList.toggle("dormant", !on); }); }
-/* which AI model each agent uses (from the server), shown as a tag on the card and in what the agent says */
-let MODELS = {};
-function showModels() {
-  ACTORS.forEach(a => { const t = $("#a-" + a.id + " .ai"); if (!t) return; const m = MODELS[a.id];
-    t.textContent = m ? "AI" : "Code"; t.classList.toggle("code", !m); t.title = m ? "Uses " + m : "Plain code, no AI model"; });
-}
-fetch("/api/models").then(r => r.ok ? r.json() : {}).then(m => { MODELS = m || {}; showModels(); placeCallout(); }).catch(() => {});
 function place() {
   ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.width = L.compact ? "" : L.cw + "px"; });
   Object.assign(tableEl.style, { left: L.table.x + "px", top: L.table.y + "px", width: L.table.w + "px", height: L.table.h + "px" });
@@ -345,7 +334,10 @@ function edgeGeom(a, b) {
   } else {             // across the ring: bow away from the card in the middle; the answer nests inside the question
     const cdx = a < b ? dx : -dx, cdy = a < b ? dy : -dy, cl = Math.hypot(cdx, cdy) || 1, cnx = -cdy / cl, cny = cdx / cl;
     const away = s => Math.hypot(mid.x + cnx * s * 40 - L.cx, mid.y + cny * s * 40 - L.cy);
-    sign = (away(1) >= away(-1) ? 1 : -1) * (a < b ? 1 : -1); bulge = (a < b ? 0.3 : 0.18) * len;
+    sign = (away(1) >= away(-1) ? 1 : -1) * (a < b ? 1 : -1);
+    const T = L.table, hits = c => { for (let i = 1; i < 40; i++) { const q = quad(p0, c, p2, i / 40); if (Math.abs(q.x - T.x) < T.w / 2 + 16 && Math.abs(q.y - T.y) < T.h / 2 + 16) return true; } return false; };
+    bulge = (a < b ? 0.3 : 0.18) * len;   // the answer nests inside the question; both are pushed out until they clear the card in the middle
+    for (let f = bulge; f <= 0.75 * len; f += 0.04 * len) { bulge = f; if (!hits({ x: mid.x + nx * f * sign, y: mid.y + ny * f * sign })) break; }
   }
   const c = { x: mid.x + nx * bulge * sign, y: mid.y + ny * bulge * sign };
   let t0 = 0, t1 = 1;
@@ -423,20 +415,15 @@ function say(id, text, tone) {
 }
 function placeCallout() {
   const c = callout; if (!S.say) { c.classList.remove("show"); return; }
-  const p = L.pos[S.say.id]; if (!p) return;
-  c.querySelector(".who").textContent = S.say.id === "you" ? "Telegram · you" : NAME[S.say.id] + (MODELS[S.say.id] ? " · " + MODELS[S.say.id].split(" + ")[0].replace(/ \(embeddings\)/, "") : "");
+  if (!L.pos[S.say.id]) return;
+  c.querySelector(".who").textContent = S.say.id === "you" ? "Telegram · you" : NAME[S.say.id];
   c.querySelector(".say").textContent = S.say.text;
   c.classList.toggle("coral", S.say.tone === "coral");
-  const pad = 10;
-  c.style.width = L.compact ? (L.W - 2 * pad) + "px" : "";
-  const w = c.offsetWidth || 244, h = c.offsetHeight || 70;
-  const side = L.compact ? "dock" : (L.side[S.say.id] || "below");   // the top seat has no room above it; phones dock it at the bottom
-  let left, top;
-  if (side === "dock") { left = pad; top = L.H - h - 14; }
-  else if (side === "left") { left = Math.max(pad, p.x - p.w / 2 - 16 - w); top = Math.max(pad, p.y - h / 2); c.style.setProperty("--ttop", (p.y - top) + "px"); }
-  else { left = Math.max(pad, Math.min(L.W - w - pad, p.x - w / 2)); top = side === "above" ? p.y - p.h / 2 - h - 13 : p.y + p.h / 2 + 13; c.style.setProperty("--tail", Math.max(20, Math.min(w - 20, p.x - left)) + "px"); }
-  c.style.left = left + "px"; c.style.top = top + "px";
-  c.classList.toggle("dock", side === "dock"); c.classList.toggle("left", side === "left"); c.classList.toggle("above", side === "above"); c.classList.toggle("below", side === "below"); c.classList.add("show");
+  const pad = 10, w = L.compact ? L.W - 2 * pad : 380;
+  c.style.width = w + "px";
+  const h = c.offsetHeight || 70;
+  c.style.left = Math.round((L.W - w) / 2) + "px"; c.style.top = (L.H - h - 10) + "px";
+  c.classList.add("dock", "show");
 }
 const pctText = (n) => Math.round(n) + "%";
 function renderTable() {

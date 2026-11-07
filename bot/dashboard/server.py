@@ -127,18 +127,6 @@ def pdf(filename: str):
     return FileResponse(path, media_type="application/pdf")
 
 
-@app.get("/api/models")
-def models():
-    """Which AI model (if any) each agent uses, so the dashboard can show it. Names only, no keys."""
-    from service import config as sc
-    helpers = bool(sc.OPENAI_API_KEY)
-    return JSONResponse({
-        "scout": sc.SCOUT_MODEL if helpers else "", "analyst": sc.EXTRACTOR_MODEL, "archivist": f"{sc.EMBEDDING_MODEL} (embeddings)",
-        "scribe": sc.GENERATOR_MODEL, "critic": sc.CRITIC_MODEL, "publisher": "",
-        "discoverer": sc.DISCOVERER_MODEL if helpers else "", "matcher": f"{sc.EXTRACTOR_MODEL} + {sc.EMBEDDING_MODEL}",
-    })
-
-
 @app.post("/api/simulate")
 def simulate(scenario: str = "normal"):
     """Play a scripted run through the real event bus. Needs no API keys.
