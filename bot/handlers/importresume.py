@@ -1,7 +1,7 @@
 """Send the bot your current resume (PDF, Word or text) and it fills in your saved experience for you.
 
 Flow: file -> read text -> AI structures it -> a preview of what was found -> you choose Replace / Add / Cancel.
-Nothing is saved until you tap a button, and Replace keeps a backup. The typed commands (/addexperience, ...) stay
+Nothing is saved until you tap a button, and Replace keeps a backup. /profile stays
 available for fixing or adding anything afterwards."""
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ async def resume_document_handler(update: Update, context: ContextTypes.DEFAULT_
 
     if parsed.is_empty():
         await status.edit_text("❌ I couldn't find any resume sections in that file. Is it your resume? "
-                               "Try another file, or add things one by one with /addexperience and /addproject.")
+                               "Try another file, or add things yourself in /profile.")
         return
 
     sample = await asyncio.to_thread(profile_is_sample)

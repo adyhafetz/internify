@@ -127,7 +127,7 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
     facts = load_facts()
     if not facts:
         events.emit("archivist", events.FAIL, "No saved experience")
-        raise HTTPException(status_code=500, detail="Your saved experience is empty. Add some with /addexperience or /addproject first.")
+        raise HTTPException(status_code=500, detail="Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
 
     skeleton = load_skeleton()
     events.emit("archivist", events.START, f"Searching {len(facts)} verified facts")

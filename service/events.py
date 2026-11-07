@@ -163,7 +163,7 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
             covered, total = len(d.get("covered", [])), len(d.get("covered", [])) + len(d.get("missing", []))
             new = sum(1 for f in d.get("facts", []) if f.get("new"))
             return f"Found {len(d.get('facts', []))} that fit{f' ({new} new from you)' if new else ''} · {covered} of {total} needs matched"
-        if k == FAIL: return "Your saved experience is empty. Add some with /addexperience first"
+        if k == FAIL: return "Your saved experience is empty. Add some in /profile first"
     elif a == "scribe":
         if k == START:
             return "Rewriting after the Critic's feedback…" if int(d.get("iteration", 1)) > 1 else "Writing resume lines from your real experience…"
