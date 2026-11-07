@@ -140,26 +140,6 @@ def get_entry(kind: str, ref: str) -> Optional[EntryView]:
                      items, "honor", courses=list(entry.get("courses", [])))
 
 
-def find_entries(query: str) -> list[EntrySummary]:
-    """Match what the user typed against names (all words must appear), or an exact internal id as a shortcut."""
-    q = (query or "").strip().lower()
-    if not q:
-        return []
-    sk = _load_skeleton_raw()
-    entries = list_entries()
-    exact = [e for e in entries if e.kind != LEAD and e.ref.lower() == q]
-    if exact:
-        return exact
-    words = q.split()
-    out = []
-    for e in entries:
-        raw = _find_entry(sk, e.kind, e.ref) or {}
-        haystack = (e.label + " " + " ".join(str(v) for v in raw.values() if isinstance(v, str))).lower()
-        if all(w in haystack for w in words):
-            out.append(e)
-    return out
-
-
 # ---------------------------------------------------------------- changing
 
 def add_item(kind: str, ref: str, text: str, tags: Optional[list[str]] = None) -> Item:

@@ -1,12 +1,9 @@
-"""/profile: everything on your resume in one place, by tapping. No IDs to look up or type.
+"""/profile: everything on your resume in one place, by tapping. No IDs to look up or type, and no other commands.
 
     /profile                       -> contact details, education, jobs, projects, leadership, skills, and ➕ Add
     tap an entry                   -> its numbered bullet points, each with ✏️ edit and 🗑 delete buttons
     ✏️ / ➕                         -> "send me the text" (your next message is the answer)
-    🗑                             -> shows what will go, asks to confirm
-
-Shortcuts that open the same screens: /experience, /myprofile, /listentries, /listfacts <name>, /listeducation,
-/listskills. Typed adds (/addexperience, /addproject, /addleadership, /addeducation, /addskill) use the same flow."""
+    🗑                             -> shows what will go, asks to confirm"""
 from __future__ import annotations
 
 import asyncio
@@ -25,20 +22,16 @@ from bot.extraction import (
     extract_experience,
     extract_leadership,
     extract_project,
-    extract_skills,
     extract_tech_tags,
 )
 from bot.handlers.common import restricted
 from service import editor
 from service.admin import (
-    AddSkillsRequest,
-    SKILL_CATEGORIES,
     _load_skeleton_raw,
     add_education,
     add_experience,
     add_leadership,
     add_project,
-    add_skills,
 )
 from service.editor import EditError, EDU, EXP, LEAD, PROJ
 
@@ -67,23 +60,17 @@ def _btn(label: str, *parts: object) -> InlineKeyboardButton:
 
 # ---------------------------------------------------------------- screens
 
-def list_screen(entries: Optional[list] = None, heading: str = "", notice: str = "") -> Screen:
-    """The hub (no arguments), or a short list of matches for a typed name (entries given)."""
-    hub = entries is None
-    entries = editor.list_entries() if hub else entries
+def list_screen(notice: str = "") -> Screen:
+    """The hub: contact details, every entry, skills and ➕ Add."""
+    entries = editor.list_entries()
     lines = [notice, ""] if notice else []
-    rows: list[list[InlineKeyboardButton]] = []
-    if hub:
-        lines.append("📋 <b>Your profile</b>")
-        lines.append("Everything on your resume. Tap one to see it and edit it." if entries else
-                     "Nothing saved yet. Send me your resume file (/importresume) or tap ➕ Add something.")
-        rows.append([_btn("👤 Contact details", "c")])
-    else:
-        lines += [f"📋 <b>{_h(heading)}</b>", "Tap one to see it and edit it."]
+    lines.append("📋 <b>Your profile</b>")
+    lines.append("Everything on your resume. Tap one to see it and edit it." if entries else
+                 "Nothing saved yet. Send me your resume file (/importresume) or tap ➕ Add something.")
+    rows = [[_btn("👤 Contact details", "c")]]
     rows += [[_btn(_short(f"{ICON[e.kind]} {e.label} ({e.count})", 60), "o", e.kind, e.ref, 0)] for e in entries]
-    if hub:
-        rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
-        rows.append([_btn("➕ Add something", "n")])
+    rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
+    rows.append([_btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -240,82 +227,12 @@ def create_from_description(kind: str, text: str) -> tuple[str, str, str]:
     return kind, ref, notice
 
 
-async def _create_and_show(msg, kind: str, text: str) -> None:
-    await msg.reply_text("⏳ Reading that and saving it…")
-    kind, ref, notice = await asyncio.to_thread(create_from_description, kind, text)
-    screen = entry_screen(kind, ref, notice=notice) or list_screen(notice=notice)
-    await msg.reply_text(screen[0], parse_mode="HTML", reply_markup=screen[1])
-
-
-# ---------------------------------------------------------------- commands
-
-_START_SCREENS = {"myprofile": "contact", "listskills": "skills"}
-
-
 @restricted
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/profile, and the shortcuts /experience /myprofile /listentries /listfacts [name] /listeducation /listskills."""
+    """/profile: the one place to see and edit everything."""
     _clear_wait(context)
-    msg = update.effective_message
-    used = ((msg.text or "/profile").split()[0].lstrip("/").split("@")[0]).lower()
-    query = " ".join(context.args or []).strip()
-    if query:
-        matches = editor.find_entries(query)
-        if len(matches) == 1:
-            screen = entry_screen(matches[0].kind, matches[0].ref)
-        elif matches:
-            screen = list_screen(matches, heading=f"Which one did you mean by “{query}”?")
-        else:
-            screen = list_screen(notice=f"I couldn't find anything called “{_h(query)}”. Here's everything you have:")
-    elif _START_SCREENS.get(used) == "contact":
-        screen = contact_screen()
-    elif _START_SCREENS.get(used) == "skills":
-        screen = skills_screen()
-    else:
-        screen = list_screen()
-    await msg.reply_text(screen[0], parse_mode="HTML", reply_markup=screen[1])
-
-
-def make_add_command(kind: str):
-    """/addexperience, /addproject, /addleadership, /addeducation: with text it saves at once, without it asks."""
-    @restricted
-    async def command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        _clear_wait(context)
-        msg, text = update.effective_message, " ".join(context.args or []).strip()
-        if text:
-            try:
-                await _create_and_show(msg, kind, text)
-            except Exception as err:
-                logger.error("Could not add %s: %s", kind, err)
-                await msg.reply_text(f"❌ I couldn't read that.\nReason: {err}")
-            return
-        _wait(context, action="new", kind=kind)
-        title, what, example = NEW_PROMPTS[kind]
-        await msg.reply_text(f"{title}\n\nSend me {what}.\n<i>For example: {_h(example)}</i>\n\n(Send /cancel to stop.)",
-                             parse_mode="HTML")
-    command.__name__ = f"add_{kind}_command"
-    return command
-
-
-@restricted
-async def addskill_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/addskill Docker, Kubernetes  (the AI picks the category), or /addskill alone to open the skills screen."""
-    _clear_wait(context)
-    msg, text = update.effective_message, " ".join(context.args or []).strip()
-    if not text:
-        screen = skills_screen(notice="Pick a category, then tap ➕ to add skills to it.")
-        await msg.reply_text(screen[0], parse_mode="HTML", reply_markup=screen[1])
-        return
-    try:
-        found = await asyncio.to_thread(extract_skills, text)
-        res = add_skills(AddSkillsRequest(category=found.category, items=found.items))
-        index = list(SKILL_CATEGORIES).index(found.category)
-        screen = skill_category_screen(index, notice=f"✅ Added to {_h(found.category)}: {_h(', '.join(found.items))}")
-    except Exception as err:
-        logger.error("Could not add skills: %s", err)
-        await msg.reply_text(f"❌ I couldn't add that.\nReason: {err}")
-        return
-    await msg.reply_text(screen[0], parse_mode="HTML", reply_markup=screen[1])
+    text, markup = list_screen()
+    await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=markup)
 
 
 # ---------------------------------------------------------------- buttons

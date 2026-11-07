@@ -78,11 +78,8 @@ for bad, why in ((lambda: editor.add_item("exp", acme, "   "), "empty"), (lambda
     else: raise AssertionError(f"{why} should be refused")
 print("A4 ok: empty, over-long and stale requests are refused with a plain message")
 
-assert [m.ref for m in editor.find_entries("acme")] == [acme] and [m.ref for m in editor.find_entries("ACME intern")] == [acme]
-assert [m.ref for m in editor.find_entries(acme)] == [acme], "an exact internal id still works as a shortcut"
-assert len(editor.find_entries("treasurer")) == 2 and editor.find_entries("zzz") == [] and editor.find_entries("  ") == []
-assert [m.kind for m in editor.find_entries("chess")] == ["lead"] and [m.ref for m in editor.find_entries("taskflow")] == [many]
-print("A5 ok: entries are found by name (any word order/case), or by id")
+assert not hasattr(editor, "find_entries"), "name search was removed along with the typed shortcuts"
+print("A5 ok: there is no name search any more (everything is reached by tapping)")
 
 assert editor.add_course("edu_universiti_example", "Operating Systems") and not editor.add_course("edu_universiti_example", "operating systems")
 assert editor.remove_course("edu_universiti_example", 0) == "Algorithms"
@@ -287,15 +284,10 @@ assert tap(ctx2, f"xp:o:exp:{ACME}:0", fail=BadRequest("Message is not modified"
 text, lst = tap(ctx2, "xp:o:exp:gone:0"); assert "no longer exists" in text
 print("C7 ok: stale buttons say so instead of acting on the wrong line; re-tapping a screen is harmless")
 
-# C8 typed shortcuts open the same screens
+# C8 /profile is just the hub: arguments are ignored, nothing is searched
 text, markup = command([]); assert "Your profile" in text
-text, markup = command(["acme"]); assert "Software Intern · Acme Sdn Bhd" in text and "Bullet points" in text
-text, markup = command(["treasurer"]); assert "Treasurer · CS Society" in text, "a single match opens the entry directly"
-text, markup = command([ACME]); assert "Software Intern" in text
-text, markup = command(["zzz"]); assert "couldn't find anything called “zzz”" in text and buttons(markup)
-add_leadership(AddLeadershipRequest(title="Treasurer", org="Robotics Club", location="Uni", dates="2025", bullets=["x"]))
-text, markup = command(["treasurer"]); assert "Which one did you mean by “treasurer”?" in text and len(buttons(markup)) == 2
-print("C8 ok: /experience [name], /listentries and /listfacts <name or id> open the same screens (one match, several, none)")
+text2, markup2 = command(["acme"]); assert text2 == text and [b.callback_data for b in buttons(markup2)] == [b.callback_data for b in buttons(markup)]
+print("C8 ok: /profile opens the hub (and ignores anything typed after it)")
 
 # C9 wiring
 from bot import config as bot_config
@@ -304,7 +296,7 @@ from bot.main import create_bot_app
 app = create_bot_app()
 assert -2 in app.handlers and -1 in app.handlers, "Archivist/Scout answers (-2) and experience edits (-1) need separate groups"
 names = {c for h in app.handlers[0] for c in getattr(h, "commands", [])}
-assert {"profile", "experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills"} <= names
+assert "profile" in names
 print("C9 ok: handlers registered (separate groups for the two typed-answer handlers)")
 
 # ================================================================== D. contact details, skills, adding, shortcuts, menu
@@ -365,34 +357,18 @@ tap(ctx, find(tap(ctx, "xp:n")[1], "🛠")); msg, consumed = say(ctx, "text")
 assert consumed and "couldn't save that" in msg.sent[-1][0] and "the AI is down" in msg.sent[-1][0] and eb.WAIT_KEY in ctx.user_data
 print("D3 ok: ➕ Add something -> describe it -> saved and shown (job, project, degree, leadership); an AI failure keeps the question open")
 
-# typed shortcuts
-def typed(cmd_factory, args, text):
-    msg = FakeMsg(text); c = types.SimpleNamespace(args=args, user_data={})
-    asyncio.run(cmd_factory(types.SimpleNamespace(effective_message=msg, effective_user=USER), c)); return msg, c
-eb.extract_project = lambda t: _APR(name="Chatbot2", tech_stack="Python", date="Jan 2025", bullets=[NewFactBullet(text="Built chatbot 2")])
-msg, c = typed(eb.make_add_command("proj"), ["a", "chatbot", "project"], "/addproject a chatbot project")
-assert "Chatbot2" in msg.sent[-1][0] and eb.WAIT_KEY not in c.user_data, "with text: saved at once"
-msg, c = typed(eb.make_add_command("proj"), [], "/addproject")
-assert c.user_data[eb.WAIT_KEY]["kind"] == "proj" and "Describe your project" in msg.sent[-1][0], "without text: asks"
-from types import SimpleNamespace as NS
-eb.extract_skills = lambda t: NS(category="Languages", items=["Zig"])
-msg, c = typed(eb.addskill_command, ["Zig"], "/addskill Zig"); assert "✅ Added to Languages: Zig" in msg.sent[-1][0]
-msg, c = typed(eb.addskill_command, [], "/addskill"); assert "Pick a category" in msg.sent[-1][0]
-for alias, expect in (("/myprofile", "Contact details"), ("/listskills", "<b>Skills</b>"), ("/listeducation", "Your profile"), ("/experience", "Your profile"), ("/listentries", "Your profile")):
-    msg, c = typed(eb.profile_command, [], alias); assert expect in msg.sent[-1][0], (alias, msg.sent[-1][0])
-msg, c = typed(eb.profile_command, ["acme"], "/listfacts@MyBot acme"); assert "Software Intern · Acme Sdn Bhd" in msg.sent[-1][0]
-c.user_data[eb.WAIT_KEY] = {"action": "edit", "at": 0}
+# /cancel clears a waiting question
+c = types.SimpleNamespace(args=[], user_data={eb.WAIT_KEY: {"action": "edit", "at": 0}})
 from bot.handlers.common import cancel_command
 asyncio.run(cancel_command(types.SimpleNamespace(effective_message=FakeMsg(), effective_user=USER), c)); assert c.user_data == {}
-print("D4 ok: typed /add… shortcuts (with and without text), /addskill, the shortcut names open the right screen, /cancel clears a waiting question")
+print("D4 ok: /cancel clears a waiting question")
 
-# the old commands are gone, and the menu and description say what the bot does
+# every old command, alias and typed shortcut is gone: the bot has exactly these commands
 registered = {c for g in app.handlers.values() for h in g for c in getattr(h, "commands", [])}
-gone = {"setname", "setphone", "setemail", "setlinkedin", "setgithub", "deleteeducation", "deleteexperience", "deleteproject",
-        "deleteleadership", "deleteskill", "deletecourse", "addcourse", "deletefact", "updatefact"}
-assert not (gone & registered), gone & registered
-assert not any(getattr(h, "pattern", None) and h.pattern.pattern.startswith("^(del_|edit_)") for g in app.handlers.values() for h in g)
-assert {"start", "help", "history", "cancel", "resume", "importresume", "profile", "addexperience", "addproject", "addleadership", "addeducation", "addskill"} <= registered
+assert registered == {"start", "help", "history", "cancel", "resume", "importresume", "profile"}, sorted(registered)
+for gone in ("experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills", "addexperience", "addproject",
+             "addleadership", "addeducation", "addskill", "setname", "deleteexperience", "updatefact"):
+    assert gone not in registered, gone
 sent = {}
 class _B:
     async def set_my_commands(self, c): sent["commands"] = [(x.command, x.description) for x in c]
@@ -402,6 +378,6 @@ from bot.main import post_init
 asyncio.run(post_init(types.SimpleNamespace(bot=_B())))
 assert [c for c, _ in sent["commands"]] == ["profile", "importresume", "history", "resume", "help", "cancel"], sent["commands"]
 assert all(3 <= len(d) <= 256 and d[0].isupper() for _, d in sent["commands"]) and "job link" in sent["short"] and "resume file" in sent["long"]
-print("D5 ok: old commands removed; the menu has 6 entries with clear descriptions; the bot description tells new users what to do:")
+print("D5 ok: only 7 commands exist (/start /help /profile /importresume /history /resume /cancel); the menu has 6 entries with clear descriptions; the bot description tells new users what to do:")
 for c, d in sent["commands"]: print(f"     /{c:13} {d}")
 print("\n✅ browser test passed")

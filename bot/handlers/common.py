@@ -55,12 +55,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Tell me about you\n"
         "• /importresume – send your current resume file (PDF or Word) and I'll fill everything in\n"
         "• /profile – see and edit everything on your resume: contact details, education, jobs, projects, "
-        "leadership and skills. Tap anything to edit, delete or add a line, and use ➕ Add something for new entries. "
-        "No IDs to look up.\n\n"
-        "Typing shortcuts (optional)\n"
-        "• /addexperience, /addproject, /addleadership, /addeducation – describe it in your own words\n"
-        "• /addskill Docker, Kubernetes – add skills\n"
-        "• /profile acme – jump straight to one entry by name\n\n"
+        "leadership and skills. Tap anything to edit, delete or add a line, and use ➕ Add something for new entries "
+        "(you describe it in your own words). No IDs to look up.\n\n"
         "• /cancel – stop whatever I'm asking you"
     )
 

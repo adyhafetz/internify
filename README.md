@@ -163,7 +163,7 @@ GENERATOR_MODEL=gpt-4o-mini
 
 ## 📱 Telegram Bot Commands Reference
 
-Everything on your resume is behind one command, `/profile`. Tap, don't type IDs.
+Everything on your resume is behind one command, `/profile`. Tap, don't type IDs or look anything up.
 
 The slash menu shows these six:
 
@@ -178,14 +178,7 @@ The slash menu shows these six:
 
 And the main action isn't a command: **send a job link** and you get a tailored 1-page PDF.
 
-Typing shortcuts, if you prefer them to buttons (not in the menu):
-
-| Shortcut | What it does |
-|---|---|
-| `/profile acme` | Jump straight to one entry by name (any word, any case). `/listfacts acme` does the same. |
-| `/addexperience`, `/addproject`, `/addleadership`, `/addeducation` | Add an entry. Put the description after the command to save at once, or send the command alone and the bot asks. |
-| `/addskill Docker, Kubernetes` | Add skills (the AI picks the category). |
-| `/myprofile`, `/listskills`, `/listeducation`, `/listentries`, `/experience` | Open the matching part of `/profile`. |
+There are no other commands: everything else is a button inside `/profile`.
 
 ---
 

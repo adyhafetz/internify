@@ -13,14 +13,7 @@ from telegram.ext import (
 
 from bot import config
 from bot.handlers.common import start_command, help_command, cancel_command
-from service.editor import EXP, PROJ, LEAD, EDU
-from bot.handlers.profile_hub import (
-    profile_command,
-    make_add_command,
-    addskill_command,
-    xp_callback,
-    xp_text_handler,
-)
+from bot.handlers.profile_hub import profile_command, xp_callback, xp_text_handler
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
@@ -49,7 +42,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def post_init(application) -> None:
-    # The slash menu: only the main things. Everything on your resume is behind /profile (including adding things).
+    # The slash menu. Everything on your resume is behind /profile (including adding things).
     commands = [
         BotCommand("profile", "See and edit everything on your resume"),
         BotCommand("importresume", "Fill it in from your current resume (PDF or Word)"),
@@ -90,16 +83,9 @@ def create_bot_app():
     app.add_handler(CommandHandler("cancel", cancel_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
-    # Everything on your resume, by tapping. The other names are quiet shortcuts to the same screens.
-    app.add_handler(CommandHandler(
-        ["profile", "experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills"], profile_command))
+    # Everything on your resume, by tapping: one command, no shortcuts.
+    app.add_handler(CommandHandler("profile", profile_command))
     app.add_handler(CallbackQueryHandler(xp_callback, pattern=r"^xp:"))
-    # Typed adds (the same flow as "➕ Add something")
-    app.add_handler(CommandHandler("addexperience", make_add_command(EXP)))
-    app.add_handler(CommandHandler("addproject", make_add_command(PROJ)))
-    app.add_handler(CommandHandler("addleadership", make_add_command(LEAD)))
-    app.add_handler(CommandHandler("addeducation", make_add_command(EDU)))
-    app.add_handler(CommandHandler("addskill", addskill_command))
 
     # Import an existing resume: /importresume, then send the file; buttons confirm before anything is saved
     app.add_handler(CommandHandler("importresume", importresume_command))
