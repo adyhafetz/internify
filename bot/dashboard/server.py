@@ -116,7 +116,10 @@ def start_dashboard(host: str = "0.0.0.0", port: int = 8080) -> threading.Thread
 
     def _run() -> None:
         try:
-            uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning")).run()
+            # loop="asyncio": uvicorn's default "auto" installs uvloop as the process-wide event loop
+            # policy, which breaks python-telegram-bot's run_polling() in the main thread.
+            config = uvicorn.Config(app, host=host, port=port, log_level="warning", loop="asyncio")
+            uvicorn.Server(config).run()
         except Exception as e:  # port in use, etc: the bot must keep working without the dashboard
             logger.error("Dashboard failed to start: %s", e)
 
