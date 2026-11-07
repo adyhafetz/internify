@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi import Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 
 from bot import config as bot_config
@@ -46,7 +47,7 @@ async def require_key(request: Request, call_next):
     """The home, privacy and terms pages are public. The live dashboard, its API and the PDFs need DASHBOARD_KEY."""
     key = bot_config.DASHBOARD_KEY
     path = request.url.path
-    if not key or path in PUBLIC_PATHS or path.startswith("/site/"):
+    if not key or path in PUBLIC_PATHS or path.startswith(("/site/", "/assets/")):
         return await call_next(request)
 
     supplied = request.query_params.get("key")
@@ -62,6 +63,10 @@ async def require_key(request: Request, call_next):
     if path.startswith("/api/") or path.startswith("/pdf/"):
         return JSONResponse({"detail": "Private. Open /live?key=... first."}, status_code=401)
     return HTMLResponse(PRIVATE_PAGE, status_code=401)
+
+
+# Brand assets (logo, Inter font): public, so the home and privacy pages can use them as well
+app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
 
 @app.get("/healthz")

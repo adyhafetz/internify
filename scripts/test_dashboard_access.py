@@ -30,4 +30,19 @@ assert "HttpOnly" in cookie and "Secure" in cookie and "s3cret" not in cookie, c
 c2 = TestClient(app); c2.cookies.set("internify_key", cookie.split("=")[1].split(";")[0])
 assert c2.get("/live").status_code == 200 and c2.get("/api/runs").status_code == 200
 print("valid key -> cookie -> access ✓ (key not exposed in cookie)")
+
+# brand assets are public (the home and privacy pages use them); the dashboard is the new agents-only room, light first
+for path, kind in (("/assets/brand/logo-mark.svg", "image/svg+xml"), ("/assets/brand/wordmark.svg", "image/svg+xml"),
+                   ("/assets/fonts/inter-latin-700-normal.woff2", "font/woff2")):
+    r = c.get(path)
+    assert r.status_code == 200 and r.headers["content-type"].startswith(kind.split("/")[0]), (path, r.status_code, r.headers.get("content-type"))
+for page in ("/", "/privacy", "/terms"):
+    assert "/assets/brand/logo-mark.svg" in c.get(page).text, page
+live = c2.get("/live").text
+assert 'data-theme="light"' in live, "light mode first"
+for must in ("Telegram", "Scout", "Analyst", "Archivist", "Scribe", "Critic", "Publisher", 'id="logBtn"', 'id="demoMenu"', "#2563EB", "#F97316", "Inter"):
+    assert must in live, must
+for gone in ("Show technical details", "Requirements matched", "Invented claims blocked", "Resume draft", "Your verified facts"):
+    assert gone not in live, f"the old panel text {gone!r} should be gone"
+print("brand assets public; /live is the agents-only room (7 seats incl. Telegram, Log button, light first)")
 print("\n✅ dashboard access test passed")

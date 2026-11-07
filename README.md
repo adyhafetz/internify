@@ -25,24 +25,27 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ## 🖥️ Live Agent Dashboard
 
-While the bot runs, open **http://localhost:8080/live**. Send a job link in Telegram and watch six named agents work in real time, while the same progress streams into the chat:
+While the bot runs, open **http://localhost:8080/live**. It's a single picture: a round table with seven seats, **Telegram** (you) and the six agents. Send a job link in Telegram and watch the work move clockwise: documents fly along the arrows from seat to seat, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), the question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
-| Agent | Job |
+| Seat | What it does |
 |---|---|
-| 🔭 Scout | Reads the job page |
-| 🧠 Analyst | Extracts stack, requirements, ATS keywords |
-| 📚 Archivist | Retrieves your verified facts, flags requirements with no evidence |
-| ✍️ Scribe | Writes tailored bullets, each tied to a fact |
-| 🛡️ Critic | Verifies every claim and scores ATS fit, sends notes back to Scribe |
-| 📎 Publisher | Compiles the PDF (self-repairing LaTeX), uploads to Drive, logs the tracker |
+| 💬 Telegram | You, on your phone: send the link, answer questions, receive the PDF |
+| 🔎 Scout | Reads the job page, and finds another way in if it's blocked |
+| 📄 Analyst | Works out what the job wants |
+| 🗄 Archivist | Finds your matching experience, and asks you about gaps |
+| ✏️ Scribe | Writes the resume lines |
+| 🛡 Critic | Checks every line is true, and scores the match |
+| 📦 Publisher | Builds the PDF (and repairs it if needed), files it, and logs it |
 
-- **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
-- **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed) on the dashboard and in Telegram: the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`. Try **Demo: blocked page** and **Demo: paste the text** on the dashboard.
-- Hand-offs between agents are drawn live, with a count for repeated loops such as Scribe ⇄ Critic.
-- **No keys needed to try it:** click **Demo run** (or **Demo: blocked page**) on the dashboard.
+- **Log** (top right): every success (blue ✓) and failure (coral ✕) in this run, with filters, plain-language reasons and a JSON download. Failures such as "the site blocked us (HTTP 403)" or "caught an invented claim" are listed with why.
+- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text.
+- Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording) `python scripts/test_handler.py` (the Telegram flow with fake services) and `python scripts/test_dashboard_access.py` (who can open what), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import and the manual commands), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_ask.py` (the Archivist's questions) and `python scripts/test_concurrency.py` (answers are received while a job runs).
-- Disable with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
+- Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
+- **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
+- Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
 
 ---
