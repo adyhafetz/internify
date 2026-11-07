@@ -9,6 +9,7 @@ os.environ.update(OPENAI_API_KEY="sk-test", DATABASE_PATH=os.path.join(tmp, "t.d
 from service import events
 from service.models import ProcessResponse
 import bot.handlers.job as job
+import bot.jobflow as jobflow
 from bot.services import db
 from bot.extraction import NormalizedJob
 from bot.services.scraper import Page
@@ -29,9 +30,9 @@ def fake_process(req, ask=None):
 def fake_find(url): return sheet_rows.get(url)
 def fake_append(**kw): calls["append"] += 1; sheet_rows[kw["job_link"]] = 7; return 7
 def fake_sheet_update(*a, **kw): calls["sheet_update"] += 1
-job.scrape_job_url, job.normalize_job_posting, job.run_pipeline = fake_scrape, fake_norm, fake_process
-job.find_row_by_url, job.append_application, job.update_application_status = fake_find, fake_append, fake_sheet_update
-job.upload_to_drive = lambda path, name: "https://drive.google.com/x?a=1&b=2"
+jobflow.scrape_job_url, jobflow.normalize_job_posting, jobflow.run_pipeline = fake_scrape, fake_norm, fake_process
+jobflow.find_row_by_url, jobflow.append_application, jobflow.update_application_status = fake_find, fake_append, fake_sheet_update
+jobflow.upload_to_drive = lambda path, name: "https://drive.google.com/x?a=1&b=2"
 
 
 class Msg:
@@ -88,7 +89,7 @@ print("run 2 ok: repeat link reused rows, resume delivered")
 # 3. page that can't be read by any route, and the user doesn't paste anything
 async def nothing(url): return None
 async def no_paste(bot, chat_id, loop, min_chars): return None
-job.scrape_job_url, job.ask_for_job_text = nothing, no_paste
+jobflow.scrape_job_url, jobflow.ask_for_job_text = nothing, no_paste
 c = run("https://x.com/jobs/2")
 last = c.edits[-1]
 assert "Couldn't read the job page, even after trying other ways in" in last and not c.docs, c.edits
@@ -99,7 +100,7 @@ print("run 3 ok:", last.replace("\n", " ")[:110])
 # 3b. ...but the user pastes the job text when Scout asks: the run carries on and is delivered
 pasted_calls = []
 async def paste(bot, chat_id, loop, min_chars): pasted_calls.append(min_chars); return "Pasted job description. " * 20
-job.ask_for_job_text = paste
+jobflow.ask_for_job_text = paste
 c = run("https://x.com/jobs/2b")
 assert c.docs and pasted_calls == [100], (c.sent, c.edits)
 assert not any("couldn't open that page directly" in t for t in c.sent), "pasted text needs no 'I used a copy' warning"
@@ -108,7 +109,7 @@ print("run 3b ok: pasted text -> resume delivered")
 # 3c. Scout used a saved copy from the web archive: the user is told where the text came from
 async def archived(url): return Page(text="Job text " * 50, method="archive", label="a saved copy from the web archive",
                                      source_url="https://web.archive.org/x", via_fallback=True, note="a saved copy from 12 Mar 2026, which may be out of date")
-job.scrape_job_url = archived
+jobflow.scrape_job_url = archived
 c = run("https://x.com/jobs/2c")
 note = next(t for t in c.sent if "couldn't open that page directly" in t)
 assert "a saved copy from 12 Mar 2026, which may be out of date" in note and "check that the company and role look right" in note, note
@@ -117,18 +118,18 @@ print("run 3c ok:", note.replace("\n", " "))
 
 # 3d. fallbacks switched off: no paste request, plain failure
 bot_config.SCOUT_FALLBACKS = False
-job.scrape_job_url = nothing
-job.ask_for_job_text = lambda *a: (_ for _ in ()).throw(AssertionError("must not ask to paste when fallbacks are off"))
+jobflow.scrape_job_url = nothing
+jobflow.ask_for_job_text = lambda *a: (_ for _ in ()).throw(AssertionError("must not ask to paste when fallbacks are off"))
 c = run("https://x.com/jobs/2d")
 assert "Couldn't read the job page" in c.edits[-1] and not c.docs
 bot_config.SCOUT_FALLBACKS = True
 print("run 3d ok: fallbacks off -> no paste request")
 
 # 4. pipeline error shows readable reason, trackers marked failed
-job.scrape_job_url = fake_scrape
+jobflow.scrape_job_url = fake_scrape
 from fastapi import HTTPException
 def boom(req, ask=None): raise HTTPException(status_code=500, detail="Your saved experience is empty. Send me your resume file (/importresume) or add some in /profile first.")
-job.run_pipeline = boom
+jobflow.run_pipeline = boom
 d = run("https://x.com/jobs/3")
 last = d.edits[-1]
 assert "Your saved experience is empty" in last and "500:" not in last, last

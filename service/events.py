@@ -24,7 +24,14 @@ AGENTS: dict[str, dict[str, str]] = {
     "scribe":    {"name": "Scribe",    "role": "Writes tailored bullets",        "emoji": "✍️"},
     "critic":    {"name": "Critic",    "role": "Checks claims and scores fit",   "emoji": "🛡️"},
     "publisher": {"name": "Publisher", "role": "Builds PDF, files it, logs it",  "emoji": "📎"},
+    # The morning scan: these two work before the six above, on a schedule
+    "discoverer": {"name": "Discoverer", "role": "Finds new jobs for you",       "emoji": "🔎"},
+    "matcher":    {"name": "Matcher",    "role": "Picks the best fits",          "emoji": "🎯"},
 }
+
+# The six agents that work on one job, in order (the Telegram progress line counts these). The two scan agents
+# (Discoverer, Matcher) work before them, once a morning.
+PIPELINE = ["scout", "analyst", "archivist", "scribe", "critic", "publisher"]
 
 # Event kinds
 START = "start"        # agent begins work
@@ -145,6 +152,22 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
                 return f"{_READ.get(d.get('method'), 'Read the posting from ' + str(d.get('label')))} ({chars} characters)"
             return f"Read the whole posting ({chars} characters)"
         if k == FAIL: return "Couldn't read this page by any route"
+    elif a == "discoverer":
+        if k == START: return f"Checking your {n('job source', int(d.get('sources', 0)))}…"
+        if k == PROGRESS and d.get("status") == "trying": return f"Checking {d.get('label', 'a source')}…"
+        if k == PROGRESS and d.get("status") == "ok":
+            return f"{d.get('label', 'A source')}: {n('new job', int(d.get('found', 0)))}"
+        if k == PROGRESS and d.get("status") == "failed":
+            return f"{d.get('label', 'A source')} didn't answer: {d.get('reason', 'unknown reason')}"
+        if k == DONE: return f"Found {n('new job', int(d.get('found', 0)))} across {n('source', int(d.get('sources', 0)))}"
+        if k == FAIL: return d.get("why") or "Couldn't find any jobs"
+    elif a == "matcher":
+        if k == START: return f"Scoring {n('new job', int(d.get('total', 0)))} against your experience…"
+        if k == PROGRESS and d.get("reading"): return f"Reading the {int(d['reading'])} best in detail…"
+        if k == DONE:
+            top = f" · best fit {round(float(d['top']) * 100)}%" if d.get("top") is not None else ""
+            return f"Kept {int(d.get('kept', 0))} of {int(d.get('total', 0))}{top}"
+        if k == FAIL: return d.get("why") or "Couldn't score the jobs"
     elif a == "analyst":
         if k == START: return "Working out exactly what the job wants…"
         if k == PROGRESS and d.get("company"): return f"This is a {d.get('role')} role at {d.get('company')}"
@@ -194,13 +217,26 @@ def new_run_id() -> str:
     return uuid.uuid4().hex[:10]
 
 
-def start_run(url: str = "", run_id: Optional[str] = None) -> str:
+def start_run(url: str = "", run_id: Optional[str] = None, **data: Any) -> str:
     """Begin a run in the current context. Events emitted afterwards belong to it.
-    Threads started with ``asyncio.to_thread`` inherit the context automatically."""
+    Threads started with ``asyncio.to_thread`` inherit the context automatically.
+    Extra data (for example mode="scan") travels with the "started" event."""
     rid = run_id or new_run_id()
     _current_run.set(rid)
-    emit_run("started", url=url)
+    emit_run("started", url=url, **data)
     return rid
+
+
+class muted:
+    """``with events.muted():`` does background work (such as the Matcher reading a posting) without emitting events,
+    so it doesn't show up as the Scout or Analyst working on the job on screen."""
+    def __enter__(self):
+        self._token = _current_run.set(None)
+        return self
+
+    def __exit__(self, *exc):
+        _current_run.reset(self._token)
+        return False
 
 
 def current_run_id() -> Optional[str]:
@@ -212,6 +248,8 @@ def use_run(run_id: Optional[str]) -> None:
 
 
 def emit_run(state: str, **data: Any) -> None:
+    """Run-level markers: started / finished / failed, and for a scan with several jobs, job_started / job_finished /
+    job_failed (the run stays open while the next job begins)."""
     rid = _current_run.get()
     if rid is None:
         return

@@ -12,7 +12,7 @@ from service import events
 logger = logging.getLogger(__name__)
 
 MIN_EDIT_INTERVAL = 1.2  # seconds; Telegram throttles rapid message edits
-ORDER = list(events.AGENTS)  # scout, analyst, archivist, scribe, critic, publisher
+ORDER = events.PIPELINE  # scout, analyst, archivist, scribe, critic, publisher
 
 
 class TelegramProgress:

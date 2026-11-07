@@ -61,6 +61,9 @@ async def post_init(application) -> None:
         logger.info("Successfully registered the bot's command menu and description with Telegram.")
     except Exception as e:
         logger.warning("Could not set the bot's menu or description automatically: %s", e)
+    from bot import scanner
+    when = scanner.schedule(application)
+    logger.info("Morning scan: %s", when or "off")
 
 
 def create_bot_app():

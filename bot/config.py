@@ -44,3 +44,10 @@ ASK_TIMEOUT_SECONDS = int(os.getenv("ASK_TIMEOUT_SECONDS", "120"))
 # web archive, the same posting on another site) and finally ask you to paste the text. Off = only direct routes.
 SCOUT_FALLBACKS = os.getenv("SCOUT_FALLBACKS", "true").strip().lower() in ("1", "true", "yes")
 SCOUT_BUDGET_SECONDS = int(os.getenv("SCOUT_BUDGET_SECONDS", "150"))
+
+# The morning scan: finds new jobs on the sources you watch, picks the best fits, tailors a resume for each.
+SCAN_ENABLED = os.getenv("SCAN_ENABLED", "true").strip().lower() in ("1", "true", "yes")
+SCAN_TIME = os.getenv("SCAN_TIME", "08:00").strip()                 # HH:MM, in SCAN_TIMEZONE
+SCAN_TIMEZONE = os.getenv("SCAN_TIMEZONE", "UTC").strip()           # for example Asia/Kuala_Lumpur
+SCAN_MAX_TAILORED = int(os.getenv("SCAN_MAX_TAILORED", "3"))        # resumes written per scan
+SCAN_MIN_FIT = float(os.getenv("SCAN_MIN_FIT", "0.5"))              # 0 to 1: how well a job must fit to get a resume

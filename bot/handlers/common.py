@@ -8,6 +8,23 @@ from bot import config
 logger = logging.getLogger(__name__)
 
 
+_remembered_chat = None
+
+
+def _remember_chat(update: Update) -> None:
+    """The scheduled scan has no message to reply to, so remember which chat is yours (once, when it changes)."""
+    global _remembered_chat
+    chat = getattr(update, "effective_chat", None)
+    if chat is None or chat.id == _remembered_chat:
+        return
+    try:
+        from bot.services import watchlist
+        watchlist.set_setting("owner_chat_id", str(chat.id))
+        _remembered_chat = chat.id
+    except Exception as err:   # never let bookkeeping break a command
+        logger.debug("Could not remember the chat: %s", err)
+
+
 def restricted(func):
     """Decorator to ensure only authorized Telegram users can interact with the bot."""
     @functools.wraps(func)
@@ -22,6 +39,7 @@ def restricted(func):
                     f"⛔ Sorry, this bot is private. Your user ID ({user.id}) isn't on its allowed list."
                 )
             return ConversationHandler.END
+        _remember_chat(update)
         return await func(update, context, *args, **kwargs)
     return wrapped
 

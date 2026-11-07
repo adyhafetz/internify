@@ -1,44 +1,20 @@
 from __future__ import annotations
 import asyncio
-import html
+import logging
 import os
 import re
-from typing import Optional
-import logging
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 
 from bot.handlers.common import restricted
-from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
-from bot.services.db import (
-    is_duplicate_url,
-    upsert_application,
-    update_application as db_update_application,
-    get_recent_applications,
-)
-from bot.services.sheets import find_row_by_url, append_application, update_application_status
-from bot.services.drive import upload_to_drive
-from bot.extraction import normalize_job_posting
-from service.models import ProcessRequest
-from service.main import run_pipeline
-from service import events
+from bot.jobflow import html_escape as _html, score_emoji, tailor_job
+from bot.services.db import get_recent_applications
 from bot.progress import TelegramProgress
-from bot.ask import SkillQuestioner, ask_for_job_text
-from bot import config
+from service import events
 
 logger = logging.getLogger(__name__)
 
 URL_REGEX = re.compile(r"https?://[^\s<>\"']+")
-
-
-def score_emoji(score: float) -> str:
-    """One set of colour bands everywhere: the same cut-offs as the Excellent/Good/Fair/Weak labels."""
-    return "🟢" if score >= 85 else "🟡" if score >= 70 else "🟠" if score >= 55 else "🔴"
-
-
-def _html(text: object) -> str:
-    """Telegram HTML mode: safe for any company or job title (Markdown breaks on * and _ in names)."""
-    return html.escape(str(text), quote=False)
 
 
 @restricted
@@ -60,18 +36,38 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
-def _fallback_source(page: Page) -> str:
-    """Plain-language description of where the posting came from when it was not the page the user sent."""
-    return {"reader": "a page-rendering service",
-            "archive": page.note,
-            "search": f"the same posting ({page.note})"}.get(page.method, page.label)
+class TelegramReporter:
+    """Tells the user, in the chat they sent the link from, what is happening."""
 
+    def __init__(self, message, status_msg, progress: TelegramProgress):
+        self.message, self.status_msg, self.progress = message, status_msg, progress
 
-def _record_failure(db_id: int, sheet_row: Optional[int], comment: str, score: float = 0.0, resume_status: str = "Failed") -> None:
-    """Mark an application as failed in both trackers."""
-    db_update_application(db_id, status="Failed", score=score, resume_status=resume_status, comment=comment)
-    if sheet_row:
-        update_application_status(sheet_row, resume_status=resume_status, comment=comment)
+    async def notice(self, text: str) -> None:
+        await self.message.reply_text(text)
+
+    async def fail(self, text: str) -> None:
+        """Stop live updates, show the final error, and close the run."""
+        events.emit_run("failed", error=text)
+        await self.progress.close()
+        await self.status_msg.edit_text(text)
+
+    async def finished(self, outcome) -> None:
+        events.emit_run("finished", score=outcome.score, status=outcome.status, pdf=os.path.basename(outcome.pdf_path),
+                        drive_link=outcome.drive_link, company=outcome.company, role=outcome.role)
+
+    async def deliver(self, outcome, caption: str) -> None:
+        await self.progress.close()
+        try:
+            with open(outcome.pdf_path, "rb") as pdf_file:
+                await self.message.reply_document(document=pdf_file, filename=outcome.filename, caption=caption,
+                                                  parse_mode="HTML", write_timeout=60, read_timeout=60)
+            await self.status_msg.delete()
+        except Exception as err:
+            logger.error("Failed to deliver tailored PDF to Telegram: %s", err)
+            text = f"🎯 Your resume is ready, but sending it here timed out.\nReason: {err}"
+            if outcome.drive_link:
+                text += f"\n\n☁️ You can still open it on Google Drive:\n{outcome.drive_link}"
+            await self.status_msg.edit_text(text)
 
 
 @restricted
@@ -86,158 +82,9 @@ async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Every run gets an id; the same events feed this chat and the web dashboard.
     run_id = events.start_run(url=job_url)
-    progress = TelegramProgress(status_msg, run_id, asyncio.get_running_loop())
-
-    async def fail(text: str):
-        """Stop live updates, show the final error, and close the run."""
-        events.emit_run("failed", error=text)
-        await progress.close()
-        await status_msg.edit_text(text)
-
-    # 1. Already in the tracker? One Sheet lookup answers both "is it a repeat" and "which row".
-    sheet_row = await asyncio.to_thread(find_row_by_url, job_url)
-    already_tracked = is_duplicate_url(job_url) or sheet_row is not None
-    events.emit("publisher", events.PROGRESS,
-                "This URL is already in your tracker" if already_tracked else "New URL, not in tracker yet",
-                duplicate=already_tracked)
-    if already_tracked:
-        await update.effective_message.reply_text(
-            "ℹ️ This link is already in your tracker. I'll tailor a fresh resume and update the existing entry."
-        )
-
-    # 2. Scout reads the page. If it is blocked or empty, Scout tries other routes (each one is shown), and as a
-    #    last resort asks you to paste the job description.
-    events.emit("scout", events.START, "Opening the job page", url=job_url)
-    try:
-        page = await scrape_job_url(job_url)
-        if page is None and config.SCOUT_FALLBACKS:
-            pasted = await ask_for_job_text(context.bot, update.effective_chat.id, asyncio.get_running_loop(), MIN_PAGE_CHARS)
-            if pasted:
-                page = Page(text=pasted, method="pasted", label="the text you pasted", source_url=job_url, via_fallback=True)
-    except Exception as err:
-        logger.error("Scraping error: %s", err)
-        events.emit("scout", events.FAIL, f"Scraping failed: {err}")
-        await fail(f"❌ Couldn't read the job page.\nReason: {err}")
-        return
-    if page is None:
-        events.emit("scout", events.FAIL, "No route could read the page")
-        await fail("❌ Couldn't read the job page, even after trying other ways in.\n"
-                   "It may be blocking automated visitors. Try a different link, or send the link again and paste the job text when I ask.")
-        return
-    events.emit("scout", events.DONE, f"Read {len(page.text):,} characters from the page",
-                chars=len(page.text), preview=page.text[:1500], url=job_url, method=page.method, label=page.label,
-                via_fallback=page.via_fallback, note=page.note, source_url=page.source_url)
-    events.emit("scout", events.HANDOFF, "Raw job posting text", to="analyst")
-    if page.via_fallback and page.method != "pasted":
-        await update.effective_message.reply_text(
-            f"ℹ️ I couldn't open that page directly, so I used {_fallback_source(page)}. "
-            "Please check that the company and role look right."
-        )
-    page_text = page.text
-
-    # 3. Analyst turns the page into a clean job posting
-    events.emit("analyst", events.START, "Normalizing the raw page into a clean job posting")
-    try:
-        job = await asyncio.to_thread(normalize_job_posting, page_text)
-    except Exception as err:
-        logger.error("Normalization error: %s", err)
-        events.emit("analyst", events.FAIL, f"Could not parse job description: {err}")
-        await fail(f"❌ Couldn't understand the job posting.\nReason: {err}")
-        return
-    events.emit("analyst", events.PROGRESS, f"Identified {job.job_title} at {job.company}",
-                company=job.company, role=job.job_title, location=job.location,
-                description=job.job_description, requirements=job.job_requirements)
-
-    # 4. Log to the trackers. A link that is already tracked is re-tailored: its rows are reused, never duplicated.
-    try:
-        db_id = upsert_application(
-            company=job.company, job_title=job.job_title, location=job.location,
-            job_description=job.job_description, job_requirements=job.job_requirements,
-            job_link=job_url, status="Processing",
-        )
-        if sheet_row is None:
-            sheet_row = await asyncio.to_thread(
-                append_application,
-                company=job.company, job_title=job.job_title, location=job.location,
-                job_description=job.job_description, job_requirements=job.job_requirements,
-                job_link=job_url, status="New",
-            )
-    except Exception as err:
-        logger.error("Tracker error: %s", err)
-        events.emit("publisher", events.FAIL, f"Couldn't update the tracker: {err}")
-        await fail(f"❌ Couldn't update your application tracker.\nReason: {err}")
-        return
-
-    # 5. Archivist, Scribe and Critic do the tailoring. Runs off the event loop so live updates keep flowing.
-    try:
-        # The Archivist may stop to ask you about a tool the job wants that you haven't saved experience for.
-        ask = SkillQuestioner(context.bot, update.effective_chat.id, asyncio.get_running_loop()) \
-            if config.ASK_ABOUT_MISSING_SKILLS else None
-        result = await asyncio.to_thread(run_pipeline, ProcessRequest(
-            company=job.company, job_title=job.job_title, location=job.location,
-            job_description=job.job_description, job_requirements=job.job_requirements, job_link=job_url,
-        ), ask)
-    except Exception as err:
-        logger.error("Resume pipeline error: %s", err)
-        reason = getattr(err, "detail", err)  # HTTPException carries the readable text in .detail
-        _record_failure(db_id, sheet_row, str(reason))
-        await fail(f"❌ Something went wrong while writing your resume.\nReason: {reason}")
-        return
-
-    pdf_path = result.pdf_path
-    if not pdf_path or not os.path.exists(pdf_path):
-        _record_failure(db_id, sheet_row, result.comment, score=result.score, resume_status=result.resume_status)
-        await fail(f"❌ The resume was written, but I couldn't build the PDF.\nReason: {result.comment}")
-        return
-
-    # 6. Publisher files it
-    events.emit("publisher", events.PROGRESS, "Uploading PDF to Google Drive")
-    filename = f"{job.company}_{job.job_title}.pdf".replace(" ", "_")
-    drive_link = await asyncio.to_thread(upload_to_drive, pdf_path, filename)
-    events.emit("publisher", events.PROGRESS,
-                "Uploaded to Drive" if drive_link else "Drive not configured, kept local copy",
-                drive_link=drive_link or "")
-
-    db_update_application(db_id, status="Ready", score=result.score, resume_status=result.resume_status,
-                          pdf_path=pdf_path, drive_link=drive_link or "", comment=result.comment)
-    if sheet_row:
-        await asyncio.to_thread(update_application_status, row_num=sheet_row, resume_link=drive_link or "",
-                                resume_status=result.resume_status,
-                                comment=f"Match {result.score:.0f}%. {result.comment}")
-    events.emit("publisher", events.DONE,
-                "Resume filed and tracker updated" if sheet_row else "Saved to local tracker",
-                sheet_row=sheet_row or None, drive_link=drive_link or "", db_id=db_id, pdf=os.path.basename(pdf_path))
-    events.emit_run("finished", score=result.score, status=result.resume_status, pdf=os.path.basename(pdf_path),
-                    drive_link=drive_link or "", company=job.company, role=job.job_title)
-
-    # 7. Deliver the PDF
-    caption = (
-        f"🎯 <b>Your resume for {_html(job.company)} is ready!</b>\n\n"
-        f"• Role: {_html(job.job_title)}\n"
-        f"• Job match: {score_emoji(result.score)} <b>{result.score:.0f}%</b> ({_html(result.resume_status)})\n"
-    )
-    if drive_link:
-        caption += f'• ☁️ <a href="{_html(drive_link)}">Open in Google Drive</a>\n'
-    else:
-        caption += "• 💾 Saved on this computer only (Google Drive isn't connected)\n"
-    if not sheet_row:
-        caption += "• 📋 Not added to your Google Sheet (not connected)\n"
-    caption += f"\n💡 <b>How it could be better:</b>\n<i>{_html(result.comment[:400])}</i>"
-
-    await progress.close()
-    try:
-        with open(pdf_path, "rb") as pdf_file:
-            await update.effective_message.reply_document(
-                document=pdf_file, filename=filename, caption=caption, parse_mode="HTML",
-                write_timeout=60, read_timeout=60,
-            )
-        await status_msg.delete()
-    except Exception as err:
-        logger.error("Failed to deliver tailored PDF to Telegram: %s", err)
-        text = f"🎯 Your resume is ready, but sending it here timed out.\nReason: {err}"
-        if drive_link:
-            text += f"\n\n☁️ You can still open it on Google Drive:\n{drive_link}"
-        await status_msg.edit_text(text)
+    loop = asyncio.get_running_loop()
+    reporter = TelegramReporter(update.effective_message, status_msg, TelegramProgress(status_msg, run_id, loop))
+    await tailor_job(job_url, reporter, bot=context.bot, chat_id=update.effective_chat.id, loop=loop, interactive=True)
 
 
 def get_job_url_handler() -> MessageHandler:

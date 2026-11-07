@@ -101,10 +101,14 @@ class SkillQuestioner:
         lock = _locks.setdefault(self.chat_id, asyncio.Lock())
         answers: list[SkillAnswer] = []
         async with lock:
-            for skill in skills:
+            for i, skill in enumerate(skills):
                 if self._gave_up:  # no answer to the previous question: don't keep nagging
                     answers.append(SkillAnswer(skill=skill))
                     continue
+                if i > 0:
+                    # The pipeline announced the first question. Each later question needs its own event, or the
+                    # dashboard shows no arrow to you for the second one.
+                    events.emit("archivist", events.ASK, f"Asking you about {skill}", skills=[skill], index=i, total=len(skills))
                 answers.append(await self._ask_one(skill))
         return answers
 

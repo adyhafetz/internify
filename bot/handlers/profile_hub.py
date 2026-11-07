@@ -24,7 +24,9 @@ from bot.extraction import (
     extract_project,
     extract_tech_tags,
 )
+from bot import config
 from bot.handlers.common import restricted
+from bot.services import watchlist
 from service import editor
 from service.admin import (
     _load_skeleton_raw,
@@ -70,6 +72,7 @@ def list_screen(notice: str = "") -> Screen:
     rows = [[_btn("👤 Contact details", "c")]]
     rows += [[_btn(_short(f"{ICON[e.kind]} {e.label} ({e.count})", 60), "o", e.kind, e.ref, 0)] for e in entries]
     rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
+    rows.append([_btn(f"🔭 Job watchlist ({len(watchlist.list_sources())})", "w")])
     rows.append([_btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
@@ -111,6 +114,39 @@ def skill_category_screen(index: int, page: int = 0, notice: str = "") -> Screen
         rows.append(nav)
     rows.append([_btn(f"➕ Add to {category}", "sa", index)])
     rows.append([_btn("⬅ All skills", "s")])
+    return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
+def _schedule_text() -> str:
+    if not config.SCAN_ENABLED:
+        return "The daily scan is switched off in the settings."
+    if watchlist.scan_paused():
+        return "The daily scan is <b>paused</b>."
+    return f"Every day at <b>{_h(config.SCAN_TIME)}</b> ({_h(config.SCAN_TIMEZONE)})"
+
+
+def watchlist_screen(notice: str = "") -> Screen:
+    from bot.scanner import is_running
+    watchlist.sources_from_history()   # pick up job boards behind the jobs you've already sent
+    sources = watchlist.list_sources()
+    lines = [notice, ""] if notice else []
+    lines += ["🔭 <b>Job watchlist</b>",
+              f"{_schedule_text()}, I look at these for new jobs, keep the best fits (up to {config.SCAN_MAX_TAILORED}) and write a resume for each.", ""]
+    names = {"greenhouse": "job board", "lever": "job board", "page": "career page"}
+    if sources:
+        for src in sources:
+            extra = " · from your jobs" if src.auto else ""
+            status = f" · {_h(src.last_status)}" if src.last_status else ""
+            lines.append(f"• <b>{_h(src.label)}</b> ({names[src.kind]}{extra}){status}")
+    else:
+        lines.append("<i>Nothing here yet. Add a career page or a job-board link, for example https://boards.greenhouse.io/acme "
+                     "or https://jobs.lever.co/acme. Boards on Greenhouse or Lever work best.</i>")
+    chips = [_btn(_short(f"✕ {src.label}", 28), "wd", src.id) for src in sources]
+    rows = [chips[i:i + 2] for i in range(0, len(chips), 2)]
+    rows.append([_btn("➕ Add a link", "wa")])
+    rows.append([_btn("⏳ Scan running…" if is_running() else "▶ Scan now", "wn"),
+                 _btn("▶ Resume daily scan" if watchlist.scan_paused() else "⏸ Pause daily scan", "wp")])
+    rows.append([_btn("⬅ Back to profile", "l")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -252,6 +288,8 @@ async def xp_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             screen = skill_category_screen(int(args[0]), notice=notice)
         elif action.startswith("c"):
             screen = contact_screen(notice=notice)
+        elif action.startswith("w"):
+            screen = watchlist_screen(notice=notice)
         elif len(args) >= 2 and args[0] in editor.KINDS:
             screen = entry_screen(args[0], args[1], notice=notice)
         else:
@@ -275,6 +313,22 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return skills_screen()
     if action == "n":
         return add_menu_screen()
+    if action == "w":
+        return watchlist_screen()
+    if action == "wa":
+        return _prompt(context, "➕ <b>Add a link to watch</b>\n\nSend a career page or a job-board link, for example "
+                       "https://boards.greenhouse.io/acme or https://jobs.lever.co/acme.", ("w",), action="source")
+    if action == "wd":
+        gone = watchlist.remove_source(int(args[0]))
+        return watchlist_screen(notice="✕ Removed." if gone else "That one was already gone.")
+    if action == "wp":
+        watchlist.set_setting("scan_paused", "0" if watchlist.scan_paused() else "1")
+        return watchlist_screen(notice="⏸ The daily scan is paused." if watchlist.scan_paused() else "▶ The daily scan is on again.")
+    if action == "wn":
+        from bot.scanner import start_scan_now
+        started = start_scan_now(context.application, query.message.chat_id)
+        return watchlist_screen(notice="▶ Scan started. Watch it on the dashboard; resumes arrive here as they're ready."
+                                if started else "A scan is already running.")
 
     if action == "ce":
         label = dict(editor.CONTACT_FIELDS).get(args[0])
@@ -385,6 +439,12 @@ async def _apply_answer(msg, wait: dict, text: str) -> Screen:
         notice = ("✅ Added: " + _h(", ".join(added)) if added else "") + \
                  (("\n" if added else "") + "ℹ️ Already there: " + _h(", ".join(already)) if already else "")
         return skill_category_screen(wait["index"], notice=notice)
+    if action == "source":
+        try:
+            src = watchlist.add_source(text)
+        except watchlist.SourceError as err:
+            raise EditError(str(err))
+        return watchlist_screen(notice=f"✅ Added {_h(src.label)}.")
     if action == "new":
         await msg.reply_text("⏳ Reading that and saving it…")
         kind, ref, notice = await asyncio.to_thread(create_from_description, wait["kind"], text)

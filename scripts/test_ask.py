@@ -114,6 +114,15 @@ async def main():
     await ask.ask_text_handler(update, None)   # must not raise
     print("F ok: stale taps and unrelated text ignored")
 
+    # I2. two questions: the second one gets its own "asking you" event (the dashboard needs it to draw the arrow)
+    bot, ans, evs = await ask_with([("tap", 1), ("tap", 1)], ["Kafka", "Redis"])
+    asks = [e for e in evs if e["kind"] == "ask"]
+    assert len(asks) == 1 and asks[0]["data"]["skills"] == ["Redis"] and asks[0]["data"]["index"] == 1 and "Redis" in asks[0]["say"], asks
+    assert len([1 for _, k in bot.sent if k]) == 2, "both questions were sent"
+    bot, ans, evs = await ask_with([None], ["Kafka", "Redis"])            # no answer to the first: the second is never asked, so no event
+    assert not [e for e in evs if e["kind"] == "ask"]
+    print("I2 ok: the second question has its own event; none if the first got no answer")
+
     # J. Scout asks the user to paste the job description when no route could read the page
     long_text = "Software Engineer Intern. Build Python services. " * 6
     bot = FakeBot([("type_many", ["ok", "https://x.com/another-job", long_text])])

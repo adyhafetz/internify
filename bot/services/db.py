@@ -40,6 +40,32 @@ def init_db() -> None:
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_job_link ON applications(job_link)")
+        # The morning scan: where to look, what it has already seen, and its settings
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS watch_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT UNIQUE NOT NULL,
+                kind TEXT NOT NULL,              -- greenhouse | lever | page
+                ident TEXT DEFAULT '',           -- board / company name for the job-board kinds
+                label TEXT DEFAULT '',
+                auto INTEGER DEFAULT 0,          -- 1 = found from the jobs you already sent
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_checked TIMESTAMP,
+                last_status TEXT DEFAULT ''
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS seen_jobs (
+                url TEXT PRIMARY KEY,
+                title TEXT DEFAULT '',
+                company TEXT DEFAULT '',
+                status TEXT DEFAULT 'new',       -- new | low-fit | shortlisted | tailored | failed | rejected
+                fit REAL DEFAULT 0.0,
+                reason TEXT DEFAULT '',
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         conn.commit()
     logger.info("Initialized SQLite database at %s", DB_PATH)
 
@@ -164,3 +190,16 @@ def get_recent_applications(limit: int = 10) -> list[dict]:
         )
         return [dict(row) for row in cur.fetchall()]
 
+
+
+def recent_job_texts(limit: int = 15) -> list[str]:
+    """Title and summary of the jobs you sent most recently: what you tend to go for."""
+    with _get_connection() as conn:
+        cur = conn.execute(
+            "SELECT job_title, company, job_description FROM applications ORDER BY id DESC LIMIT ?", (limit,))
+        return [f"{r['job_title']} at {r['company']}. {(r['job_description'] or '')[:240]}".strip() for r in cur.fetchall()]
+
+
+def application_links() -> list[str]:
+    with _get_connection() as conn:
+        return [r["job_link"] for r in conn.execute("SELECT job_link FROM applications WHERE job_link != ''").fetchall()]
