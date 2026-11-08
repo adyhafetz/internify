@@ -110,6 +110,11 @@ def create_bot_app():
 
 
 def main():
+    from service import config as _ai
+    if _ai.AI_PROVIDER == "gemini" and any(m.lower().startswith(("gpt-", "text-embedding-3")) for m in
+                                           (_ai.EXTRACTOR_MODEL, _ai.CRITIC_MODEL, _ai.GENERATOR_MODEL, _ai.EMBEDDING_MODEL)):
+        logger.error("AI_PROVIDER is gemini but an AI model in .env is an OpenAI model. Every AI call will fail. "
+                     "Run the setup page again (./setup.sh or setup.bat) and choose Gemini, so it picks Gemini models for you.")
     if not config.ALLOWED_USER_IDS:
         logger.warning("TELEGRAM_ALLOWED_USER_IDS is empty: anyone who finds your bot can use it and spend your OpenAI credit. "
                        "Add your Telegram user ID to .env.")

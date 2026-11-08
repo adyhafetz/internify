@@ -51,6 +51,14 @@ def pick_openai_models(available: set[str]) -> dict[str, str]:
 _SKIP = re.compile(r"image|tts|live|audio|vision|robotics|computer|thinking|exp|latest|learnlm|gemma|aqa", re.I)
 
 
+def looks_openai(model: str) -> bool:
+    return bool(re.match(r"(gpt-|o\d|chatgpt|text-embedding-3|text-embedding-ada)", model.lower()))
+
+
+def looks_gemini(model: str) -> bool:
+    return bool(re.match(r"(gemini|models/gemini|text-embedding-004|embedding-001)", model.lower()))
+
+
 def _version(name: str) -> tuple:
     m = re.search(r"gemini-(\d+(?:\.\d+)*)", name)
     return tuple(int(x) for x in m.group(1).split(".")) if m else (0,)
@@ -231,12 +239,18 @@ def save(s: Settings):
         ZoneInfo(s.scan_timezone.strip())
     except Exception:
         return _fail("I don't know that timezone. Use a name like Asia/Kuala_Lumpur.")
+    models = {k: s.models.get(k, "").strip() for k in ("EXTRACTOR_MODEL", "CRITIC_MODEL", "GENERATOR_MODEL", "EMBEDDING_MODEL")}
+    if s.provider == "gemini":
+        # Gemini cannot answer to an OpenAI model name, so never save one (or an empty one) for it.
+        if not all(models.values()) or any(looks_openai(m) for m in models.values()):
+            return _fail("I need Gemini model names. Go back to step 1 and press “Check key” again, and I'll choose them for you.")
+    else:
+        # The reverse too: OpenAI cannot answer to a Gemini model name. Use the usual choices instead.
+        fixed = pick_openai_models(set())
+        models = {k: (fixed[k] if (not v or looks_gemini(v)) else v) for k, v in models.items()}
     values: dict[str, str] = {"AI_PROVIDER": s.provider, key_name: ai_key, "TELEGRAM_BOT_TOKEN": token,
                               "TELEGRAM_ALLOWED_USER_IDS": ids, "SCAN_TIME": s.scan_time.strip(), "SCAN_TIMEZONE": s.scan_timezone.strip()}
-    for k in ("EXTRACTOR_MODEL", "CRITIC_MODEL", "GENERATOR_MODEL", "EMBEDDING_MODEL"):
-        v = s.models.get(k, "").strip()
-        if v:
-            values[k] = v
+    values.update(models)
     if s.scrapingant_key.strip():
         values["SCRAPINGANT_API_KEY"] = s.scrapingant_key.strip()
     if s.contact_email.strip():

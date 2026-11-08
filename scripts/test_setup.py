@@ -113,8 +113,19 @@ r = save(ai_key="", telegram_token="", user_id=""); assert r["ok"]
 assert envfile.read_env(env_path)["OPENAI_API_KEY"] == "sk-live-1"
 st = c.get("/api/state").json()
 assert st["has"]["OPENAI_API_KEY"] and st["has"]["TELEGRAM_BOT_TOKEN"] and "sk-live-1" not in json.dumps(st), "the page is told what is set, never the secrets"
-r = save(provider="gemini", ai_key="AIza-g", models={"EXTRACTOR_MODEL": "gemini-2.5-flash-lite"}); assert r["ok"]
+r = save(provider="gemini", ai_key="AIza-g", models={"EXTRACTOR_MODEL": "gemini-2.5-flash-lite", "CRITIC_MODEL": "gemini-2.5-flash", "GENERATOR_MODEL": "gemini-2.5-flash", "EMBEDDING_MODEL": "gemini-embedding-001"}); assert r["ok"]
 assert envfile.read_env(env_path)["AI_PROVIDER"] == "gemini" and envfile.read_env(env_path)["GEMINI_API_KEY"] == "AIza-g"
+# G: a model name from the wrong service is never saved
+r = save(provider="gemini", ai_key="AIza-g", models={"EXTRACTOR_MODEL": "gpt-5.4-nano", "CRITIC_MODEL": "gpt-5.4-mini", "GENERATOR_MODEL": "gpt-5.4-mini", "EMBEDDING_MODEL": "text-embedding-3-small"})
+assert not r["ok"] and "Gemini model names" in r["message"], r
+r = save(provider="gemini", ai_key="AIza-g", models={}); assert not r["ok"], "no models for Gemini: asks you to check the key again"
+r = save(provider="openai", ai_key="sk-back", models={"EXTRACTOR_MODEL": "gemini-2.5-flash-lite", "CRITIC_MODEL": "gemini-2.5-flash", "GENERATOR_MODEL": "gemini-2.5-flash", "EMBEDDING_MODEL": "gemini-embedding-001"})
+got = envfile.read_env(env_path)
+assert r["ok"] and got["AI_PROVIDER"] == "openai" and got["EXTRACTOR_MODEL"] == "gpt-5.4-nano" and got["EMBEDDING_MODEL"] == "text-embedding-3-small", got
+r = save(provider="gemini", ai_key="AIza-g", models={"EXTRACTOR_MODEL": "gemini-2.5-flash-lite", "CRITIC_MODEL": "gemini-2.5-flash", "GENERATOR_MODEL": "gemini-2.5-flash", "EMBEDDING_MODEL": "gemini-embedding-001"})
+got = envfile.read_env(env_path)
+assert r["ok"] and got["GENERATOR_MODEL"] == "gemini-2.5-flash" and got["EMBEDDING_MODEL"] == "gemini-embedding-001"
+print("G ok: switching service never leaves the other service's model names behind")
 stopped = []
 server.state["finish"] = lambda: stopped.append(1)
 assert c.post("/api/finish").json()["ok"] and stopped and server.state["done"]
