@@ -85,7 +85,8 @@ def apply_resume(parsed, mode: str) -> ImportReport:
     was_sample = profile_is_sample()
 
     if mode == "replace":
-        report.backup_dir = backup_current()
+        if not was_sample:   # the sample profile is not worth keeping, so there is nothing to tell you about
+            report.backup_dir = backup_current()
         _clear_everything()
 
     # Contact details. Replacing (or still on the sample profile) sets every field, including empty ones, so no

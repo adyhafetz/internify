@@ -1,7 +1,7 @@
 """Send the bot your current resume (PDF, Word or text) and it fills in your saved experience for you.
 
 Flow: file -> read text -> AI structures it -> a preview of what was found -> you choose Replace / Add / Cancel.
-Nothing is saved until you tap a button, and Replace keeps a backup. /profile stays
+Nothing is saved until you tap a button, and Replacing a real profile keeps a backup. /profile stays
 available for fixing or adding anything afterwards."""
 from __future__ import annotations
 
