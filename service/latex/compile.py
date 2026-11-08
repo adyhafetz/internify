@@ -35,6 +35,20 @@ class TexCompileError(Exception):
         self.tex_source = tex_source
 
 
+_HONOR_LABEL = re.compile(r"^\s*(honou?rs?|awards?)\s*:\s*", re.I)
+
+
+def _honors_line(items: list[str]) -> str:
+    """All honors on ONE line, "Honors: Dean's List, Vice Chancellor's Award", whether they were saved as one item
+    or several, and whether or not the saved text already starts with a label."""
+    parts = [_HONOR_LABEL.sub("", i).strip().rstrip(".;,") for i in items if i.strip()]
+    parts = [p for p in parts if p]
+    if not parts:
+        return ""
+    sep = "; " if len(parts) > 1 and any("," in p for p in parts) else ", "
+    return "Honors: " + sep.join(parts)
+
+
 def _get_jinja_env(template_dir: str) -> Environment:
     return Environment(
         loader=FileSystemLoader(template_dir),
@@ -86,8 +100,9 @@ def render_tex(
         edu_courses = resume.selected_courses.get(edu.id, [])
         if edu_courses:
             bullets.append(escape_latex(f"Relevant Courses: {', '.join(edu_courses)}"))
-        for b in edu.honor_bullets:
-            bullets.append(escape_latex(b))
+        honors = _honors_line(edu.honor_bullets)
+        if honors:
+            bullets.append(escape_latex(honors))
         education.append({
             "institution": escape_latex(edu.institution),
             "location": escape_latex(edu.location),
@@ -108,6 +123,7 @@ def render_tex(
         }
         for exp in skeleton.experience_entries
     ]
+    experience = [e for e in experience if e["bullets"]]   # an entry with nothing to say for this job is left out
 
     projects = [
         {
@@ -120,6 +136,7 @@ def render_tex(
         }
         for proj in skeleton.project_entries
     ]
+    projects = [p for p in projects if p["bullets"]]
 
     leadership = [
         {
@@ -133,10 +150,10 @@ def render_tex(
     ]
 
     # Use LLM-selected skills; fall back to full master list if the LLM returned nothing.
-    skills_source = resume.selected_skills if resume.selected_skills else skeleton.skills
+    skills_source = resume.selected_skills if any(resume.selected_skills.values()) else skeleton.skills
     skills = {
         escape_latex(category): [escape_latex(item) for item in items]
-        for category, items in skills_source.items()
+        for category, items in skills_source.items() if items
     }
 
     return template.render(
