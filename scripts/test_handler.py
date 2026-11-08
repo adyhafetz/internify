@@ -33,6 +33,7 @@ def fake_sheet_update(*a, **kw): calls["sheet_update"] += 1
 jobflow.scrape_job_url, jobflow.normalize_job_posting, jobflow.run_pipeline = fake_scrape, fake_norm, fake_process
 jobflow.find_row_by_url, jobflow.append_application, jobflow.update_application_status = fake_find, fake_append, fake_sheet_update
 jobflow.upload_to_drive = lambda path, name: "https://drive.google.com/x?a=1&b=2"
+jobflow.profile_is_sample = lambda: False   # a real profile is saved (the sample-profile guard is tested at the end)
 
 
 class Msg:
@@ -135,4 +136,10 @@ last = d.edits[-1]
 assert "Your saved experience is empty" in last and "500:" not in last, last
 assert db.get_recent_applications(limit=1)[0]["status"] == "Failed"
 print("run 4 ok:", last.replace("\n", " "))
+# 5. a fresh install still holds the made-up sample profile: no resume is written from it
+jobflow.profile_is_sample = lambda: True
+jobflow.run_pipeline = lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not write a resume from the sample profile"))
+e = run("https://x.com/jobs/4")
+assert "still the sample profile" in e.edits[-1] and "/importresume" in e.edits[-1] and not e.docs, e.edits[-1]
+print("run 5 ok: sample profile -> asks you to send your resume first")
 print("\n✅ handler test passed")

@@ -16,6 +16,7 @@ from bot.services import watchlist
 from bot.services.db import is_duplicate_url
 from bot.services.discovery import discover
 from bot.services.matcher import match
+from service.importer import profile_is_sample
 from service import events
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,9 @@ def _digest(s: ScanSummary) -> str:
 
 
 async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
+    if profile_is_sample():
+        s.note = "I can't write resumes yet: your saved experience is still the sample profile. Send me your resume first (/importresume)."
+        return
     await asyncio.to_thread(watchlist.sources_from_history)
     sources = watchlist.list_sources()
     s.sources = len(sources)

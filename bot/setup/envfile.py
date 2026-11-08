@@ -45,6 +45,11 @@ def write_env(path: str, template: str, values: dict[str, str]) -> None:
     lines: list[str] = []
     if os.path.exists(path) and os.path.getsize(path) > 0:
         shutil.copyfile(path, path + ".bak")
+        try:   # when run as root inside Docker, the backup should still belong to whoever owns .env
+            st = os.stat(path)
+            os.chown(path + ".bak", st.st_uid, st.st_gid)
+        except (AttributeError, OSError):
+            pass
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
     elif os.path.exists(template):

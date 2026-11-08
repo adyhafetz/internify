@@ -96,6 +96,7 @@ async def fake_tailor(url, reporter, *, bot, chat_id, loop, interactive, intro="
     await (reporter.finished(out) if out.ok else reporter.fail("❌ boom"))
     return out
 scanner.tailor_job = fake_tailor
+scanner.profile_is_sample = lambda: False
 
 LOG = []
 _emit, _emit_run = events.emit, events.emit_run
@@ -134,6 +135,11 @@ async def twice():
     r = await scanner.run_scan(Bot(), 1); scanner._running = False; return r
 assert asyncio.run(twice()) is None
 print("S ok: one scan at a time")
+
+# a fresh install still holds the made-up sample profile: the daily check refuses to write resumes from it
+scanner.profile_is_sample = lambda: True
+b, s, _ = scan(); assert "sample profile" in b.sent[-1] and not tailored[len(tailored):], b.sent[-1]
+scanner.profile_is_sample = lambda: False
 
 # schedule
 class JQ:

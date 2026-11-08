@@ -21,6 +21,7 @@ from bot.services.drive import upload_to_drive
 from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
 from bot.services.sheets import append_application, find_row_by_url, update_application_status
 from service import events
+from service.importer import profile_is_sample
 from service.pipeline import run_pipeline
 from service.models import ProcessRequest
 
@@ -90,6 +91,11 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
     async def fail(text: str) -> JobOutcome:
         await reporter.fail(text)
         return JobOutcome(ok=False, error=text)
+
+    # 0. A fresh install holds a made-up sample profile. A resume built from it would be fiction, so stop here.
+    if profile_is_sample():
+        return await fail("📄 Your saved experience is still the sample profile, so I can't write a real resume yet.\n"
+                          "Send me your current resume first (PDF or Word file, or use /importresume), then send the job link again.")
 
     # 1. Already in the tracker? One Sheet lookup answers both "is it a repeat" and "which row".
     sheet_row = await asyncio.to_thread(find_row_by_url, job_url)
