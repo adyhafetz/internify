@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from service import config
+from service.fact_store.store import ensure_data_file
 from service.profile_data import (
     SKILL_CATEGORIES,
     AddEducationRequest,
@@ -53,6 +54,8 @@ def backup_current() -> str:
     """Copy the saved profile and bullet points aside, so a replace can be undone by hand."""
     folder = os.path.join(os.path.dirname(config.FACT_STORE_PATH), "backups", time.strftime("%Y%m%d-%H%M%S"))
     os.makedirs(folder, exist_ok=True)
+    ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")   # a fresh install has not created these yet
+    ensure_data_file(config.FACT_STORE_PATH, "facts.json")
     for path in (config.SKELETON_PATH, config.FACT_STORE_PATH):
         shutil.copy2(path, os.path.join(folder, os.path.basename(path)))
     return folder

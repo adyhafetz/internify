@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 import re
 from datetime import datetime
 from typing import Literal, get_args
@@ -51,6 +52,7 @@ def _load_skeleton_raw() -> dict:
 
 
 def _save_skeleton_raw(data: dict) -> None:
+    os.makedirs(os.path.dirname(config.SKELETON_PATH) or ".", exist_ok=True)
     with open(config.SKELETON_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -62,6 +64,7 @@ def _load_facts_raw() -> list[dict]:
 
 
 def _save_facts_raw(data: list[dict]) -> None:
+    os.makedirs(os.path.dirname(config.FACT_STORE_PATH) or ".", exist_ok=True)
     with open(config.FACT_STORE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 

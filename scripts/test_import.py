@@ -227,4 +227,17 @@ assert _store.load_facts(_target), "a fresh install starts from the sample"
 assert os.path.exists(_target)
 open(_target, "w").write("[]"); assert _store.load_facts(_target) == [], "an existing file is never overwritten"
 print("F1 ok: saved experience is created in the data folder from the sample, and never overwritten")
+
+# F2 the very first import on a fresh install: no data files exist yet (only the sample ships with the code)
+import service.config as _c, service.importer as _imp
+_old = (_c.FACT_STORE_PATH, _c.SKELETON_PATH)
+_fresh = os.path.join(tempfile.mkdtemp(), "output", "data")            # does not exist yet
+_c.FACT_STORE_PATH, _c.SKELETON_PATH = os.path.join(_fresh, "facts.json"), os.path.join(_fresh, "resume_skeleton.json")
+assert _imp.profile_is_sample(), "a fresh install starts as the sample profile"
+folder = _imp.backup_current()                                           # used to fail: No such file 'output/data/facts.json'
+assert os.path.exists(os.path.join(folder, "facts.json")) and os.path.exists(os.path.join(folder, "resume_skeleton.json"))
+_gone = os.path.join(tempfile.mkdtemp(), "a", "b"); _c.FACT_STORE_PATH = os.path.join(_gone, "facts.json")
+from service.profile_data import _save_facts_raw; _save_facts_raw([]); assert os.path.exists(_c.FACT_STORE_PATH), "saving creates the folder"
+_c.FACT_STORE_PATH, _c.SKELETON_PATH = _old
+print("F2 ok: the first import on a fresh install no longer fails on missing data files")
 print("\n✅ import test passed")
