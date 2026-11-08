@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Don't write .pyc files: the project folders are mounted from the host, and root-owned cache files there
+# make them impossible to delete without sudo.
+ENV PYTHONDONTWRITEBYTECODE=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates qpdf \
     && rm -rf /var/lib/apt/lists/*
@@ -22,5 +26,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY service ./service
 COPY bot ./bot
 
-EXPOSE 8000
-CMD ["uvicorn", "service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8080
+CMD ["python", "-m", "bot.main"]

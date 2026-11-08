@@ -7,52 +7,20 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 from bot import config
 from bot.handlers.common import start_command, help_command, cancel_command
-from bot.handlers.profile import (
-    myprofile_command,
-    get_profile_conversation_handler,
-    profile_button_callback,
-)
-from bot.handlers.education import (
-    listeducation_command,
-    get_education_conversation_handler,
-    delete_education_command,
-    delete_education_callback,
-    add_course_command,
-    delete_course_command,
-)
-from bot.handlers.experience import (
-    get_experience_conversation_handler,
-    delete_experience_command,
-    delete_experience_callback,
-)
-from bot.handlers.project import (
-    get_project_conversation_handler,
-    delete_project_command,
-    delete_project_callback,
-)
-from bot.handlers.leadership import (
-    get_leadership_conversation_handler,
-    delete_leadership_command,
-    delete_leadership_callback,
-)
-from bot.handlers.skills import (
-    listskills_command,
-    get_skills_conversation_handler,
-    delete_skill_command,
-)
-from bot.handlers.facts import (
-    listentries_command,
-    listfacts_command,
-    get_facts_conversation_handler,
-    delete_fact_command,
-)
+from bot.handlers.profile_hub import profile_command, xp_callback, xp_text_handler
 from bot.services.db import init_db
 from bot.handlers.resume import master_resume_command
 from bot.handlers.job import get_job_url_handler, history_command
+from telegram.request import HTTPXRequest
+from bot.telegram_safe import SafeBot
+from bot.ask import ask_callback, ask_text_handler
+from bot.handlers.importresume import importresume_command, resume_document_handler, import_callback
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -74,41 +42,28 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def post_init(application) -> None:
+    # The slash menu. Everything on your resume is behind /profile (including adding things).
     commands = [
-        BotCommand("start", "Welcome & quick overview"),
-        BotCommand("history", "View recent job applications"),
-        BotCommand("resume", "Compile full master resume PDF"),
-        BotCommand("myprofile", "View & edit contact info"),
-        BotCommand("setname", "Update your full name"),
-        BotCommand("setphone", "Update your phone number"),
-        BotCommand("setemail", "Update your email address"),
-        BotCommand("setlinkedin", "Update your LinkedIn URL"),
-        BotCommand("setgithub", "Update your GitHub URL"),
-        BotCommand("listeducation", "View education entries"),
-        BotCommand("addeducation", "Add education entry"),
-        BotCommand("deleteeducation", "Delete an education entry"),
-        BotCommand("addcourse", "Add course to education"),
-        BotCommand("deletecourse", "Remove a course"),
-        BotCommand("addexperience", "Add work experience / internship"),
-        BotCommand("deleteexperience", "Delete experience entry"),
-        BotCommand("addproject", "Add project"),
-        BotCommand("deleteproject", "Delete project"),
-        BotCommand("addleadership", "Add leadership / activity"),
-        BotCommand("deleteleadership", "Delete leadership entry"),
-        BotCommand("listskills", "View skills by category"),
-        BotCommand("addskill", "Add new skills"),
-        BotCommand("deleteskill", "Delete a skill"),
-        BotCommand("listentries", "View all resume entry IDs"),
-        BotCommand("listfacts", "View fact bullets for an entry"),
-        BotCommand("updatefact", "Edit a specific bullet"),
-        BotCommand("deletefact", "Delete a fact bullet"),
-        BotCommand("cancel", "Abort current prompt"),
+        BotCommand("profile", "See and edit everything on your resume"),
+        BotCommand("importresume", "Fill it in from your current resume (PDF or Word)"),
+        BotCommand("history", "Jobs you've applied to"),
+        BotCommand("resume", "Download your general resume (PDF)"),
+        BotCommand("help", "Everything I can do"),
+        BotCommand("cancel", "Stop the current step"),
     ]
     try:
         await application.bot.set_my_commands(commands)
-        logger.info("Successfully registered bot command menu with Telegram.")
+        # Shown on the empty chat screen, before the user has typed anything: tells them the main action.
+        await application.bot.set_my_short_description("Send me a job link and I'll write a 1-page resume from your real experience.")
+        await application.bot.set_my_description(
+            "Send me a job link and I'll write a 1-page resume tailored to that job, using only your real experience, "
+            "and send you the PDF.\n\nFirst, tap Start and send me your current resume file so I know your experience.")
+        logger.info("Successfully registered the bot's command menu and description with Telegram.")
     except Exception as e:
-        logger.warning("Could not set bot commands automatically: %s", e)
+        logger.warning("Could not set the bot's menu or description automatically: %s", e)
+    from bot import scanner
+    when = scanner.schedule(application)
+    logger.info("Daily job check: %s", when or "off")
 
 
 def create_bot_app():
@@ -116,51 +71,34 @@ def create_bot_app():
         logger.error("TELEGRAM_BOT_TOKEN is not set in environment or .env file!")
         sys.exit(1)
 
-    app = (
-        ApplicationBuilder()
-        .token(config.TELEGRAM_BOT_TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(60.0)
-        .pool_timeout(30.0)
-        .post_init(post_init)
-        .build()
+    # SafeBot converts the Markdown-style messages to safe HTML, so names or bullet points containing _ * [ can
+    # never make Telegram reject a message ("Can't parse entities").
+    bot = SafeBot(
+        token=config.TELEGRAM_BOT_TOKEN,
+        request=HTTPXRequest(connect_timeout=30.0, read_timeout=30.0, write_timeout=60.0, pool_timeout=30.0),
     )
+    app = ApplicationBuilder().bot(bot).post_init(post_init).build()
 
-    # Conversation Handlers (FSM: /setname, /addexperience, etc.)
-    app.add_handler(get_profile_conversation_handler())
-    app.add_handler(get_education_conversation_handler())
-    app.add_handler(get_experience_conversation_handler())
-    app.add_handler(get_project_conversation_handler())
-    app.add_handler(get_leadership_conversation_handler())
-    app.add_handler(get_skills_conversation_handler())
-    app.add_handler(get_facts_conversation_handler())
-
-    # Standalone Commands
+    # Standalone commands
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("cancel", cancel_command))
-    app.add_handler(CommandHandler("myprofile", myprofile_command))
-    app.add_handler(CommandHandler("listeducation", listeducation_command))
-    app.add_handler(CommandHandler("deleteeducation", delete_education_command))
-    app.add_handler(CommandHandler("addcourse", add_course_command))
-    app.add_handler(CommandHandler("deletecourse", delete_course_command))
-    app.add_handler(CommandHandler("deleteexperience", delete_experience_command))
-    app.add_handler(CommandHandler("deleteproject", delete_project_command))
-    app.add_handler(CommandHandler("deleteleadership", delete_leadership_command))
-    app.add_handler(CommandHandler("listskills", listskills_command))
-    app.add_handler(CommandHandler("deleteskill", delete_skill_command))
-    app.add_handler(CommandHandler("listentries", listentries_command))
-    app.add_handler(CommandHandler("listfacts", listfacts_command))
-    app.add_handler(CommandHandler("deletefact", delete_fact_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
-    # Inline Keyboard Button Callbacks (Delete confirmations)
-    app.add_handler(CallbackQueryHandler(delete_education_callback, pattern=r"^del_edu:"))
-    app.add_handler(CallbackQueryHandler(delete_experience_callback, pattern=r"^del_exp:"))
-    app.add_handler(CallbackQueryHandler(delete_project_callback, pattern=r"^del_proj:"))
-    app.add_handler(CallbackQueryHandler(delete_leadership_callback, pattern=r"^del_lead:"))
+    # Everything on your resume, by tapping: one command, no shortcuts.
+    app.add_handler(CommandHandler("profile", profile_command))
+    app.add_handler(CallbackQueryHandler(xp_callback, pattern=r"^xp:"))
+
+    # Import an existing resume: /importresume, then send the file; buttons confirm before anything is saved
+    app.add_handler(CommandHandler("importresume", importresume_command))
+    app.add_handler(MessageHandler(filters.Document.ALL, resume_document_handler, block=False))
+    app.add_handler(CallbackQueryHandler(import_callback, pattern=r"^imp:"))
+
+    # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
+    app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-2)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, xp_text_handler), group=-1)
 
     # Job URL Scrape & Tailor Ingestion Handler
     app.add_handler(get_job_url_handler())
@@ -172,8 +110,23 @@ def create_bot_app():
 
 
 def main():
+    from service import config as _ai
+    if _ai.AI_PROVIDER == "gemini" and any(m.lower().startswith(("gpt-", "text-embedding-3")) for m in
+                                           (_ai.EXTRACTOR_MODEL, _ai.CRITIC_MODEL, _ai.GENERATOR_MODEL, _ai.EMBEDDING_MODEL)):
+        logger.error("AI_PROVIDER is gemini but an AI model in .env is an OpenAI model. Every AI call will fail. "
+                     "Run the setup page again (./setup.sh or setup.bat) and choose Gemini, so it picks Gemini models for you.")
+    if not config.ALLOWED_USER_IDS:
+        logger.warning("TELEGRAM_ALLOWED_USER_IDS is empty: anyone who finds your bot can use it and spend your OpenAI credit. "
+                       "Add your Telegram user ID to .env.")
     logger.info("Initializing database...")
     init_db()
+    if config.DASHBOARD_ENABLED:
+        from bot.dashboard.server import start_dashboard
+        start_dashboard(config.DASHBOARD_HOST, config.DASHBOARD_PORT)
+    # Say plainly whether Google Drive/Sheets are connected (in the background; never blocks or stops the bot).
+    import threading
+    from bot.services.google_check import check_google_setup
+    threading.Thread(target=check_google_setup, name="google-check", daemon=True).start()
     logger.info("Starting Internify Telegram Bot runner...")
     app = create_bot_app()
     app.run_polling(allowed_updates=Update.ALL_TYPES)

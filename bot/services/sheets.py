@@ -1,6 +1,5 @@
 from __future__ import annotations
 import logging
-import os
 from typing import Optional
 from bot import config
 from bot.services.google_auth import get_google_credentials
@@ -45,23 +44,23 @@ def _get_worksheet():
         return None
 
 
-def is_duplicate_job(job_url: str) -> bool:
-    """Checks if the given job URL is already logged in the tracker sheet."""
+def find_row_by_url(job_url: str) -> Optional[int]:
+    """Returns the sheet row number already holding this job link, or None."""
     ws = _get_worksheet()
     if not ws:
-        return False
+        return None
     try:
-        # Find header column index for 'Job Link'
         headers = ws.row_values(1)
         if "Job Link" not in headers:
-            return False
+            return None
         col_idx = headers.index("Job Link") + 1
-        existing_urls = ws.col_values(col_idx)[1:]  # Skip header
-        clean_target = job_url.strip().lower()
-        return any(clean_target == u.strip().lower() for u in existing_urls if u)
+        target = job_url.strip().lower()
+        for i, u in enumerate(ws.col_values(col_idx)[1:], start=2):  # row 1 is the header
+            if u and u.strip().lower() == target:
+                return i
     except Exception as e:
-        logger.warning("Error checking duplicate in Google Sheet: %s", e)
-        return False
+        logger.warning("Error locating existing row in Google Sheet: %s", e)
+    return None
 
 
 def append_application(

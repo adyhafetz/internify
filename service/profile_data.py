@@ -1,18 +1,20 @@
 from __future__ import annotations
 import json
+import os
 import re
 from datetime import datetime
 from typing import Literal, get_args
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from service import config
-from service.fact_store.store import _load_cache, _save_cache
+from service.fact_store.store import _load_cache, _save_cache, ensure_data_file
 from service.latex.compile import compile_tex
 from service.models import GeneratedResume, ResumeBullet, ResumeSkeleton
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+
+class NotFound(LookupError):
+    """Something the caller asked for isn't saved. The message is plain language."""
 
 
 # ---------- Fixed skill categories (locked — cannot be extended via the API) ----------
@@ -44,21 +46,25 @@ def _unique_id(base_id: str, existing: set[str]) -> str:
 
 
 def _load_skeleton_raw() -> dict:
+    ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")
     with open(config.SKELETON_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_skeleton_raw(data: dict) -> None:
+    os.makedirs(os.path.dirname(config.SKELETON_PATH) or ".", exist_ok=True)
     with open(config.SKELETON_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def _load_facts_raw() -> list[dict]:
+    ensure_data_file(config.FACT_STORE_PATH, "facts.json")
     with open(config.FACT_STORE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_facts_raw(data: list[dict]) -> None:
+    os.makedirs(os.path.dirname(config.FACT_STORE_PATH) or ".", exist_ok=True)
     with open(config.FACT_STORE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -181,48 +187,14 @@ class UpdateFactRequest(BaseModel):
     tech_tags: list[str] = Field(default_factory=list)
 
 
-# ---------- Endpoints ----------
+# ---------- Saving and removing resume data ----------
 
-@router.get("/skill-categories")
-def get_skill_categories() -> dict:
-    """Returns the fixed list of skill categories."""
-    return {"categories": list(SKILL_CATEGORIES)}
-
-
-@router.get("/skeleton/skills")
 def get_skills() -> dict:
     """Returns the full master skills list grouped by category."""
     skeleton = _load_skeleton_raw()
     return {"skills": skeleton["skills"]}
 
 
-@router.get("/skeleton/entries")
-def get_entries() -> dict:
-    """Returns all experience, project, and leadership entries with their IDs."""
-    skeleton = _load_skeleton_raw()
-    return {
-        "experience_entries": skeleton["experience_entries"],
-        "project_entries": skeleton["project_entries"],
-        "leadership": [
-            {"title": e["title"], "org": e["org"], "dates": e["dates"]}
-            for e in skeleton["leadership"]
-        ],
-    }
-
-
-@router.get("/facts")
-def get_facts(entry_id: str | None = None) -> dict:
-    """
-    Returns all fact bullets. Pass ?entry_id=exp_ranhill to filter by entry.
-    Use GET /admin/skeleton/entries first to find valid entry ids.
-    """
-    facts = _load_facts_raw()
-    if entry_id:
-        facts = [f for f in facts if f["entry_id"] == entry_id]
-    return {"facts": facts, "count": len(facts)}
-
-
-@router.post("/skeleton/project", response_model=AdminResponse)
 def add_project(req: AddProjectRequest) -> AdminResponse:
     skeleton = _load_skeleton_raw()
     facts = _load_facts_raw()
@@ -264,7 +236,6 @@ def add_project(req: AddProjectRequest) -> AdminResponse:
     )
 
 
-@router.post("/skeleton/experience", response_model=AdminResponse)
 def add_experience(req: AddExperienceRequest) -> AdminResponse:
     skeleton = _load_skeleton_raw()
     facts = _load_facts_raw()
@@ -307,7 +278,6 @@ def add_experience(req: AddExperienceRequest) -> AdminResponse:
     )
 
 
-@router.post("/skeleton/leadership", response_model=AdminResponse)
 def add_leadership(req: AddLeadershipRequest) -> AdminResponse:
     skeleton = _load_skeleton_raw()
 
@@ -331,7 +301,6 @@ def add_leadership(req: AddLeadershipRequest) -> AdminResponse:
     )
 
 
-@router.put("/skeleton/skills", response_model=AdminResponse)
 def add_skills(req: AddSkillsRequest) -> AdminResponse:
     """
     Explicitly add skills to a fixed category.
@@ -353,7 +322,6 @@ def add_skills(req: AddSkillsRequest) -> AdminResponse:
     )
 
 
-@router.post("/facts", response_model=AdminResponse)
 def add_fact_to_entry(entry_id: str, req: NewFactBullet) -> AdminResponse:
     """Add a single extra fact bullet to an existing experience or project entry."""
     skeleton = _load_skeleton_raw()
@@ -364,7 +332,7 @@ def add_fact_to_entry(entry_id: str, req: NewFactBullet) -> AdminResponse:
     all_entry_ids = all_exp_ids | all_proj_ids
 
     if entry_id not in all_entry_ids:
-        raise HTTPException(status_code=404, detail=f"Entry id '{entry_id}' not found in skeleton.")
+        raise NotFound(f"Entry id '{entry_id}' not found in skeleton.")
 
     section = "experience" if entry_id in all_exp_ids else "project"
     existing_fact_ids = {f["id"] for f in facts}
@@ -388,14 +356,13 @@ def add_fact_to_entry(entry_id: str, req: NewFactBullet) -> AdminResponse:
     )
 
 
-@router.delete("/facts/{fact_id}", response_model=AdminResponse)
 def delete_fact(fact_id: str) -> AdminResponse:
     facts = _load_facts_raw()
     original_count = len(facts)
     facts = [f for f in facts if f["id"] != fact_id]
 
     if len(facts) == original_count:
-        raise HTTPException(status_code=404, detail=f"Fact id '{fact_id}' not found.")
+        raise NotFound(f"Fact id '{fact_id}' not found.")
 
     _save_facts_raw(facts)
     _evict_from_cache([fact_id])
@@ -406,14 +373,13 @@ def delete_fact(fact_id: str) -> AdminResponse:
     )
 
 
-@router.delete("/skeleton/project/{entry_id}", response_model=AdminResponse)
 def delete_project(entry_id: str) -> AdminResponse:
     """Delete a project entry and ALL its fact bullets."""
     skeleton = _load_skeleton_raw()
     facts = _load_facts_raw()
 
     if not any(e["id"] == entry_id for e in skeleton["project_entries"]):
-        raise HTTPException(status_code=404, detail=f"Project entry '{entry_id}' not found.")
+        raise NotFound(f"Project entry '{entry_id}' not found.")
 
     skeleton["project_entries"] = [e for e in skeleton["project_entries"] if e["id"] != entry_id]
 
@@ -431,14 +397,13 @@ def delete_project(entry_id: str) -> AdminResponse:
     )
 
 
-@router.delete("/skeleton/experience/{entry_id}", response_model=AdminResponse)
 def delete_experience(entry_id: str) -> AdminResponse:
     """Delete an experience entry and ALL its fact bullets."""
     skeleton = _load_skeleton_raw()
     facts = _load_facts_raw()
 
     if not any(e["id"] == entry_id for e in skeleton["experience_entries"]):
-        raise HTTPException(status_code=404, detail=f"Experience entry '{entry_id}' not found.")
+        raise NotFound(f"Experience entry '{entry_id}' not found.")
 
     skeleton["experience_entries"] = [e for e in skeleton["experience_entries"] if e["id"] != entry_id]
 
@@ -456,72 +421,8 @@ def delete_experience(entry_id: str) -> AdminResponse:
     )
 
 
-@router.delete("/skeleton/leadership", response_model=AdminResponse)
-def delete_leadership(title: str) -> AdminResponse:
-    """
-    Delete a leadership entry by matching its title (case-insensitive).
-    Use GET /admin/skeleton/entries to find the exact title.
-    """
-    skeleton = _load_skeleton_raw()
-
-    original_count = len(skeleton["leadership"])
-    skeleton["leadership"] = [
-        e for e in skeleton["leadership"]
-        if e["title"].lower() != title.lower()
-    ]
-
-    if len(skeleton["leadership"]) == original_count:
-        raise HTTPException(status_code=404, detail=f"Leadership entry with title '{title}' not found.")
-
-    _save_skeleton_raw(skeleton)
-
-    return AdminResponse(
-        message=f"Leadership entry '{title}' deleted.",
-        entry_id=_slugify(title),
-    )
-
-
-@router.delete("/skeleton/skills", response_model=AdminResponse)
-def delete_skill(item: str, category: str | None = None) -> AdminResponse:
-    """
-    Delete a single skill item.
-    - If category is given, only removes the item from that specific category.
-    - If category is omitted, searches all categories and removes wherever found.
-    """
-    skeleton = _load_skeleton_raw()
-    removed_from: list[str] = []
-
-    categories_to_search = [category] if category else list(skeleton["skills"].keys())
-
-    for cat in categories_to_search:
-        if cat not in skeleton["skills"]:
-            continue
-        original = skeleton["skills"][cat]
-        skeleton["skills"][cat] = [i for i in original if i.lower() != item.lower()]
-        if len(skeleton["skills"][cat]) < len(original):
-            removed_from.append(cat)
-
-    if not removed_from:
-        raise HTTPException(status_code=404, detail=f"Skill '{item}' not found.")
-
-    _save_skeleton_raw(skeleton)
-
-    return AdminResponse(
-        message=f"Skill '{item}' removed from: {', '.join(removed_from)}.",
-        entry_id=item,
-    )
-
-
 # ---------- Header ----------
 
-@router.get("/skeleton/header")
-def get_header() -> dict:
-    """Read the current resume header (name, contact, links)."""
-    skeleton = _load_skeleton_raw()
-    return {"header": skeleton["header"]}
-
-
-@router.patch("/skeleton/header", response_model=AdminResponse)
 def update_header(req: UpdateHeaderRequest) -> AdminResponse:
     """
     Update one or more header fields.
@@ -551,14 +452,6 @@ def update_header(req: UpdateHeaderRequest) -> AdminResponse:
 
 # ---------- Education ----------
 
-@router.get("/skeleton/education")
-def get_education() -> dict:
-    """List all education entries with their IDs, courses, and honor bullets."""
-    skeleton = _load_skeleton_raw()
-    return {"education": skeleton["education"]}
-
-
-@router.post("/skeleton/education", response_model=AdminResponse)
 def add_education(req: AddEducationRequest) -> AdminResponse:
     """Add a new education entry. ID is auto-generated from the institution name."""
     skeleton = _load_skeleton_raw()
@@ -582,13 +475,12 @@ def add_education(req: AddEducationRequest) -> AdminResponse:
     )
 
 
-@router.delete("/skeleton/education/{edu_id}", response_model=AdminResponse)
 def delete_education(edu_id: str) -> AdminResponse:
     """Delete an education entry by its ID."""
     skeleton = _load_skeleton_raw()
 
     if not any(e["id"] == edu_id for e in skeleton["education"]):
-        raise HTTPException(status_code=404, detail=f"Education entry '{edu_id}' not found.")
+        raise NotFound(f"Education entry '{edu_id}' not found.")
 
     skeleton["education"] = [e for e in skeleton["education"] if e["id"] != edu_id]
     _save_skeleton_raw(skeleton)
@@ -599,14 +491,13 @@ def delete_education(edu_id: str) -> AdminResponse:
     )
 
 
-@router.post("/skeleton/education/{edu_id}/courses", response_model=AdminResponse)
 def add_course(edu_id: str, course: str) -> AdminResponse:
     """Add a single course to an education entry's master course list."""
     skeleton = _load_skeleton_raw()
     entry = next((e for e in skeleton["education"] if e["id"] == edu_id), None)
 
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Education entry '{edu_id}' not found.")
+        raise NotFound(f"Education entry '{edu_id}' not found.")
 
     if course in entry.get("courses", []):
         return AdminResponse(
@@ -623,32 +514,8 @@ def add_course(edu_id: str, course: str) -> AdminResponse:
     )
 
 
-@router.delete("/skeleton/education/{edu_id}/courses", response_model=AdminResponse)
-def delete_course(edu_id: str, course: str) -> AdminResponse:
-    """Remove a single course from an education entry. Match is case-insensitive."""
-    skeleton = _load_skeleton_raw()
-    entry = next((e for e in skeleton["education"] if e["id"] == edu_id), None)
-
-    if not entry:
-        raise HTTPException(status_code=404, detail=f"Education entry '{edu_id}' not found.")
-
-    original_count = len(entry.get("courses", []))
-    entry["courses"] = [c for c in entry.get("courses", []) if c.lower() != course.lower()]
-
-    if len(entry["courses"]) == original_count:
-        raise HTTPException(status_code=404, detail=f"Course '{course}' not found in '{edu_id}'.")
-
-    _save_skeleton_raw(skeleton)
-
-    return AdminResponse(
-        message=f"Course '{course}' removed from '{edu_id}'.",
-        entry_id=edu_id,
-    )
-
-
 # ---------- Fact update ----------
 
-@router.put("/facts/{fact_id}", response_model=AdminResponse)
 def update_fact(fact_id: str, req: UpdateFactRequest) -> AdminResponse:
     """
     Replace the text and tech_tags of an existing fact bullet.
@@ -658,7 +525,7 @@ def update_fact(fact_id: str, req: UpdateFactRequest) -> AdminResponse:
     fact = next((f for f in facts if f["id"] == fact_id), None)
 
     if not fact:
-        raise HTTPException(status_code=404, detail=f"Fact '{fact_id}' not found.")
+        raise NotFound(f"Fact '{fact_id}' not found.")
 
     fact["text"] = req.text
     fact["tech_tags"] = req.tech_tags
@@ -674,7 +541,6 @@ def update_fact(fact_id: str, req: UpdateFactRequest) -> AdminResponse:
 
 # ---------- Master Resume Compilation ----------
 
-@router.post("/resume/master")
 def generate_master_resume() -> dict:
     """
     Renders and compiles the full master resume containing all skeleton data
@@ -716,16 +582,12 @@ def generate_master_resume() -> dict:
     try:
         pdf_path = compile_tex(resume, skeleton, filename_base)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LaTeX compilation error: {str(e)}")
-
-    pdf_filename = f"{filename_base}.pdf"
-    pdf_download_url = f"http://fastapi-service:8000/files/{pdf_filename}"
+        raise RuntimeError(f"LaTeX compilation error: {e}") from e
 
     return {
         "message": "Master resume compiled successfully.",
         "name": skeleton.header.name,
         "filename": f"{skeleton.header.name.replace(' ', '_')}_Master_Resume.pdf",
         "pdf_path": pdf_path,
-        "pdf_download_url": pdf_download_url,
     }
 

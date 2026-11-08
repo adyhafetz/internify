@@ -1,11 +1,11 @@
 """
 One-time script to authorize Google Drive & Sheets OAuth2 access.
 
-Usage:
-1. Ensure your OAuth 2.0 Client Credentials (client_secret.json or client ID/Secret) are ready.
+Usage (on your own computer, not the server: it needs a browser):
+1. Download your OAuth client (type "Desktop app") from Google Cloud Console and save it as client_secret.json here.
 2. Run: python scripts/get_gdrive_token.py
-3. It will open a browser window for you to sign in with your Google account.
-4. It will save 'token.json' and print your GOOGLE_REFRESH_TOKEN to paste into .env.
+3. Sign in, allow access, and paste the three printed lines into the .env on the server.
+See docs/domain_setup.md, part 3.
 """
 
 from __future__ import annotations
@@ -29,7 +29,8 @@ def main():
         sys.exit(1)
 
     flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
-    creds = flow.run_local_server(port=8080)
+    # port=0: any free port (8080 may be the dashboard). offline + consent: always hand back a refresh token.
+    creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
 
     # Save token.json
     with open("token.json", "w") as token:
@@ -43,6 +44,9 @@ def main():
         print(f"GOOGLE_CLIENT_SECRET={creds.client_secret}")
         print(f"GOOGLE_REFRESH_TOKEN={creds.refresh_token}")
         print("--------------------------------------------------------\n")
+        print("Keep these private. Delete client_secret.json and token.json from this computer when you have copied them.")
+    else:
+        print("Google did not return a refresh token. Remove Internify at https://myaccount.google.com/permissions and run this again.")
 
 
 if __name__ == "__main__":

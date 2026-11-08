@@ -8,6 +8,23 @@ from bot import config
 logger = logging.getLogger(__name__)
 
 
+_remembered_chat = None
+
+
+def _remember_chat(update: Update) -> None:
+    """The scheduled scan has no message to reply to, so remember which chat is yours (once, when it changes)."""
+    global _remembered_chat
+    chat = getattr(update, "effective_chat", None)
+    if chat is None or chat.id == _remembered_chat:
+        return
+    try:
+        from bot.services import watchlist
+        watchlist.set_setting("owner_chat_id", str(chat.id))
+        _remembered_chat = chat.id
+    except Exception as err:   # never let bookkeeping break a command
+        logger.debug("Could not remember the chat: %s", err)
+
+
 def restricted(func):
     """Decorator to ensure only authorized Telegram users can interact with the bot."""
     @functools.wraps(func)
@@ -19,73 +36,53 @@ def restricted(func):
             logger.warning("Unauthorized access attempt by user %s (ID: %d)", user.username, user.id)
             if update.effective_message:
                 await update.effective_message.reply_text(
-                    "⛔ *Access Denied*\n"
-                    f"Your user ID (`{user.id}`) is not authorized to control this Internify bot.",
-                    parse_mode="Markdown",
+                    f"⛔ Sorry, this bot is private. Your user ID ({user.id}) isn't on its allowed list."
                 )
             return ConversationHandler.END
+        _remember_chat(update)
         return await func(update, context, *args, **kwargs)
     return wrapped
 
 
 @restricted
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    text = (
-        f"👋 *Welcome to Internify, {user.first_name if user else 'there'}!*\n\n"
-        "I am your autonomous AI resume tailoring agent.\n\n"
-        "✨ *Quick Actions:*\n"
-        "• *Paste a Job URL*: Send any job link to tailor your resume and compile a 1-page PDF.\n"
-        "• `/resume`: Generate your full master resume PDF.\n"
-        "• `/myprofile`: View and edit your contact & header info.\n"
-        "• `/help`: View all available commands.\n\n"
-        "_Tip: For commands like `/setname`, you can either type `/setname John Doe` or just `/setname` to be prompted interactively!_"
+    name = update.effective_user.first_name if update.effective_user else "there"
+    await update.effective_message.reply_text(
+        f"👋 Hi {name}! I'm Internify.\n\n"
+        "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, "
+        "then send you the PDF.\n\n"
+        "First, tell me about you:\n"
+        "• Send me your current resume file (PDF or Word) and I'll fill in your experience\n"
+        "• or use /profile to add it yourself\n\n"
+        "Other things:\n"
+        "• /profile – see and edit everything on your resume\n"
+        "• /history – jobs you've applied to\n"
+        "• /resume – your general resume, not tailored to any job\n"
+        "• /help – everything I can do"
     )
-    await update.effective_message.reply_text(text, parse_mode="Markdown")
 
 
 @restricted
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "📚 *Internify Commands Cheat-Sheet*\n\n"
-        "*Profile*\n"
-        "• `/myprofile` – View contact information\n"
-        "• `/setname [name]` – Update full name\n"
-        "• `/setphone [phone]` – Update phone number\n"
-        "• `/setemail [email]` – Update email\n"
-        "• `/setlinkedin [url]` – Update LinkedIn link\n"
-        "• `/setgithub [url]` – Update GitHub link\n\n"
-        "*Education*\n"
-        "• `/listeducation` – List degrees and IDs\n"
-        "• `/addeducation [text]` – Add degree (interactive or text)\n"
-        "• `/deleteeducation [id]` – Remove an education entry\n"
-        "• `/addcourse [id] [course]` – Add relevant course to education\n"
-        "• `/deletecourse [id] [course]` – Remove a course\n\n"
-        "*Work Experience & Projects*\n"
-        "• `/addexperience [text]` – Add internship/job (auto-extracts bullets)\n"
-        "• `/deleteexperience [id]` – Remove experience entry\n"
-        "• `/addproject [text]` – Add project (auto-extracts bullets)\n"
-        "• `/deleteproject [id]` – Remove project\n"
-        "• `/addleadership [text]` – Add leadership / extracurricular\n"
-        "• `/deleteleadership [title]` – Remove leadership entry\n\n"
-        "*Skills & Facts*\n"
-        "• `/listskills` – View master skills by category\n"
-        "• `/addskill [text]` – Add skills\n"
-        "• `/deleteskill [skill]` – Remove skill\n"
-        "• `/listentries` – View all entry IDs\n"
-        "• `/listfacts [id]` – View fact bullets for an entry\n"
-        "• `/updatefact [id] [text]` – Edit a bullet text\n"
-        "• `/deletefact [id]` – Delete a fact bullet\n\n"
-        "*Resumes & Applications*\n"
-        "• `/resume` – Compile full untailored master resume PDF\n"
-        "• *Paste URL* – Tailor resume against any job description"
+    await update.effective_message.reply_text(
+        "📚 What I can do\n\n"
+        "Tailor a resume\n"
+        "• Paste a job link – I write a resume for that job\n"
+        "• /history – jobs you've applied to\n"
+        "• /resume – your general resume (not tailored)\n\n"
+        "Tell me about you\n"
+        "• /importresume – send your current resume file (PDF or Word) and I'll fill everything in\n"
+        "• /profile – see and edit everything on your resume: contact details, education, jobs, projects, "
+        "leadership and skills. Tap anything to edit, delete or add a line, and use ➕ Add something for new entries "
+        "(you describe it in your own words). No IDs to look up.\n\n"
+        "Find jobs for me\n"
+        "• Every day I check the job pages you choose, pick the ones that match you best and write a resume for each. "
+        "Choose the pages in /profile → Job pages I check, and tap Check now to try it.\n\n"
+        "• /cancel – stop whatever I'm asking you"
     )
-    await update.effective_message.reply_text(text, parse_mode="Markdown")
 
 
 @restricted
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.effective_message.reply_text("🛑 Current operation cancelled.", parse_mode="Markdown")
-    return ConversationHandler.END
-
+    await update.effective_message.reply_text("🛑 Okay, cancelled.")

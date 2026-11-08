@@ -1,0 +1,20 @@
+@font-face{font-family:"Inter";font-weight:400;font-display:swap;src:url(/assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:500;font-display:swap;src:url(/assets/fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:700;font-display:swap;src:url(/assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
+:root{--canvas:#F8FAFC;--card:#fff;--ink:#0F172A;--muted:#64748B;--line:#DBE3EF;--blue:#2563EB;--indigo:#1E40AF;--sky:#E0F2FE;--coral:#F97316}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font:400 16px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 56px}
+nav{display:flex;align-items:center;gap:18px;margin:0 0 36px;font-size:14px}
+nav .brand{display:flex;align-items:center;gap:9px;margin-right:auto;text-decoration:none;color:var(--ink)}
+nav .brand img{width:30px;height:30px}
+nav .brand span{width:104px;height:27px;background:var(--ink);-webkit-mask:url(/assets/brand/wordmark.svg) no-repeat left center/contain;mask:url(/assets/brand/wordmark.svg) no-repeat left center/contain}
+nav a{color:var(--muted);text-decoration:none;font-weight:500}nav a:hover{color:var(--blue)}
+h1{font-size:40px;line-height:1.12;letter-spacing:-.035em;margin:0 0 6px}
+h2{font-size:22px;letter-spacing:-.02em;margin:34px 0 8px}
+.tag{margin:0 0 26px;color:var(--muted);font-size:18px}
+p,li{color:#243047}a{color:var(--blue)}
+.btn{display:inline-block;padding:11px 20px;border-radius:999px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600;font-size:15px}
+.btn:hover{background:var(--indigo)}.muted{color:var(--muted);font-size:14px;margin-left:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px 28px;margin:22px 0}
+footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Set up Internify</title><link rel="icon" href="/assets/brand/logo-mark.svg" type="image/svg+xml">
+<style>
+@font-face{font-family:"Inter";font-weight:400;font-display:swap;src:url(/assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:500;font-display:swap;src:url(/assets/fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:600;font-display:swap;src:url(/assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:700;font-display:swap;src:url(/assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
+:root[data-theme="dark"]{color-scheme:dark;--canvas:#0F172A;--card:#16213A;--ink:#F8FAFC;--muted:#94A3B8;--line:#27344F;--sky:#12284B;--ok:#4ADE80;--indigo:#BFDBFE}
+:root{color-scheme:light;--canvas:#F8FAFC;--card:#fff;--ink:#0F172A;--muted:#64748B;--line:#DBE3EF;--blue:#2563EB;--indigo:#1E40AF;--sky:#E0F2FE;--coral:#F97316;--ok:#15803D}
+*{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:400 16px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding:22px 18px 60px}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:22px}.brand img{width:30px;height:30px}.brand b{font-size:19px;letter-spacing:-.02em}.brand span{color:var(--muted);margin-left:auto;font-size:14px}
+.theme{margin-left:12px;width:36px;height:36px;padding:0;display:grid;place-items:center;font-size:16px}
+.steps{display:flex;gap:6px;margin:0 0 20px}.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}.steps i.on{background:var(--blue)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px 26px 22px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 28px rgba(15,23,42,.06)}
+h1{font-size:28px;line-height:1.15;letter-spacing:-.03em;margin:0 0 6px}h2{font-size:17px;margin:22px 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 18px}p{margin:8px 0}small,.muted{color:var(--muted);font-size:14px}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+input,select{width:100%;font:inherit;padding:11px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:1px}
+.row{display:flex;gap:10px}.row>*{flex:1}.row .fit{flex:none}
+button{font:600 15px/1 Inter,system-ui,sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:12px 20px;border-radius:999px;cursor:pointer}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.primary:hover{background:var(--indigo)}button:disabled{opacity:.5;cursor:default}
+button.link{border:0;background:none;color:var(--blue);padding:0;font-weight:500}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-top:26px}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0}
+.opt{border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;cursor:pointer;background:var(--card)}.opt.on{border-color:var(--blue);background:var(--sky)}.opt b{display:block}.opt small{display:block;margin-top:3px}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--sky);color:var(--indigo);margin-left:6px}
+.tag.warn{background:rgba(249,115,22,.14);color:#C2410C}
+details{border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:14px 0;background:var(--canvas)}summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--indigo)}
+details ol{margin:10px 0 4px;padding-left:20px}details li{margin:5px 0}a{color:var(--blue)}
+.msg{margin-top:10px;font-size:14px;min-height:20px}.msg.ok{color:var(--ok)}.msg.bad{color:#C2410C}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.big button{padding:18px;border-radius:20px;text-align:left;line-height:1.35}.big small{display:block;font-weight:400;margin-top:4px}
+.sum{width:100%;border-collapse:collapse;margin:8px 0}.sum td{padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.sum td:last-child{text-align:right;color:var(--muted)}
+.check{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;font-weight:400}.check input{width:auto;margin-top:5px}
+.hide{display:none}.done h1{margin-top:6px}
+@media(max-width:560px){.choice,.big{grid-template-columns:1fr}.card{padding:20px 18px}}
+</style></head><body><div class="wrap">
+<div class="brand"><img src="/assets/brand/logo-mark.svg" alt=""><b>Internify</b><span id="stepname"></span><button class="theme" id="theme" aria-label="Switch between light and dark">☾</button></div>
+<div class="steps" id="bar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<div class="card" id="s0">
+  <h1>Let's set up Internify</h1>
+  <p class="lead">It takes about 10 minutes. You'll need two things: an AI key (so it can read jobs and write your resume) and a Telegram bot (so you can talk to it). Everything else is optional.</p>
+  <p class="muted">Your keys stay on this computer. They are only written into a settings file next to the project and sent to the services they belong to.</p>
+  <div class="big">
+    <button class="primary" data-help="0">I already have my keys<small style="color:#DCE8FF">Skip the how-to guides</small></button>
+    <button data-help="1">Help me get them<small>Step-by-step guides with links</small></button>
+  </div>
+</div>
+
+<div class="card hide" id="s1">
+  <h1>1. Choose your AI</h1><p class="lead">This is what reads job postings and writes your resume.</p>
+  <div class="choice">
+    <div class="opt on" data-p="openai"><b>OpenAI <span class="tag">Best quality</span></b><small>Pay as you go. You add a few dollars of credit and set your own limit.</small></div>
+    <div class="opt" data-p="gemini"><b>Google Gemini <span class="tag warn">Free, experimental</span></b><small>Free tier, no card. Slower limits, and on the free tier Google may use what you send to improve its products.</small></div>
+  </div>
+  <div id="help-openai"><details class="how"><summary>How do I get an OpenAI key?</summary><ol>
+    <li>Open <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> and sign in or create an account.</li>
+    <li>Add credit at <a href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener">Billing</a>. A few dollars lasts a long time. This is separate from a ChatGPT subscription, which does not include API use.</li>
+    <li>Back on the API keys page press <b>Create new secret key</b>, then copy it right away. OpenAI shows it only once.</li></ol></details></div>
+  <div id="help-gemini" class="hide"><details class="how"><summary>How do I get a Gemini key?</summary><ol>
+    <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> and sign in with a Google account.</li>
+    <li>Press <b>Create API key</b> and copy it.</li></ol></details></div>
+  <label for="aikey">Paste your key</label>
+  <div class="row"><input id="aikey" type="password" autocomplete="off" placeholder="sk-..."><button class="fit" id="aitest">Check key</button></div>
+  <div class="msg" id="aimsg"></div>
+  <details><summary>Models (chosen for you)</summary>
+    <label>Reads job postings</label><input id="m_ex"><label>Checks the resume</label><input id="m_cr"><label>Writes the resume</label><input id="m_ge"><label>Finds your matching experience</label><input id="m_em">
+    <p class="muted">Leave these as they are unless you know you want something else.</p></details>
+  <div class="nav"><button data-back>Back</button><button class="primary" data-next id="n1">Next</button></div>
+</div>
+
+<div class="card hide" id="s2">
+  <h1>2. Your Telegram bot</h1><p class="lead">You talk to Internify through your own private bot.</p>
+  <details class="how"><summary>How do I make a bot?</summary><ol>
+    <li>Open Telegram and search for <b>@BotFather</b> (the one with the blue tick), or open <a href="https://t.me/BotFather" target="_blank" rel="noopener">t.me/BotFather</a>.</li>
+    <li>Send <b>/newbot</b>. Choose a name (anything), then a username that ends in <b>bot</b>.</li>
+    <li>BotFather replies with a token that looks like <code>123456789:ABCdef…</code>. Copy it.</li></ol></details>
+  <label for="tg">Paste the bot token</label>
+  <div class="row"><input id="tg" type="password" autocomplete="off" placeholder="123456789:ABC..."><button class="fit" id="tgtest">Check token</button></div>
+  <div class="msg" id="tgmsg"></div>
+  <h2>Your Telegram ID</h2>
+  <p class="muted">So that only you can use your bot. Open your bot in Telegram, press <b>Start</b>, send “hi”, then press the button.</p>
+  <div class="row"><button class="fit" id="find">Find my ID</button><input id="uid" inputmode="numeric" placeholder="Your ID appears here"></div>
+  <div class="msg" id="uidmsg"></div>
+  <details><summary>It can't find it. Another way</summary><p>Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> in Telegram. It replies with your ID (a number). Type it above.</p>
+  <label class="check"><input type="checkbox" id="anyone"> I don't want to restrict it. Anyone who finds my bot may use it (and spend my AI credit).</label></details>
+  <div class="nav"><button data-back>Back</button><button class="primary" data-next id="n2">Next</button></div>
+</div>
+
+<div class="card hide" id="s3">
+  <h1>3. Extras</h1><p class="lead">All optional. You can change any of this later.</p>
+  <h2>Daily job check</h2><p class="muted">Every day Internify looks at the job pages you choose and writes resumes for the best matches.</p>
+  <div class="row"><div><label for="stime">Time</label><input id="stime" type="time" value="08:00"></div><div><label for="stz">Your timezone</label><input id="stz" list="tzs"></div></div>
+  <datalist id="tzs"><option>Asia/Kuala_Lumpur</option><option>Asia/Singapore</option><option>Asia/Jakarta</option><option>Asia/Bangkok</option><option>Asia/Manila</option><option>Asia/Kolkata</option><option>Asia/Tokyo</option><option>Australia/Sydney</option><option>Europe/London</option><option>Europe/Berlin</option><option>America/New_York</option><option>America/Chicago</option><option>America/Los_Angeles</option><option>UTC</option></datalist>
+  <h2>Reading blocked job pages</h2>
+  <details class="how"><summary>What is ScrapingAnt and how do I get a key?</summary><ol><li>It helps Internify read job sites that block normal visits. Without it Internify still works, you just paste the job text a bit more often.</li><li>Sign up free at <a href="https://scrapingant.com" target="_blank" rel="noopener">scrapingant.com</a>, then copy the <b>API token</b> from your dashboard.</li></ol></details>
+  <div class="row"><input id="sa" type="password" autocomplete="off" placeholder="ScrapingAnt token (optional)"><button class="fit" id="satest">Check</button></div>
+  <div class="msg" id="samsg"></div>
+  <details><summary>Advanced: dashboard key and contact email</summary>
+    <label for="dkey">Dashboard key</label>
+    <div class="row"><input id="dkey" autocomplete="off" placeholder="Leave empty on your own computer"><button class="fit" id="dgen">Make one</button></div>
+    <p class="muted">The live dashboard (a page that shows the agents working) is optional. You only need a key if you put it on the internet with your own domain. Running it on your own computer, leave this empty.</p>
+    <label for="mail">Your email for the privacy page</label><input id="mail" type="email" placeholder="you@example.com">
+    <p class="muted">Only needed if you publish the website pages on your own domain (Google asks for a contact address).</p></details>
+  <div class="nav"><button data-back>Back</button><button class="primary" data-next>Next</button></div>
+</div>
+
+<div class="card hide" id="s4">
+  <h1>4. Google Drive and Sheets</h1>
+  <p class="lead">Optional. Saves every resume PDF to your Google Drive and keeps a tracker spreadsheet of your applications. Without it, resumes still arrive in Telegram and are tracked on your computer. You can skip this and run setup again later.</p>
+  <details class="how"><summary>How do I set this up? (about 10 minutes)</summary><ol>
+    <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console</a> and create a project called <b>Internify</b>.</li>
+    <li>Open <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener">Google Drive API</a> and <a href="https://console.cloud.google.com/apis/library/sheets.googleapis.com" target="_blank" rel="noopener">Google Sheets API</a> and press <b>Enable</b> on each.</li>
+    <li>Open the <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">consent screen (Google Auth Platform)</a> → <b>Get started</b>. App name <b>Internify</b>, your email, audience <b>External</b>. Under <b>Data access</b> add the scopes <code>…/auth/drive</code> and <code>…/auth/spreadsheets</code>.</li>
+    <li><b>Important:</b> under <b>Audience</b> press <b>Publish app</b>. If you leave it in Testing, Google cancels the connection after 7 days. Google will later show an "unverified app" warning when you sign in. That is normal for your own app: press <b>Advanced → Go to Internify</b>.</li>
+    <li>Open <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a> → <b>Create client</b> → type <b>Desktop app</b> → Create. Copy the <b>Client ID</b> and <b>Client secret</b> and paste them below.</li></ol>
+    <p class="muted">More detail: <a href="https://github.com/adyhafetz/internify/blob/main/docs/domain_setup.md" target="_blank" rel="noopener">docs/domain_setup.md</a>, part 3.</p></details>
+  <label for="gid">Client ID</label><input id="gid" data-g="GOOGLE_CLIENT_ID" autocomplete="off" placeholder="1234…apps.googleusercontent.com">
+  <label for="gsec">Client secret</label><input id="gsec" data-g="GOOGLE_CLIENT_SECRET" type="password" autocomplete="off" placeholder="GOCSPX-…">
+  <div class="row" style="margin-top:14px"><button class="fit" id="gconn">Connect Google</button><button class="fit" id="gmake" disabled>Create my folder and sheet</button></div>
+  <div class="msg" id="gmsg"></div>
+  <details><summary>I already have these (refresh token, sheet ID, folder ID)</summary>
+    <label>Refresh token</label><input type="password" data-g="GOOGLE_REFRESH_TOKEN"><label>Sheet ID</label><input data-g="GOOGLE_SHEET_ID"><label>Drive folder ID</label><input data-g="GOOGLE_DRIVE_FOLDER_ID">
+    <p class="muted">If you fill these in, also paste the Client ID and secret above (without pressing Connect).</p></details>
+  <div class="nav"><button data-back>Back</button><button class="primary" data-next>Next</button></div>
+</div>
+
+<div class="card hide" id="s5">
+  <h1>5. Ready</h1><p class="lead">Check this, then start Internify.</p>
+  <table class="sum" id="sum"></table>
+  <div class="msg bad" id="savemsg"></div>
+  <div class="nav"><button data-back>Back</button><button class="primary" id="go">Save and start Internify</button></div>
+</div>
+
+<div class="card hide done" id="s6">
+  <h1>All set 🎉</h1>
+  <p class="lead" id="doneLead">Your settings are saved.</p>
+  <h2>What to do now</h2>
+  <ol><li id="d1"></li><li>Open Telegram, find your bot and send <b>/start</b>.</li><li>Send your current resume as a PDF or Word file. Check the preview and tap <b>Replace what's saved</b>.</li><li>Paste a job link. That's it.</li></ol>
+  <p class="muted">Want to watch the agents work? Open <a href="http://localhost:8080/live">localhost:8080/live</a> once it is running. This page is optional. You can close this tab.</p>
+</div>
+</div>
+<script>
+"use strict";
+(function () {   // light unless you choose dark
+  let t = "light"; try { t = localStorage.getItem("internify-setup-theme") || "light"; } catch (e) {}
+  document.documentElement.dataset.theme = t;
+  window.addEventListener("DOMContentLoaded", () => {
+    const b = document.getElementById("theme"), sync = () => { b.textContent = document.documentElement.dataset.theme === "dark" ? "☀" : "☾"; };
+    b.onclick = () => { const n = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = n; try { localStorage.setItem("internify-setup-theme", n); } catch (e) {} sync(); };
+    sync();
+  });
+})();
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const S = { step: 0, provider: "openai", aiOk: false, tgOk: false, bot: "", has: {}, launcher: false };
+const names = ["", "AI", "Telegram", "Extras", "Google", "Review", ""];
+async function post(url, body) { try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) }); return await r.json(); } catch (e) { return { ok: false, message: "I lost the connection to the setup page. Is it still running?" }; } }
+function say(el, r, okText) { el.className = "msg " + (r.ok ? "ok" : "bad"); el.textContent = (r.ok ? "✓ " : "") + (r.message || okText || ""); }
+function show(n) {
+  S.step = n; $$(".card").forEach((c, i) => c.classList.toggle("hide", i !== n));
+  $$("#bar i").forEach((b, i) => b.classList.toggle("on", i <= n)); $("#stepname").textContent = names[n] ? `Step ${n} of 5` : "";
+  if (n === 5) review(); window.scrollTo(0, 0);
+}
+$$("[data-help]").forEach(b => b.onclick = () => { $$("details.how").forEach(d => d.open = b.dataset.help === "1"); show(1); });
+$$("[data-back]").forEach(b => b.onclick = () => show(Math.max(0, S.step - 1)));
+$$("[data-next]").forEach(b => b.onclick = () => next());
+function next() {
+  if (S.step === 1 && !S.aiOk && !S.has[S.provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY"] ) { say($("#aimsg"), { ok: false, message: "Press “Check key” first, so we know it works." }); return; }
+  if (S.step === 2 && !S.tgOk && !S.has.TELEGRAM_BOT_TOKEN) { say($("#tgmsg"), { ok: false, message: "Press “Check token” first." }); return; }
+  if (S.step === 2 && !$("#uid").value.trim() && !$("#anyone").checked && !S.hasIds) { say($("#uidmsg"), { ok: false, message: "I need your Telegram ID so only you can use the bot. Press “Find my ID”." }); return; }
+  show(S.step + 1);
+}
+function chooseProvider(p) {
+  S.provider = p; S.aiOk = false; $$(".opt").forEach(o => o.classList.toggle("on", o.dataset.p === p));
+  $("#help-openai").classList.toggle("hide", p !== "openai"); $("#help-gemini").classList.toggle("hide", p !== "gemini");
+  $("#aikey").placeholder = p === "gemini" ? "AIza..." : "sk-..."; $("#aimsg").textContent = ""; ["m_ex", "m_cr", "m_ge", "m_em"].forEach(i => $("#" + i).value = "");
+}
+$$(".opt").forEach(o => o.onclick = () => chooseProvider(o.dataset.p));
+$("#aitest").onclick = async () => {
+  $("#aitest").disabled = true; $("#aimsg").className = "msg"; $("#aimsg").textContent = "Checking…";
+  const r = await post("/api/test/ai", { provider: S.provider, key: $("#aikey").value }); $("#aitest").disabled = false;
+  S.aiOk = !!r.ok; say($("#aimsg"), r);
+  if (r.ok && r.models) { const m = r.models; $("#m_ex").value = m.EXTRACTOR_MODEL || ""; $("#m_cr").value = m.CRITIC_MODEL || ""; $("#m_ge").value = m.GENERATOR_MODEL || ""; $("#m_em").value = m.EMBEDDING_MODEL || ""; }
+};
+$("#tgtest").onclick = async () => {
+  $("#tgtest").disabled = true; $("#tgmsg").className = "msg"; $("#tgmsg").textContent = "Checking…";
+  const r = await post("/api/test/telegram", { token: $("#tg").value }); $("#tgtest").disabled = false;
+  S.tgOk = !!r.ok; S.bot = r.username || ""; say($("#tgmsg"), r);
+};
+$("#find").onclick = async () => {
+  if (!$("#tg").value.trim()) { say($("#uidmsg"), { ok: false, message: "Paste and check the bot token first." }); return; }
+  $("#find").disabled = true; $("#uidmsg").className = "msg"; $("#uidmsg").textContent = "Looking…";
+  const r = await post("/api/telegram/detect", { token: $("#tg").value }); $("#find").disabled = false;
+  if (r.ok && r.found) { $("#uid").value = r.user_id; } say($("#uidmsg"), r.ok && !r.found ? { ok: false, message: r.message } : r);
+};
+$("#satest").onclick = async () => {
+  $("#samsg").className = "msg"; $("#samsg").textContent = "Checking… (this can take a few seconds)";
+  say($("#samsg"), await post("/api/test/scrapingant", { key: $("#sa").value }));
+};
+$("#dgen").onclick = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); $("#dkey").value = [...a].map(x => x.toString(16).padStart(2, "0")).join(""); };
+let gpoll = null;
+$("#gconn").onclick = async () => {
+  const r = await post("/api/google/start", { client_id: $("#gid").value, client_secret: $("#gsec").value });
+  if (!r.ok) { say($("#gmsg"), r); return; }
+  window.open(r.auth_url, "_blank", "noopener");
+  $("#gmsg").className = "msg"; $("#gmsg").textContent = "A Google sign-in tab opened. Sign in, allow access, then come back here. (If you see an “unverified app” warning, press Advanced → Go to Internify.)";
+  clearInterval(gpoll);
+  gpoll = setInterval(async () => {
+    const st = await (await fetch("/api/google/status")).json();
+    if (st.connected) { clearInterval(gpoll); S.gConnected = true; $("#gmake").disabled = false; say($("#gmsg"), { ok: true, message: "Connected to Google. Now press “Create my folder and sheet”." }); }
+  }, 2000);
+};
+$("#gmake").onclick = async () => {
+  $("#gmake").disabled = true; $("#gmsg").className = "msg"; $("#gmsg").textContent = "Creating…";
+  const r = await post("/api/google/create"); $("#gmake").disabled = false; say($("#gmsg"), r);
+  if (r.ok) { S.gCreated = true; $("#gmsg").innerHTML += ` <a href="${r.folder_url}" target="_blank" rel="noopener">Open the folder</a> · <a href="${r.sheet_url}" target="_blank" rel="noopener">Open the sheet</a>`; }
+};
+function mask(v) { return v ? (v.length > 10 ? v.slice(0, 4) + "…" + v.slice(-3) : "•••") : ""; }
+function review() {
+  const g = {}; $$("[data-g]").forEach(i => { if (i.value.trim()) g[i.dataset.g] = i.value.trim(); });
+  const rows = [["AI", S.provider === "gemini" ? "Google Gemini (free)" : "OpenAI"], ["AI key", mask($("#aikey").value) || "kept from before"],
+    ["Telegram bot", S.bot ? "@" + S.bot : (S.has.TELEGRAM_BOT_TOKEN ? "kept from before" : "")],
+    ["Only you can use it", $("#uid").value.trim() ? "yes (ID " + $("#uid").value.trim() + ")" : ($("#anyone").checked ? "no, anyone can" : (S.hasIds ? "yes (kept from before)" : "missing"))],
+    ["Daily job check", $("#stime").value + " " + $("#stz").value], ["ScrapingAnt", $("#sa").value.trim() ? "added" : "not used"],
+    ["Google Drive and Sheets", S.gCreated ? "connected, folder and sheet created" : (S.gConnected ? "connected (no sheet created yet)" : (Object.keys(g).length ? "values added by hand" : "not now"))],
+    ["Dashboard key", $("#dkey").value.trim() ? "set" : "none (fine on your own computer)"]];
+  $("#sum").innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join(""); $("#savemsg").textContent = "";
+}
+$("#go").onclick = async () => {
+  $("#go").disabled = true; $("#savemsg").textContent = "";
+  const google = {}; $$("[data-g]").forEach(i => { if (i.value.trim()) google[i.dataset.g] = i.value.trim(); });
+  const r = await post("/api/save", { provider: S.provider, ai_key: $("#aikey").value, models: { EXTRACTOR_MODEL: $("#m_ex").value, CRITIC_MODEL: $("#m_cr").value, GENERATOR_MODEL: $("#m_ge").value, EMBEDDING_MODEL: $("#m_em").value },
+    telegram_token: $("#tg").value, user_id: $("#uid").value, anyone_can_use: $("#anyone").checked, scrapingant_key: $("#sa").value, scan_time: $("#stime").value, scan_timezone: $("#stz").value, contact_email: $("#mail").value, dashboard_key: $("#dkey").value, google });
+  if (!r.ok) { $("#go").disabled = false; $("#savemsg").textContent = r.message; return; }
+  await post("/api/finish");
+  $("#d1").innerHTML = S.launcher ? "Internify is starting now. Leave the window you ran the setup in open until it says it is running." : "Start it: run <code>docker compose up -d --build</code> (or <code>python -m bot.main</code> if you do not use Docker).";
+  show(6);
+};
+(async () => {
+  $("#stz").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  try {
+    const st = await (await fetch("/api/state")).json(); S.has = st.has; S.launcher = st.launcher; S.hasIds = !!st.has.TELEGRAM_ALLOWED_USER_IDS;
+    if (st.provider === "gemini") chooseProvider("gemini"); if (st.scan_time) $("#stime").value = st.scan_time; if (st.scan_timezone) $("#stz").value = st.scan_timezone; if (st.contact_email) $("#mail").value = st.contact_email;
+    const m = st.models || {}; $("#m_ex").value = m.EXTRACTOR_MODEL || ""; $("#m_cr").value = m.CRITIC_MODEL || ""; $("#m_ge").value = m.GENERATOR_MODEL || ""; $("#m_em").value = m.EMBEDDING_MODEL || "";
+    if (st.has.OPENAI_API_KEY || st.has.GEMINI_API_KEY || st.has.TELEGRAM_BOT_TOKEN) $("#s0 .lead").textContent += " You already have some settings saved; anything you leave blank is kept.";
+  } catch (e) {}
+  show(0);
+})();
+</script></body></html>

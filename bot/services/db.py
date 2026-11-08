@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import sqlite3
 import logging
-from datetime import datetime
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -40,6 +39,32 @@ def init_db() -> None:
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_job_link ON applications(job_link)")
+        # The daily job check: where to look, what it has already seen, and its settings
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS watch_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT UNIQUE NOT NULL,
+                kind TEXT NOT NULL,              -- greenhouse | lever | page
+                ident TEXT DEFAULT '',           -- board / company name for the job-board kinds
+                label TEXT DEFAULT '',
+                auto INTEGER DEFAULT 0,          -- 1 = found from the jobs you already sent
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_checked TIMESTAMP,
+                last_status TEXT DEFAULT ''
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS seen_jobs (
+                url TEXT PRIMARY KEY,
+                title TEXT DEFAULT '',
+                company TEXT DEFAULT '',
+                status TEXT DEFAULT 'new',       -- new | low-fit | shortlisted | tailored | failed | rejected
+                fit REAL DEFAULT 0.0,
+                reason TEXT DEFAULT '',
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         conn.commit()
     logger.info("Initialized SQLite database at %s", DB_PATH)
 
@@ -52,7 +77,7 @@ def is_duplicate_url(url: str) -> bool:
         return cur.fetchone() is not None
 
 
-def add_application(
+def upsert_application(
     company: str,
     job_title: str,
     location: str = "",
@@ -61,17 +86,31 @@ def add_application(
     job_link: str = "",
     status: str = "Processing",
 ) -> int:
-    """Inserts a new application record and returns its ID."""
+    """Re-tailoring a link that is already tracked refreshes its row instead of violating the UNIQUE job_link."""
+    clean_url = job_link.strip().lower()
     with _get_connection() as conn:
-        cur = conn.execute(
+        row = conn.execute("SELECT id FROM applications WHERE LOWER(TRIM(job_link)) = ?", (clean_url,)).fetchone()
+        if row is None:
+            cur = conn.execute(
+                """
+                INSERT INTO applications (company, job_title, location, job_description, job_requirements, job_link, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (company, job_title, location, job_description, job_requirements, job_link, status),
+            )
+            conn.commit()
+            return cur.lastrowid
+        app_id = row[0]
+        conn.execute(
             """
-            INSERT INTO applications (company, job_title, location, job_description, job_requirements, job_link, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            UPDATE applications SET company = ?, job_title = ?, location = ?, job_description = ?,
+                job_requirements = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
             """,
-            (company, job_title, location, job_description, job_requirements, job_link, status),
+            (company, job_title, location, job_description, job_requirements, status, app_id),
         )
         conn.commit()
-        return cur.lastrowid
+        return app_id
 
 
 def update_application(
@@ -128,3 +167,16 @@ def get_recent_applications(limit: int = 10) -> list[dict]:
         )
         return [dict(row) for row in cur.fetchall()]
 
+
+
+def recent_job_texts(limit: int = 15) -> list[str]:
+    """Title and summary of the jobs you sent most recently: what you tend to go for."""
+    with _get_connection() as conn:
+        cur = conn.execute(
+            "SELECT job_title, company, job_description FROM applications ORDER BY id DESC LIMIT ?", (limit,))
+        return [f"{r['job_title']} at {r['company']}. {(r['job_description'] or '')[:240]}".strip() for r in cur.fetchall()]
+
+
+def application_links() -> list[str]:
+    with _get_connection() as conn:
+        return [r["job_link"] for r in conn.execute("SELECT job_link FROM applications WHERE job_link != ''").fetchall()]

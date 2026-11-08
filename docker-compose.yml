@@ -1,24 +1,42 @@
 services:
-  fastapi-service:
-    build: .
-    container_name: internify-fastapi
-    env_file: .env
-    volumes:
-      - ./output:/app/output
-      - ./service:/app/service
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-
   telegram-bot:
     build: .
     container_name: internify-telegram-bot
-    command: ["python", "-m", "bot.main"]
     env_file: .env
+    environment:
+      DASHBOARD_HOST: 0.0.0.0   # inside the container; the port below is only published on this computer
+    ports:
+      # Live agent dashboard: open http://localhost:8080 (bound to localhost only)
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./output:/app/output
       - ./service:/app/service
       - ./bot:/app/bot
+    restart: unless-stopped
+
+  # The setup page (run by setup.sh / setup.bat, not started with the bot): fills in .env for you.
+  setup:
+    build: .
+    profiles: ["setup"]
+    command: ["python", "-m", "bot.setup"]
+    environment:
+      SETUP_DIR: /project
+      SETUP_HOST: 0.0.0.0        # inside the container; the port below is only published on this computer
+      SETUP_LAUNCHER: "1"
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./:/project
+
+  # Optional: puts the bot's website (home, privacy, terms, live dashboard) on your own domain through
+  # Cloudflare, with no ports opened on the server. Start with:  docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: internify-tunnel
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - fastapi-service
+      - telegram-bot
     restart: unless-stopped

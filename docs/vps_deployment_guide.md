@@ -1,7 +1,9 @@
 # Cloud VPS Deployment Guide
 
+Why use a server at all: Internify only works while it is running. On your own computer it stops when Docker is closed or the computer sleeps, and the daily job check does not run while it is off. A small always-on server fixes that. If your computer is usually on, you can skip this guide.
+
 Deploying **Internify** on any Cloud VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS, Linode, etc.) is remarkably simple because the Python Telegram bot uses **long polling**—meaning:
-- **No domain name required**
+- **No domain name required** (optional: see [`domain_setup.md`](domain_setup.md))
 - **No SSL certificates or Caddy/Nginx required**
 - **No public webhook ports needed** (the bot communicates outbound directly to Telegram's secure API)
 
@@ -51,7 +53,9 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 git clone https://github.com/adyhafetz/internify.git
 cd internify
 
-# Create your .env file
+# Create your .env file. A server has no browser, so the easy way is to run the setup page on your own computer
+# (./setup.sh or setup.bat) and copy the file here:   scp .env you@YOUR_SERVER_IP:~/internify/.env
+# Or write it by hand:
 cp .env.example .env
 nano .env
 ```
@@ -67,7 +71,6 @@ TELEGRAM_ALLOWED_USER_IDS=YOUR_TELEGRAM_NUMERIC_ID
 SCRAPINGANT_API_KEY=
 
 # (Optional) Cloud Sync (Google Drive & Sheets)
-# Google Sheets Tracker Template: https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
@@ -100,3 +103,17 @@ INFO - Application started.
 
 Your Internify bot is now running live 24/7! Open your Telegram app and send `/start`.
 
+
+---
+
+## 5. Website and live dashboard on your own domain (optional)
+
+The bot also serves a small website: a home page, privacy policy and terms (public) and a live agent dashboard at
+`/live` (private, needs `DASHBOARD_KEY`). Put it on your domain through a Cloudflare Tunnel, which needs no open ports:
+
+1. Close everything except SSH: `sudo ufw allow OpenSSH && sudo ufw --force enable`
+2. Set `DASHBOARD_KEY` (and `TELEGRAM_ALLOWED_USER_IDS`) in `.env`.
+3. Follow [`domain_setup.md`](domain_setup.md) to create the tunnel, then:
+   `docker compose --profile tunnel up -d --build`
+
+**Updating later:** your saved experience lives in `output/data/`, outside the code, so `git pull && docker compose up -d --build` never touches it. Starting from scratch? See part 1 of [`domain_setup.md`](domain_setup.md).

@@ -81,7 +81,7 @@ def generate_resume(
 
     user_content = (
         job.format_context()
-        + f"Available entries and their facts (only these ids may be used):"
+        + "Available entries and their facts (only these ids may be used):"
         + f"{_entries_block(skeleton, facts_by_entry)}\n"
         + _education_courses_block(skeleton)
         + "\n"

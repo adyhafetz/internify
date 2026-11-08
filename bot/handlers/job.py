@@ -1,23 +1,16 @@
 from __future__ import annotations
+import asyncio
+import logging
 import os
 import re
-import logging
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.handlers.common import restricted
-from bot.services.scraper import scrape_job_url
-from bot.services.db import (
-    is_duplicate_url,
-    add_application as db_add_application,
-    update_application as db_update_application,
-    get_recent_applications,
-)
-from bot.services.sheets import is_duplicate_job, append_application, update_application_status
-from bot.services.drive import upload_to_drive
-from bot.extraction import normalize_job_posting
-from service.models import ProcessRequest
-from service.main import process
+from bot.jobflow import html_escape as _html, score_emoji, tailor_job
+from bot.services.db import get_recent_applications
+from bot.progress import TelegramProgress
+from service import events
 
 logger = logging.getLogger(__name__)
 
@@ -26,204 +19,79 @@ URL_REGEX = re.compile(r"https?://[^\s<>\"']+")
 
 @restricted
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Displays recently tracked job applications from the local SQLite database."""
+    """Shows recently tracked job applications from the local SQLite database."""
     apps = get_recent_applications(limit=8)
     if not apps:
-        await update.effective_message.reply_text(
-            "📭 *No applications tracked yet.*\nSend any job link to tailor your first resume!",
-            parse_mode="Markdown",
-        )
+        await update.effective_message.reply_text("📭 No applications tracked yet.\nSend any job link to tailor your first resume!")
         return
 
-    lines = ["📊 *Recent Applications Tracker:*\n"]
+    lines = ["📊 <b>Your recent applications</b>\n"]
     for app in apps:
-        score_val = app.get("score") or 0.0
-        score_emoji = "🟢" if score_val >= 80 else ("🟡" if score_val >= 60 else "⚪")
-        date_str = str(app.get("created_at", ""))[:10]
-        drive = f" [☁️ Drive]({app['drive_link']})" if app.get("drive_link") else ""
-
+        score = app.get("score") or 0.0
+        drive = f' · <a href="{_html(app["drive_link"])}">Google Drive</a>' if app.get("drive_link") else ""
         lines.append(
-            f"• *{app['company']}* – {app['job_title']}\n"
-            f"  {score_emoji} Score: `{score_val:.1f}` | Status: `{app['status']}` ({date_str}){drive}\n"
+            f"• <b>{_html(app['company'])}</b> – {_html(app['job_title'])}\n"
+            f"  {score_emoji(score)} Match {score:.0f}% · {_html(app['status'])} · {str(app.get('created_at', ''))[:10]}{drive}\n"
         )
+    await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
-    await update.effective_message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+class TelegramReporter:
+    """Tells the user, in the chat they sent the link from, what is happening."""
+
+    def __init__(self, message, status_msg, progress: TelegramProgress):
+        self.message, self.status_msg, self.progress = message, status_msg, progress
+
+    async def notice(self, text: str) -> None:
+        await self.message.reply_text(text)
+
+    async def fail(self, text: str) -> None:
+        """Stop live updates, show the final error, and close the run."""
+        events.emit_run("failed", error=text)
+        await self.progress.close()
+        await self.status_msg.edit_text(text)
+
+    async def finished(self, outcome) -> None:
+        events.emit_run("finished", score=outcome.score, status=outcome.status, pdf=os.path.basename(outcome.pdf_path),
+                        drive_link=outcome.drive_link, company=outcome.company, role=outcome.role)
+
+    async def deliver(self, outcome, caption: str) -> None:
+        await self.progress.close()
+        try:
+            with open(outcome.pdf_path, "rb") as pdf_file:
+                await self.message.reply_document(document=pdf_file, filename=outcome.filename, caption=caption,
+                                                  parse_mode="HTML", write_timeout=60, read_timeout=60)
+            await self.status_msg.delete()
+        except Exception as err:
+            logger.error("Failed to deliver tailored PDF to Telegram: %s", err)
+            text = f"🎯 Your resume is ready, but sending it here timed out.\nReason: {err}"
+            if outcome.drive_link:
+                text += f"\n\n☁️ You can still open it on Google Drive:\n{outcome.drive_link}"
+            await self.status_msg.edit_text(text)
 
 
 @restricted
 async def job_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_text = update.effective_message.text or ""
-    urls = URL_REGEX.findall(message_text)
+    urls = URL_REGEX.findall(update.effective_message.text or "")
     if not urls:
         return
-
     job_url = urls[0].rstrip(".,);")
     logger.info("Detected job URL: %s", job_url)
 
-    status_msg = await update.effective_message.reply_text(
-        "🔎 *Detected Job Link!*\nChecking application tracker...",
-        parse_mode="Markdown",
-    )
+    status_msg = await update.effective_message.reply_text("🔎 Job link detected, waking up the agents…")
 
-    # 1. Duplicate check via SQLite and Google Sheets
-    is_dup_sqlite = is_duplicate_url(job_url)
-    is_dup_sheet = is_duplicate_job(job_url)
-
-    if is_dup_sqlite or is_dup_sheet:
-        await update.effective_message.reply_text(
-            "⚠️ *Notice:* You already have an application logged for this URL in your Tracker.",
-            parse_mode="Markdown",
-        )
-
-    # 2. Scrape job posting
-    try:
-        await status_msg.edit_text("⏳ `[1/4]` 🌐 *Scraping job posting content...*", parse_mode="Markdown")
-        scraped_text = await scrape_job_url(job_url)
-        if not scraped_text or len(scraped_text) < 100:
-            await status_msg.edit_text(
-                "❌ *Failed to extract job posting text.*\n"
-                "The page could be protected by heavy anti-bot walls or JavaScript.",
-                parse_mode="Markdown",
-            )
-            return
-    except Exception as scrape_err:
-        logger.error("Scraping error: %s", scrape_err)
-        await status_msg.edit_text(f"❌ *Scraping failed:* {scrape_err}")
-        return
-
-    # 3. Extract structured job details
-    try:
-        await status_msg.edit_text("⏳ `[2/4]` 🧠 *Normalizing job details with AI...*", parse_mode="Markdown")
-        job = normalize_job_posting(scraped_text)
-    except Exception as norm_err:
-        logger.error("Normalization error: %s", norm_err)
-        await status_msg.edit_text(f"❌ *Failed to parse job description:* {norm_err}")
-        return
-
-    # 4. Log initial row to SQLite (Always) & Google Sheets (Optional Cloud)
-    db_app_id = db_add_application(
-        company=job.company,
-        job_title=job.job_title,
-        location=job.location,
-        job_description=job.job_description,
-        job_requirements=job.job_requirements,
-        job_link=job_url,
-        status="Processing",
-    )
-
-    sheet_row_num = append_application(
-        company=job.company,
-        job_title=job.job_title,
-        location=job.location,
-        job_description=job.job_description,
-        job_requirements=job.job_requirements,
-        job_link=job_url,
-        status="New",
-    )
-
-    # 5. Run agentic loop (Retrieval + Generator + Critic)
-    try:
-        await status_msg.edit_text(
-            f"⏳ `[3/4]` ✍️ *Tailoring resume for* **{job.company}** (`{job.job_title}`)...\n"
-            "_Evaluating keyword match, selecting relevant coursework & running critic loop..._",
-            parse_mode="Markdown",
-        )
-        proc_req = ProcessRequest(
-            company=job.company,
-            job_title=job.job_title,
-            location=job.location,
-            job_description=job.job_description,
-            job_requirements=job.job_requirements,
-            job_link=job_url,
-        )
-        proc_res = process(proc_req)
-    except Exception as proc_err:
-        logger.error("Resume pipeline error: %s", proc_err)
-        db_update_application(db_app_id, status="Failed", comment=str(proc_err))
-        if sheet_row_num:
-            update_application_status(sheet_row_num, resume_status="Failed", comment=str(proc_err))
-        await status_msg.edit_text(f"❌ *Resume pipeline failed:* {proc_err}")
-        return
-
-    # 6. Check compiled PDF
-    pdf_path = proc_res.pdf_path
-    if not pdf_path or not os.path.exists(pdf_path):
-        db_update_application(
-            db_app_id,
-            status="Failed",
-            score=proc_res.score,
-            resume_status=proc_res.resume_status,
-            comment=proc_res.comment,
-        )
-        if sheet_row_num:
-            update_application_status(sheet_row_num, resume_status=proc_res.resume_status, comment=proc_res.comment)
-        await status_msg.edit_text(
-            f"❌ *LaTeX Compilation Failed*\n\n"
-            f"• *Status:* {proc_res.resume_status}\n"
-            f"• *Notes:* {proc_res.comment}",
-            parse_mode="Markdown",
-        )
-        return
-
-    # 7. Upload to Google Drive (Optional Cloud)
-    await status_msg.edit_text("⏳ `[4/4]` 📄 *Packaging PDF and updating application tracker...*", parse_mode="Markdown")
-    dest_filename = f"{job.company}_{job.job_title}.pdf".replace(" ", "_")
-    drive_link = upload_to_drive(pdf_path, dest_filename)
-
-    # 8. Update SQLite & Google Sheets
-    db_update_application(
-        db_app_id,
-        status="Ready",
-        score=proc_res.score,
-        resume_status=proc_res.resume_status,
-        pdf_path=pdf_path,
-        drive_link=drive_link or "",
-        comment=proc_res.comment,
-    )
-
-    if sheet_row_num:
-        update_application_status(
-            row_num=sheet_row_num,
-            resume_link=drive_link or "",
-            resume_status=proc_res.resume_status,
-            comment=f"Score: {proc_res.score:.1f}. {proc_res.comment}",
-        )
-
-    # 9. Deliver PDF directly to Telegram chat
-    score_emoji = "🟢" if proc_res.score >= 80 else ("🟡" if proc_res.score >= 65 else "🔴")
-    caption = (
-        f"🎯 *Tailored Resume Ready!*\n\n"
-        f"• *Company:* {job.company}\n"
-        f"• *Role:* {job.job_title}\n"
-        f"• *ATS Match Score:* {score_emoji} *{proc_res.score:.1f}/100* ({proc_res.resume_status})\n"
-    )
-    if drive_link:
-        caption += f"• ☁️ [Open in Google Drive]({drive_link})\n"
-    caption += f"\n💡 *Critic Feedback:*\n_{proc_res.comment[:400]}_"
-
-    try:
-        with open(pdf_path, "rb") as pdf_file:
-            await update.effective_message.reply_document(
-                document=pdf_file,
-                filename=dest_filename,
-                caption=caption,
-                parse_mode="Markdown",
-                write_timeout=60,
-                read_timeout=60,
-            )
-        await status_msg.delete()
-    except Exception as upload_err:
-        logger.error("Failed to deliver tailored PDF to Telegram: %s", upload_err)
-        msg_text = (
-            f"🎯 *Tailored Resume Ready*, but delivery directly to Telegram encountered a network timeout:\n`{upload_err}`"
-        )
-        if drive_link:
-            msg_text += f"\n\n☁️ *You can access your compiled PDF on Google Drive:*\n[Open in Drive]({drive_link})"
-        await status_msg.edit_text(msg_text, parse_mode="Markdown")
+    # Every run gets an id; the same events feed this chat and the web dashboard.
+    run_id = events.start_run(url=job_url)
+    loop = asyncio.get_running_loop()
+    reporter = TelegramReporter(update.effective_message, status_msg, TelegramProgress(status_msg, run_id, loop))
+    await tailor_job(job_url, reporter, bot=context.bot, chat_id=update.effective_chat.id, loop=loop, interactive=True)
 
 
 def get_job_url_handler() -> MessageHandler:
+    # block=False: the run takes a while and may wait for your answer to a question, and the bot must keep
+    # receiving messages (your answers, /history, ...) in the meantime.
     return MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(r"https?://"),
         job_url_handler,
+        block=False,
     )

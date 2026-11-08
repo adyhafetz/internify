@@ -139,13 +139,21 @@ class CriticFeedback(BaseModel):
     revision_notes: str
 
 
+# ---------- Asking the user about missing skills ----------
+
+class SkillAnswer(BaseModel):
+    """The user's answer when the Archivist asked "do you have experience with X?"."""
+    skill: str
+    has: bool = False
+    fact: Optional[FactBullet] = None  # new saved bullet point (under one of the user's entries), if they described it
+
+
 # ---------- Output ----------
 
 class ProcessResponse(BaseModel):
     resume_status: str 
     score: float
     pdf_path: Optional[str] = None
-    pdf_download_url: Optional[str] = None
     comment: str
 
 

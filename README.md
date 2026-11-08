@@ -23,33 +23,91 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ---
 
+## 🖥️ Live Agent Dashboard (optional)
+
+The bot works fully without it: everything happens in Telegram. The dashboard is only for watching the agents work (handy for a demo). On your own computer it needs no key: open it at `localhost`. A key (`DASHBOARD_KEY`) matters only if you put it on the internet with your own domain.
+
+While the bot runs, open **http://localhost:8080/live** (also reachable as `/dashboard`; if a key is set it asks for it). It's a single picture that fits your browser window (no scrolling): a ring of nine seats, **Telegram** (you) at the top and eight agents around it. The Discoverer and Matcher are grey with a dotted outline while no daily check is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
+
+| Seat | What it does |
+|---|---|
+| 💬 Telegram | You, on your phone: send the link, answer questions, receive the PDF |
+| 🔎 Scout | Reads the job page, and finds another way in if it's blocked |
+| 📄 Analyst | Works out what the job wants |
+| 🗄 Archivist | Finds your matching experience, and asks you about gaps |
+| ✏️ Scribe | Writes the resume lines |
+| 🛡 Critic | Checks every line is true, and scores the match |
+| 📦 Publisher | Builds the PDF (and repairs it if needed), files it, and logs it |
+| 🧭 Discoverer | *Daily check:* visits your job pages each day and finds new postings |
+| 🎯 Matcher | *Daily check:* compares the new postings against your experience and the jobs you sent lately, and keeps the best few |
+
+- **Log** (top right): every success (blue ✓) and failure (coral ✕) in this run, with filters, plain-language reasons and a JSON download. Failures such as "the site blocked us (HTTP 403)" or "caught an invented claim" are listed with why.
+- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text, and **The daily job check** (the Discoverer and Matcher at work, then two resumes written without questions).
+- Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
+- Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
+- Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_setup.py` (the setup page), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
+- **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
+- Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
+- Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
+
+---
+
+## 🤖 Where AI is used
+
+| Agent | Uses a model? |
+|---|---|
+| Scout | Plain web requests, plus a small AI check that the page is really one job posting (not a login or cookie page) and, as a last resort, whether another site's page is the same job |
+| Analyst | `EXTRACTOR_MODEL` reads the posting |
+| Archivist | Embeddings find your matching experience; missing skills are worked out in code |
+| Scribe | `GENERATOR_MODEL` writes the lines |
+| Critic | `CRITIC_MODEL` scores it, and plain code blocks any claim not in your saved facts |
+| Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
+| Discoverer | Greenhouse and Lever are read directly; for any other career page a model lists the real openings (invented links are dropped) |
+| Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
+
+Every small helper falls back to plain rules if its model call fails.
+
+## ☀️ The Daily Job Check (finds jobs for you)
+
+Once a day the bot looks for jobs on its own, so you don't have to hunt:
+
+1. **Discoverer** visits your *job pages*: career pages or job boards you added, plus the boards (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Jobvite, Workday) behind jobs you already sent. In Malaysia? `/profile` → Job pages I check → 🇲🇾 Popular in Malaysia adds well-known job pages with one tap. Greenhouse and Lever are read from their public listings; any other career page goes through ScrapingAnt (if you set a key) or a plain visit.
+2. **Matcher** compares each new posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match.
+3. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
+
+A check **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
+
+Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. Settings (the setup page sets the time and timezone; the others go in `.env`):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `SCAN_ENABLED` | `true` | Turn the daily scan on or off |
+| `SCAN_TIME` | `08:00` | Time of day (24h) |
+| `SCAN_TIMEZONE` | `UTC` | e.g. `Asia/Kuala_Lumpur` |
+| `SCAN_MAX_TAILORED` | `3` | Most resumes written per scan |
+| `SCAN_MIN_FIT` | `0.5` | Minimum fit (0 to 1) to be kept |
+
+The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+
+---
+
 ## 🏗️ Architecture
 
 ```
-[ Telegram Chat ] ──► [ Python Telegram Bot (Long Polling) ]
-                               │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
- [ Conversational FSM & CRUD ]         [ Job URL Processing ]
-  (/set*, /add*, /history, etc.)                  │
-            │                                     ▼
-            ▼                           [ 1. Web Scraping & AI Normalization ]
- [ Fact Store Management ]                        │
- (Facts, Experience, Skeleton)                    ▼
-            │                           [ 2. Fact Retrieval (Embeddings + Cosine) ]
-            │                                     │
-            │                                     ▼
-            │                           [ 3. Agentic Loop (Generator & Critic) ]
-            │                                     │
-            │                                     ▼
-            │                           [ 4. LaTeX Render & Tectonic Compile ]
-            │                                     │
-            ▼                                     ▼
-   [ Fact Store JSON ] ───────────────► [ 1-Page Tailored PDF ]
-                                                  │
-                                                  ▼
-                               [ SQLite DB (Default) / Google Cloud Sync ]
+ You (Telegram) ──► send a job link ───────────────┐          Daily timer ──► Discoverer ──► Matcher ──┐
+        ▲                                          ▼                                                   │
+        │                                  ┌── one bot process ──────────────────────────────────────┤
+        │                                  │   Scout ► Analyst ► Archivist ► Scribe ⇄ Critic ► Publisher
+        │                                  │                                                         │
+        └──── PDF, questions, summaries ◄──┤   saved experience (JSON) · tracker (SQLite, optional Google)
+                                           └── live dashboard (same process) shows every hand-off
 ```
+
+One process runs everything: `bot/` is Telegram, the dashboard and the daily check; `service/` is the pipeline
+(`pipeline.py`), the agents (`agentic/`), your saved experience (`fact_store/`, `profile_data.py`, `editor.py`) and
+the PDF builder (`latex/`). There is no separate web service.
 
 ### Key Highlights
 - **Zero Hallucinations Guarantee**: Every bullet point generated cites a verified `fact_id` from your master fact store. The AI calibrates and highlights your true experience—it never invents jobs or skills.
@@ -59,33 +117,60 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ---
 
-## ⚡ Quickstart (Clone & Run in 2 Minutes)
+## ⚡ Quickstart (about 10 minutes, no files to edit)
 
-You only need **Docker** and two API keys: an **OpenAI API Key** and a **Telegram Bot Token**.
+You need **Docker** and two things: an **AI key** and a **Telegram bot**. A setup page asks for them, tests each one, and writes the settings file for you. It also explains how to get each key, so you can start with nothing.
 
-### 1. Clone the repository
+### 1. Install Docker and download Internify
+- Install [Docker Desktop](https://docs.docker.com/get-docker/) and **start it** (wait until it says it is running).
+- Download this project: `git clone https://github.com/adyhafetz/internify.git`, or press **Code → Download ZIP** on GitHub and unzip it.
+
+### 2. Run the setup
+- **Windows:** double-click `setup.bat` in the project folder.
+- **Mac or Linux:** open a terminal in the project folder and run `./setup.sh`.
+
+Your browser opens the setup page at `http://localhost:8765`. Choose **I already have my keys** or **Help me get them**, then:
+
+1. **Choose your AI:** [OpenAI](https://platform.openai.com/api-keys) (best quality, pay as you go) or Google Gemini (free tier, experimental; on the free tier Google may use what you send to improve its products). Paste the key and press **Check key**. Models are chosen for you from what your account offers.
+2. **Your Telegram bot:** make one with [@BotFather](https://t.me/BotFather) (`/newbot`), paste its token, then press Start in your bot and send "hi". The page finds **your Telegram ID** itself, so only you can use the bot.
+3. **Extras (all optional):** the time and timezone of the daily job check, a [ScrapingAnt](https://scrapingant.com/) key for blocked job pages, and (under Advanced) a dashboard key and contact email. You do **not** need the dashboard key on your own computer; it matters only if you put the dashboard on the internet.
+4. **Google Drive and Sheets (optional):** the page walks you through creating a Google project, then you press **Connect Google** and **Create my folder and sheet**. It signs you in, makes a Drive folder and a tracker spreadsheet with the right columns, and saves the login, so there is no refresh token to copy. Skip it and resumes still arrive in Telegram.
+5. **Save and start Internify.** The setup page closes by itself and Internify starts.
+
+Everything stays on your computer. The page only writes a `.env` file next to the project (your old one is kept as `.env.bak`) and talks to the services your keys belong to.
+
+### 3. Say hello
+Open Telegram, find your bot and send `/start`.
+
+> **Keep it running.** The bot only works while Docker is running it. If you close Docker, shut the laptop or it goes to sleep, the bot is offline: messages wait and are answered when it comes back, but **the daily job check will not run** while it is off (it does not catch up on a missed time). Want it always on? Run it on a small server: see the [VPS guide](docs/vps_deployment_guide.md).
+
+<details><summary>Prefer to do it by hand, or don't use Docker?</summary>
+
 ```bash
-git clone https://github.com/adyhafetz/internify.git
-cd internify
-```
-
-### 2. Configure environment
-```bash
-cp .env.example .env
-```
-Open `.env` and fill in your keys:
-```env
-OPENAI_API_KEY=sk-...
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-```
-*(Tip: Get your Bot Token from [@BotFather](https://t.me/BotFather) on Telegram in 30 seconds).*
-
-### 3. Launch with Docker Compose
-```bash
+cp .env.example .env        # then edit it: OPENAI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USER_IDS
 docker compose up -d --build
 ```
+Without Docker (needs Python 3.11, [Tectonic](https://tectonic-typesetting.github.io/) and qpdf installed): `pip install -r requirements.txt`, then `python -m bot.setup` (the same setup page), then `python -m bot.main`.
+To change settings later, run `./setup.sh` again: anything you leave blank keeps its current value.
+</details>
 
-That’s it! Open Telegram, message your bot `/start`, and you're good to go.
+### 4. Fill in your experience: send your current resume
+
+Don't type your experience in one entry at a time. **Send the bot your current resume as a file** (PDF, Word `.docx` or text, up to 5 MB):
+
+1. The bot reads it and shows what it found: contact details, education, jobs, projects, leadership and skills.
+2. You choose **Replace what's saved** (the right choice on a fresh install, which starts with a sample profile; a backup is kept in `output/data/backups/`), **Add to what's saved** (keeps what you have and skips entries already saved), or **Cancel**.
+3. Nothing is saved until you tap a button. Then check it with `/profile`.
+
+Afterwards, `/profile` lets you fix anything by tapping and add new entries. The AI is told to use only what is in your resume and to keep your wording, but always skim the preview: reading a PDF can mix up multi-column layouts. The file is read by your AI provider (OpenAI by default) and is not kept.
+
+### 5. Let it find jobs for you (optional)
+
+Open `/profile` → **🔭 Job pages I check**. Tap **🇲🇾 Popular in Malaysia** to add well-known job pages, or **➕ Add a link** for any career page or job board (Greenhouse and Lever boards work best). Tap **Check now** to try it and watch it on the dashboard. After that it runs every day at `SCAN_TIME`. Details: [The Daily Job Check](#️-the-daily-job-check-finds-jobs-for-you).
+
+### 6. Put the dashboard on your own subdomain (optional)
+
+Home page, privacy policy, terms and the private dashboard on `https://internify.yourdomain.dev`, plus moving Google from Testing to Production and getting a non-expiring refresh token: [`docs/domain_setup.md`](docs/domain_setup.md).
 
 ---
 
@@ -100,69 +185,60 @@ That’s it! Open Telegram, message your bot `/start`, and you're good to go.
 
 ### Running 24/7 on a VPS (Optional)
 If you prefer the bot to run 24/7 in the cloud while your laptop is closed, deploy to any cheap \$3–\$5/month Linux VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS EC2, etc.):
+A server has no browser, so run the setup page on your own computer first and copy the settings file across:
 ```bash
-# On your remote server
+# On the server
 git clone https://github.com/adyhafetz/internify.git
-cd internify && cp .env.example .env
-docker compose up -d
+# On your computer, after ./setup.sh or setup.bat has written .env
+scp .env you@your-server:~/internify/.env
+# On the server
+cd internify && docker compose up -d --build
 ```
 See our [Cloud VPS Deployment Guide](docs/vps_deployment_guide.md) for details.
 
 ---
 
-## 💰 Cost & Model Tuning
+## 💰 Cost & Models
 
-Internify is engineered for extreme cost efficiency:
-* **Extractor**: `gpt-4o-mini` (~$0.0005 per run)
-* **Critic**: `gpt-4o-mini` (~$0.0005 per run)
-* **Generator**: `gpt-4o` (~$0.01 per run)
+With **OpenAI**, the setup page picks these models (falling back to older ones your account has, such as `gpt-4o-mini` and `gpt-4o`):
 
-**Total cost per tailored resume is roughly 1 to 2 cents (\$0.01–\$0.02).**
+| Job | Model | List price per 1M tokens (input / output) |
+|---|---|---|
+| Reading postings (Analyst, Scout and Discoverer helpers, Matcher) | `gpt-5.4-nano` | $0.20 / $1.25 |
+| Writing and checking (Scribe, Critic) | `gpt-5.4-mini` | $0.75 / $4.50 |
+| Finding your matching experience | `text-embedding-3-small` | very low |
 
-### Running for less than a fraction of a cent (<$0.002):
-Change the generator model in `.env`:
-```env
-GENERATOR_MODEL=gpt-4o-mini
-```
+I haven't measured the cost per resume with these models, so check your usage on the OpenAI dashboard after the first few, and set a monthly limit there. To spend less, set `GENERATOR_MODEL=gpt-5.4-nano`; to write better, try a bigger model there.
+
+**Gemini (free tier)** is experimental: it works through Google's OpenAI-compatible endpoint and the setup page picks the newest Flash models from your account. I could not test it against the real service, so try one job first. Free-tier rate limits are low, so the daily job check may be slow, and Google may use free-tier content to improve its products.
+
+---|---|---|
+| Reading postings (Analyst, Scout and Discoverer helpers, Matcher) | `gpt-5.4-nano` | $0.20 / $1.25 |
+| Writing and checking (Scribe, Critic) | `gpt-5.4-mini` | $0.75 / $4.50 |
+| Finding your matching experience | `text-embedding-3-small` | very low |
+
+I haven't measured the cost per resume with these models, so check your usage on the OpenAI dashboard after the first few. To spend less, set `GENERATOR_MODEL=gpt-5.4-nano`; to write better, try a bigger model there.
 
 ---
 
 ## 📱 Telegram Bot Commands Reference
 
-When you open the bot, click the native **`Menu`** button or type `/` to access all commands with autocompletion:
+Everything on your resume is behind one command, `/profile`. Tap, don't type IDs or look anything up.
 
-| Category | Command | Description |
-|---|---|---|
-| **Start** | `/start` | Welcome message & quick overview |
-| | `/help` | Detailed command cheatsheet |
-| **Tracker** | `/history` | View recent applications tracked in SQLite |
-| **Master Resume**| `/resume` | Compile full untailored master resume PDF |
-| **Profile** | `/myprofile` | Interactive contact card with one-click edit buttons |
-| | `/setname [name]` | Update full name (prompted interactively if blank) |
-| | `/setphone [phone]` | Update phone number |
-| | `/setemail [email]` | Update email address |
-| | `/setlinkedin [url]` | Update LinkedIn profile URL |
-| | `/setgithub [url]` | Update GitHub profile URL |
-| **Education** | `/listeducation` | List all education entries & courses |
-| | `/addeducation [text]` | Add education details (AI-extracted from plain English) |
-| | `/deleteeducation` | Delete an education entry (with interactive buttons) |
-| | `/addcourse [id] [name]`| Add relevant coursework to a degree |
-| | `/deletecourse [id] [name]`| Remove coursework from a degree |
-| **Work Experience**| `/addexperience [text]` | Add work experience/internship (auto-extracts bullets & tech tags) |
-| | `/deleteexperience` | Delete experience entry (with interactive buttons) |
-| **Projects** | `/addproject [text]` | Add project (auto-extracts bullets & tech stack) |
-| | `/deleteproject` | Delete project (with interactive buttons) |
-| **Leadership** | `/addleadership [text]` | Add extracurricular or leadership role |
-| | `/deleteleadership` | Delete leadership entry |
-| **Skills & Facts** | `/listskills` | View master technical skills grouped by category |
-| | `/addskill [text]` | Add new skills (automatically categorized) |
-| | `/deleteskill [name]` | Remove a skill |
-| | `/listentries` | View all entry IDs for experiences & projects |
-| | `/listfacts [id]` | View all verified fact bullets for an entry |
-| | `/updatefact [id] [text]`| Edit bullet text (auto re-indexes embeddings) |
-| | `/deletefact [id]` | Delete a fact bullet |
-| **General** | `/cancel` | Cancel any active multi-step prompt |
-| **Tailor** | *Paste any Job URL* | Automatically scrapes, tailors, compiles, and sends PDF |
+The slash menu shows these six:
+
+| Command | What it does |
+|---|---|
+| `/profile` | **See and edit everything on your resume.** Contact details, education, jobs, projects, leadership and skills as buttons. Tap an entry to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete (it asks first) or ➕ to add a line. **➕ Add something** adds a whole job, project, leadership role or degree: you describe it in your own words and the AI turns it into bullet points. Skills are grouped by category: tap one to add (comma-separated) or remove. |
+| `/importresume` | Fill in everything from your current resume. Send a PDF, Word or text file (or just send the file), check the preview, then choose Replace or Add. |
+| `/history` | Jobs you've applied to, with match scores and links. |
+| `/resume` | Download your general resume (PDF), not tailored to any job. |
+| `/help` | Everything the bot can do. |
+| `/cancel` | Stop the current step, for example a question the bot is waiting for you to answer. |
+
+And the main action isn't a command: **send a job link** and you get a tailored 1-page PDF.
+
+There are no other commands: everything else is a button inside `/profile`.
 
 ---
 
@@ -177,10 +253,7 @@ Internify includes built-in support for **[ScrapingAnt](https://scrapingant.com/
 ### Setup (30 seconds):
 1. Sign up for a free account at [scrapingant.com](https://scrapingant.com/).
 2. Copy your API token from the dashboard.
-3. Paste it into your `.env`:
-   ```env
-   SCRAPINGANT_API_KEY=your_scrapingant_api_token
-   ```
+3. Paste it into the setup page (Extras), or into your `.env` as `SCRAPINGANT_API_KEY=...`.
 *(Note: If left blank, Internify automatically falls back to built-in direct HTTP scraping with browser user-agent spoofing).*
 
 ---
@@ -191,8 +264,13 @@ By default, Internify saves applications in **SQLite** (`output/internify.db`) a
 
 If you want automated cloud backups to Google Drive and Google Sheets:
 
-### 1. Copy the Official Application Tracker Sheet Template
-We provide a pre-formatted, production-ready Google Sheet tracker complete with automated formulas and dropdown menus:
+### The easy way: the setup page
+Run `./setup.sh` (or `setup.bat`) and open step 4, **Google Drive and Sheets**. Follow its short guide to create a Google project and a **Desktop app** client, paste the Client ID and secret, press **Connect Google**, then **Create my folder and sheet**. It creates a Drive folder "Internify resumes" and a spreadsheet "Internify tracker" (with the columns below and a Status drop-down) and writes everything into `.env`.
+
+Important: in the Google consent screen press **Publish app** (otherwise Google cancels the connection after 7 days). Google then shows an "unverified app" warning when you sign in; for your own app press **Advanced → Go to Internify**. Details: [`docs/domain_setup.md`](docs/domain_setup.md), part 3.
+
+### Or by hand: copy the template
+We also provide a pre-formatted tracker with automated formulas and dropdown menus:
 👉 **[Open Internify — Application Tracker Template](https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing)**
 
 1. Open the link above, click **File → Make a copy** to save it to your own Google Drive.
@@ -200,7 +278,7 @@ We provide a pre-formatted, production-ready Google Sheet tracker complete with 
    ```text
    https://docs.google.com/spreadsheets/d/<YOUR_SPREADSHEET_ID>/edit
    ```
-3. Set `GOOGLE_SHEET_ID=<YOUR_SPREADSHEET_ID>` in your `.env`.
+3. Set `GOOGLE_SHEET_ID=<YOUR_SPREADSHEET_ID>` in your `.env`, with the other Google values (see `.env.example`).
 
 #### Template Columns Explained:
 | Column | Purpose | Managed By |
@@ -214,7 +292,7 @@ We provide a pre-formatted, production-ready Google Sheet tracker complete with 
 
 ### 2. Google OAuth Credentials Setup
 1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/) (Enable **Google Drive API** and **Google Sheets API**).
-2. Authenticate once via OAuth2 or service account to obtain your refresh token.
+2. Authenticate once with `python scripts/get_gdrive_token.py` to obtain your refresh token. Full steps, including moving the Google consent screen from Testing to Production so the token does not expire after 7 days: [`docs/domain_setup.md`](docs/domain_setup.md).
 3. Add the generated credentials to `.env`:
    ```env
    GOOGLE_CLIENT_ID=...
@@ -237,6 +315,8 @@ To prevent unauthorized users on Telegram from generating resumes or modifying y
    TELEGRAM_ALLOWED_USER_IDS=123456789
    ```
 Any messages from other users will be rejected with an `Access Denied` notification.
+
+Your saved experience is kept in `output/data/` (outside the code, so updates never touch it), and resumes uploaded to Google Drive stay private to your account.
 
 ---
 
