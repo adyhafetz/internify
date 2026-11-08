@@ -34,6 +34,9 @@ DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1").strip()
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
 # Shown on the privacy page as the way to reach the person running this site (leave empty to point to GitHub issues).
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "").strip()
+# The public https address of your website (for example https://internify.yourdomain.com). Used for the dashboard button
+# in /profile → My links. Leave empty if you only use the dashboard on your own computer.
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
 # Key that protects the live dashboard when it is reachable from the internet (empty = open, fine on localhost).
 # Open https://<your-domain>/live?key=<DASHBOARD_KEY> once; the browser then remembers it.
 DASHBOARD_KEY = os.getenv("DASHBOARD_KEY", "").strip()

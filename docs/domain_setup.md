@@ -66,6 +66,7 @@ TELEGRAM_ALLOWED_USER_IDS=YOUR_TELEGRAM_NUMBER      # from @userinfobot
 SCRAPINGANT_API_KEY=                                 # optional
 DASHBOARD_KEY=                                       # see part 2, step 1
 CONTACT_EMAIL=you@example.com                        # shown on your privacy page
+PUBLIC_URL=https://internify.yourdomain.com          # adds a dashboard button to /profile → My links
 CLOUDFLARE_TUNNEL_TOKEN=                             # part 2
 # Google values come in part 4
 ```

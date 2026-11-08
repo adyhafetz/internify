@@ -79,7 +79,7 @@ Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
 A check **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
 
-Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. Settings (the setup page sets the time and timezone; the others go in `.env`):
+Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. **🔗 My links** (also in `/profile`) opens your dashboard, tracker sheet and Drive folder with one tap; the dashboard button needs `PUBLIC_URL` (your website address) in `.env`. Settings (the setup page sets the time and timezone; the others go in `.env`):
 
 | Setting | Default | Meaning |
 |---|---|---|
