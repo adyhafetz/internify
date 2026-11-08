@@ -33,3 +33,7 @@ Thumbs.db
 *.log
 
 .env.bak
+
+# Your own notes (real domain, server, steps you followed): keep them here, never push them
+docs/MY_SETUP.md
+docs/private/

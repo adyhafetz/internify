@@ -1,21 +1,22 @@
 # Go live on your own subdomain (Cloudflare, Google, a clean server)
 
-You bought `adyhafetz.dev` and want to keep the main address free for your portfolio. So everything for Internify
-lives on one subdomain, `internify.adyhafetz.dev`, and the main domain is never touched.
+Put everything for Internify on one **subdomain** of a domain you own, for example `internify.yourdomain.com`, and
+leave the main domain (`yourdomain.com`) free for anything else, such as a portfolio. Replace `yourdomain.com` with
+your own domain everywhere below.
 
 | Address | Who can open it | What it is |
 |---|---|---|
-| `https://internify.adyhafetz.dev/` | everyone | Home page (the one Google asks for) |
-| `https://internify.adyhafetz.dev/privacy` and `/terms` | everyone | Privacy policy and terms (Google asks for these too) |
-| `https://internify.adyhafetz.dev/dashboard` (same as `/live`) | only you | The live agent dashboard; it asks for your key |
+| `https://internify.yourdomain.com/` | everyone | Home page (the one Google asks for) |
+| `https://internify.yourdomain.com/privacy` and `/terms` | everyone | Privacy policy and terms (Google asks for these too) |
+| `https://internify.yourdomain.com/dashboard` (same as `/live`) | only you | The live agent dashboard; it asks for your key |
 
 Why the home page is not the dashboard itself: Google (and anyone) must be able to open the home page without a
 key, and the dashboard shows your job text and resume lines. So `/` is a public page that explains Internify and has an
 "Open the live dashboard" button; `/dashboard` takes you to the dashboard and asks for your key if this browser
 does not have it yet.
 
-**New to domains? Four words.** *Domain*: `adyhafetz.dev`, which you own. *Subdomain*: a name in front of it,
-`internify.adyhafetz.dev`, which costs nothing and does not affect the main domain. *DNS record*: a line in Cloudflare
+**New to domains? Four words.** *Domain*: `yourdomain.com`, which you own. *Subdomain*: a name in front of it,
+`internify.yourdomain.com`, which costs nothing and does not affect the main domain. *DNS record*: a line in Cloudflare
 that says where a name points. *Tunnel*: a private connection from Cloudflare to your server, so you never open a
 port.
 
@@ -87,8 +88,8 @@ ever pasted a key anywhere public, create a new one.
 
 ## 2. The subdomain with a Cloudflare Tunnel
 
-**Before you start (one minute).** Because you bought the domain at Cloudflare, it already uses Cloudflare's DNS. Check:
-Cloudflare dashboard → **Websites** (or **Account home**) → click `adyhafetz.dev`. The Overview page should say
+**Before you start (one minute).** If you bought the domain at Cloudflare (or moved it there), it already uses Cloudflare's DNS. Check:
+Cloudflare dashboard → **Websites** (or **Account home**) → click `yourdomain.com`. The Overview page should say
 **Active**. That is all the setup the domain needs; you do not change nameservers or add any record by hand.
 
 1. **Dashboard key.** On the server: `openssl rand -hex 16`. Put the result in `.env` as `DASHBOARD_KEY=...`.
@@ -97,7 +98,7 @@ Cloudflare dashboard → **Websites** (or **Account home**) → click `adyhafetz
 3. **Create the tunnel.** **Networks → Tunnels → Create a tunnel → Cloudflared**, name it `internify`, Save.
    On the next screen choose **Docker**; copy only the long token (the text after `--token`).
 4. **Public hostname** (shown as "Published application routes" in newer menus): Subdomain `internify`,
-   Domain `adyhafetz.dev`, Path empty, Service type **HTTP**, URL `telegram-bot:8080`. Save. Cloudflare creates the
+   Domain `yourdomain.com`, Path empty, Service type **HTTP**, URL `telegram-bot:8080`. Save. Cloudflare creates the
    DNS record for you; you do not add one by hand.
 5. Put the token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN=...`, then:
 
@@ -108,10 +109,10 @@ Cloudflare dashboard → **Websites** (or **Account home**) → click `adyhafetz
 6. **Close the server.** Only SSH needs to be open: `sudo ufw allow OpenSSH && sudo ufw --force enable`. If your
    provider has its own firewall (Tencent, AWS, Hetzner), leave only port 22 open there too. The dashboard port is
    already published only on the server itself.
-7. **Check.** Open `https://internify.adyhafetz.dev/` (home), `/privacy`, `/terms`, then
-   `https://internify.adyhafetz.dev/live?key=YOUR_KEY` once. The browser remembers the key for 30 days.
+7. **Check.** Open `https://internify.yourdomain.com/` (home), `/privacy`, `/terms`, then
+   `https://internify.yourdomain.com/live?key=YOUR_KEY` once. The browser remembers the key for 30 days.
 
-The main domain `adyhafetz.dev` is untouched. Later, point it at your portfolio however you like (for example
+The main domain `yourdomain.com` is untouched. Later, point it at your portfolio however you like (for example
 Cloudflare Pages); Internify keeps working on its subdomain.
 
 ---
@@ -131,14 +132,14 @@ tool. So: do steps 1, 3, 4 and 5 below, and treat step 2 as optional.
 2. **Optional: prove you own the domain.** Skip this unless Google's page shows a "domain not verified" notice you
    want to clear.
    - Open <https://search.google.com/search-console> with the same Google account, **Add property → Domain**, enter
-     `adyhafetz.dev`. It shows a TXT record starting `google-site-verification=`.
-   - In Cloudflare: **Websites → adyhafetz.dev → DNS → Records → Add record**: Type `TXT`, Name `@`, Content = that
+     `yourdomain.com`. It shows a TXT record starting `google-site-verification=`.
+   - In Cloudflare: **Websites → yourdomain.com → DNS → Records → Add record**: Type `TXT`, Name `@`, Content = that
      text, Save. This does not affect your website or your portfolio later.
    - Back in Search Console press **Verify** (it can take a few minutes).
 3. **Consent screen**: **APIs & Services → OAuth consent screen** (called *Google Auth Platform* in newer menus).
-   - **Branding**: App name `Internify`; your support email; **App home page** `https://internify.adyhafetz.dev/`;
-     **Privacy policy** `https://internify.adyhafetz.dev/privacy`; **Terms of service**
-     `https://internify.adyhafetz.dev/terms`; **Authorized domain** `adyhafetz.dev`; developer contact email.
+   - **Branding**: App name `Internify`; your support email; **App home page** `https://internify.yourdomain.com/`;
+     **Privacy policy** `https://internify.yourdomain.com/privacy`; **Terms of service**
+     `https://internify.yourdomain.com/terms`; **Authorized domain** `yourdomain.com`; developer contact email.
      Leave the logo empty (adding one triggers extra review). If a field complains the domain is not verified,
      that is the optional step 2; you can still save and publish.
    - **Audience**: user type **External**.
@@ -190,5 +191,5 @@ anyone with the link). Open the Drive link while signed in.
 
 ## Sharing the dashboard with someone
 
-Send them `https://internify.adyhafetz.dev/live?key=YOUR_KEY`. Anyone with that link can see your runs, which
+Send them `https://internify.yourdomain.com/live?key=YOUR_KEY`. Anyone with that link can see your runs, which
 include job text and resume lines, so share it only when needed and change `DASHBOARD_KEY` afterwards.
