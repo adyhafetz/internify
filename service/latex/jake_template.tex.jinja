@@ -9,6 +9,7 @@
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
+\usepackage[english]{babel}
 \usepackage{tabularx}
 
 \pagestyle{fancy}
@@ -20,8 +21,8 @@
 \addtolength{\oddsidemargin}{-0.5in}
 \addtolength{\evensidemargin}{-0.5in}
 \addtolength{\textwidth}{1in}
-\addtolength{\topmargin}{-.5in}
-\addtolength{\textheight}{1.0in}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1.3in}
 
 \urlstyle{same}
 
@@ -68,20 +69,25 @@
     \small << header.contact_line >>
 \end{center}
 
+<% if education %>
 \section{Education}
   \resumeSubHeadingListStart
 <% for edu in education %>
     \resumeSubheading
       {<< edu.institution >>}{<< edu.location >>}
       {<< edu.degree_line >>}{<< edu.dates >>}
+<% if edu.bullets %>
       \resumeItemListStart
 <% for b in edu.bullets %>
         \resumeItem{<< b >>}
 <% endfor %>
       \resumeItemListEnd
+<% endif %>
 <% endfor %>
   \resumeSubHeadingListEnd
+<% endif %>
 
+<% if experience %>
 \section{Work Experience}
   \resumeSubHeadingListStart
 <% for entry in experience %>
@@ -95,7 +101,9 @@
       \resumeItemListEnd
 <% endfor %>
   \resumeSubHeadingListEnd
+<% endif %>
 
+<% if projects %>
 \section{Projects}
     \resumeSubHeadingListStart
 <% for entry in projects %>
@@ -108,6 +116,7 @@
           \resumeItemListEnd
 <% endfor %>
     \resumeSubHeadingListEnd
+<% endif %>
 
 <% if leadership %>
 \section{Leadership Experience}
@@ -116,15 +125,18 @@
     \resumeSubheading
       {<< entry.title >>}{<< entry.dates >>}
       {<< entry.org >>}{<< entry.location >>}
+<% if entry.bullets %>
       \resumeItemListStart
 <% for b in entry.bullets %>
         \resumeItem{<< b >>}
 <% endfor %>
       \resumeItemListEnd
+<% endif %>
 <% endfor %>
   \resumeSubHeadingListEnd
 <% endif %>
 
+<% if skills %>
 \section{Technical Skills}
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{
@@ -134,5 +146,6 @@
 <% endfor %>
     }}
  \end{itemize}
+<% endif %>
 
 \end{document}
