@@ -161,7 +161,9 @@ print("L ok: Google sign-in, folder and sheet creation, login kept on the server
 stopped = []
 server.state["finish"] = lambda: stopped.append(1)
 assert c.post("/api/finish").json()["ok"] and stopped and server.state["done"]
-assert "Set up Internify" in c.get("/").text and c.get("/assets/brand/logo-mark.svg").status_code == 200
+page_html = c.get("/").text
+assert "Set up Internify" in page_html and "prefers-color-scheme" not in page_html and 'id="theme"' in page_html and 'localStorage.getItem("internify-setup-theme") || "light"' in page_html, "light unless you pick dark"
+assert "Set up Internify" in page_html and c.get("/assets/brand/logo-mark.svg").status_code == 200
 print("S ok: the form is checked, .env is written (private), a rerun keeps your keys, Finish stops the wizard")
 
 # ---- P: the Gemini switch in the app itself

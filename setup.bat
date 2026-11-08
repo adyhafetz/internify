@@ -17,6 +17,7 @@ if not exist .env type nul > .env
 
 echo Opening the setup page at http://localhost:8765 (if your browser does not open, open that address yourself).
 start "" cmd /c "timeout /t 6 /nobreak >nul & start http://localhost:8765"
+docker compose --profile setup build setup >nul
 docker compose --profile setup run --rm --service-ports setup
 if errorlevel 1 (
   echo.

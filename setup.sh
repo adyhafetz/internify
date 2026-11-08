@@ -16,6 +16,7 @@ URL="http://localhost:8765"
 ( sleep 6; if command -v open >/dev/null 2>&1; then open "$URL"; elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$URL"; fi ) >/dev/null 2>&1 &
 
 echo "Opening the setup page at $URL (if your browser does not open, open that address yourself)."
+docker compose --profile setup build setup >/dev/null   # picks up any update to the setup page (quick when nothing changed)
 if ! docker compose --profile setup run --rm --service-ports setup; then
   echo; echo "Setup was not finished, so Internify was not started. Run ./setup.sh again when you are ready."; exit 1
 fi
