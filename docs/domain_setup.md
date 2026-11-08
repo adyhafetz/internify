@@ -47,11 +47,16 @@ sudo rm -rf ~/internify
 # 5. Get the new code
 git clone https://github.com/adyhafetz/internify.git
 cd internify
+```
+
+The easy way to fill in `.env`: run the setup page on your own computer (`setup.bat` on Windows, `./setup.sh` on Mac or Linux), then copy the file to the server with `scp .env you@YOUR_SERVER:~/internify/.env` (run that from the project folder on your computer, after the clone above). Or edit it by hand on the server:
+
+```bash
 cp .env.example .env
 nano .env
 ```
 
-In `.env` fill in (save with Ctrl+O, Enter, Ctrl+X):
+Whichever way, `.env` needs these (edit by hand with Ctrl+O, Enter, Ctrl+X to save):
 
 ```env
 OPENAI_API_KEY=sk-...

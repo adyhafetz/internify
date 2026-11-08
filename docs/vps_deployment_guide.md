@@ -53,7 +53,9 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 git clone https://github.com/adyhafetz/internify.git
 cd internify
 
-# Create your .env file
+# Create your .env file. A server has no browser, so the easy way is to run the setup page on your own computer
+# (./setup.sh or setup.bat) and copy the file here:   scp .env you@YOUR_SERVER_IP:~/internify/.env
+# Or write it by hand:
 cp .env.example .env
 nano .env
 ```

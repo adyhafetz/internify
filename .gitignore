@@ -1,6 +1,7 @@
 # Environment variables & secrets
 .env
 .env.local
+
 *.json
 !service/fact_store/facts.json
 !service/fact_store/resume_skeleton.json
@@ -31,3 +32,4 @@ service/fact_store/embeddings_cache.json
 Thumbs.db
 *.log
 
+.env.bak

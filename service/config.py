@@ -3,7 +3,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# Which AI service answers: "openai" (default) or "gemini" (Google's free tier, through its OpenAI-compatible endpoint).
+# OPENAI_API_KEY below is simply "the key of the chosen service", whichever it is.
+AI_PROVIDER = os.getenv("AI_PROVIDER", "openai").strip().lower()
+if AI_PROVIDER == "gemini":
+    OPENAI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+else:
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    AI_BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip() or None
 
 # A small model for reading, a mid-size one for writing and checking.
 EXTRACTOR_MODEL = os.getenv("EXTRACTOR_MODEL", "gpt-5.4-nano")

@@ -46,7 +46,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_setup.py` (the setup page), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
 - Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
@@ -79,7 +79,7 @@ Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
 A check **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
 
-Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. Settings in `.env`:
+Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. Settings (the setup page sets the time and timezone; the others go in `.env`):
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -117,36 +117,41 @@ the PDF builder (`latex/`). There is no separate web service.
 
 ---
 
-## ⚡ Quickstart (Clone & Run in 2 Minutes)
+## ⚡ Quickstart (about 10 minutes, no files to edit)
 
-You only need **Docker** and two API keys: an **OpenAI API Key** and a **Telegram Bot Token**.
+You need **Docker** and two things: an **AI key** and a **Telegram bot**. A setup page asks for them, tests each one, and writes the settings file for you. It also explains how to get each key, so you can start with nothing.
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/adyhafetz/internify.git
-cd internify
-```
+### 1. Install Docker and download Internify
+- Install [Docker Desktop](https://docs.docker.com/get-docker/) and **start it** (wait until it says it is running).
+- Download this project: `git clone https://github.com/adyhafetz/internify.git`, or press **Code → Download ZIP** on GitHub and unzip it.
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-```
-Open `.env` and fill in your keys:
-```env
-OPENAI_API_KEY=sk-...
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-TELEGRAM_ALLOWED_USER_IDS=123456789
-```
-*(Get your Bot Token from [@BotFather](https://t.me/BotFather) in 30 seconds, and your user ID from [@userinfobot](https://t.me/userinfobot). Setting your user ID makes the bot answer only you; without it anyone who finds the bot can spend your OpenAI credit.)*
+### 2. Run the setup
+- **Windows:** double-click `setup.bat` in the project folder.
+- **Mac or Linux:** open a terminal in the project folder and run `./setup.sh`.
 
-### 3. Launch with Docker Compose
-```bash
-docker compose up -d --build
-```
+Your browser opens the setup page at `http://localhost:8765`. Choose **I already have my keys** or **Help me get them**, then:
 
-That’s it! Open Telegram, message your bot `/start`, and you're good to go.
+1. **Choose your AI:** [OpenAI](https://platform.openai.com/api-keys) (best quality, pay as you go) or Google Gemini (free tier, experimental; on the free tier Google may use what you send to improve its products). Paste the key and press **Check key**. Models are chosen for you from what your account offers.
+2. **Your Telegram bot:** make one with [@BotFather](https://t.me/BotFather) (`/newbot`), paste its token, then press Start in your bot and send "hi". The page finds **your Telegram ID** itself, so only you can use the bot.
+3. **Extras (all optional):** the time of the daily job check, a [ScrapingAnt](https://scrapingant.com/) key for blocked job pages, and Google Drive/Sheets values if you already have them.
+4. **Save and start Internify.** The setup page closes by itself and Internify starts.
+
+Everything stays on your computer. The page only writes a `.env` file next to the project (your old one is kept as `.env.bak`) and talks to the services your keys belong to.
+
+### 3. Say hello
+Open Telegram, find your bot and send `/start`.
 
 > **Keep it running.** The bot only works while Docker is running it. If you close Docker, shut the laptop or it goes to sleep, the bot is offline: messages wait and are answered when it comes back, but **the daily job check will not run** while it is off (it does not catch up on a missed time). Want it always on? Run it on a small server: see the [VPS guide](docs/vps_deployment_guide.md).
+
+<details><summary>Prefer to do it by hand, or don't use Docker?</summary>
+
+```bash
+cp .env.example .env        # then edit it: OPENAI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USER_IDS
+docker compose up -d --build
+```
+Without Docker (needs Python 3.11, [Tectonic](https://tectonic-typesetting.github.io/) and qpdf installed): `pip install -r requirements.txt`, then `python -m bot.setup` (the same setup page), then `python -m bot.main`.
+To change settings later, run `./setup.sh` again: anything you leave blank keeps its current value.
+</details>
 
 ### 4. Fill in your experience: send your current resume
 
@@ -179,11 +184,14 @@ Home page, privacy policy, terms and the private dashboard on `https://internify
 
 ### Running 24/7 on a VPS (Optional)
 If you prefer the bot to run 24/7 in the cloud while your laptop is closed, deploy to any cheap \$3–\$5/month Linux VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS EC2, etc.):
+A server has no browser, so run the setup page on your own computer first and copy the settings file across:
 ```bash
-# On your remote server
+# On the server
 git clone https://github.com/adyhafetz/internify.git
-cd internify && cp .env.example .env
-docker compose up -d
+# On your computer, after ./setup.sh or setup.bat has written .env
+scp .env you@your-server:~/internify/.env
+# On the server
+cd internify && docker compose up -d --build
 ```
 See our [Cloud VPS Deployment Guide](docs/vps_deployment_guide.md) for details.
 
@@ -191,10 +199,19 @@ See our [Cloud VPS Deployment Guide](docs/vps_deployment_guide.md) for details.
 
 ## 💰 Cost & Models
 
-Internify uses three OpenAI models, set in `.env`:
+With **OpenAI**, the setup page picks these models (falling back to older ones your account has, such as `gpt-4o-mini` and `gpt-4o`):
 
 | Job | Model | List price per 1M tokens (input / output) |
 |---|---|---|
+| Reading postings (Analyst, Scout and Discoverer helpers, Matcher) | `gpt-5.4-nano` | $0.20 / $1.25 |
+| Writing and checking (Scribe, Critic) | `gpt-5.4-mini` | $0.75 / $4.50 |
+| Finding your matching experience | `text-embedding-3-small` | very low |
+
+I haven't measured the cost per resume with these models, so check your usage on the OpenAI dashboard after the first few, and set a monthly limit there. To spend less, set `GENERATOR_MODEL=gpt-5.4-nano`; to write better, try a bigger model there.
+
+**Gemini (free tier)** is experimental: it works through Google's OpenAI-compatible endpoint and the setup page picks the newest Flash models from your account. I could not test it against the real service, so try one job first. Free-tier rate limits are low, so the daily job check may be slow, and Google may use free-tier content to improve its products.
+
+---|---|---|
 | Reading postings (Analyst, Scout and Discoverer helpers, Matcher) | `gpt-5.4-nano` | $0.20 / $1.25 |
 | Writing and checking (Scribe, Critic) | `gpt-5.4-mini` | $0.75 / $4.50 |
 | Finding your matching experience | `text-embedding-3-small` | very low |
@@ -235,10 +252,7 @@ Internify includes built-in support for **[ScrapingAnt](https://scrapingant.com/
 ### Setup (30 seconds):
 1. Sign up for a free account at [scrapingant.com](https://scrapingant.com/).
 2. Copy your API token from the dashboard.
-3. Paste it into your `.env`:
-   ```env
-   SCRAPINGANT_API_KEY=your_scrapingant_api_token
-   ```
+3. Paste it into the setup page (Extras), or into your `.env` as `SCRAPINGANT_API_KEY=...`.
 *(Note: If left blank, Internify automatically falls back to built-in direct HTTP scraping with browser user-agent spoofing).*
 
 ---

@@ -11,7 +11,8 @@ from service.models import FactBullet, ResumeSkeleton
 
 
 def _text_hash(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    """Includes the embedding model: vectors from a different model must never be mixed with these."""
+    return hashlib.sha256(f"{config.EMBEDDING_MODEL}|{text}".encode("utf-8")).hexdigest()
 
 
 def ensure_data_file(path: str, sample_name: str) -> None:
