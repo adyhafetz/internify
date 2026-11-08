@@ -405,6 +405,19 @@ watchlist.mark_checked(src.id, "failed: the site blocked us (HTTP 403)")
 text, markup = tap(ctx, "xp:w"); assert "didn't answer (the site blocked us (HTTP 403))" in text
 text, markup = tap(ctx, f"xp:wd:{src.id}")
 assert "✕ Removed." in text and starter_pages.MALAYSIA[2][1] not in text and not any(x.id == src.id for x in watchlist.list_sources())
+# E3 My links: dashboard, tracker sheet and resume folder (only what is set up; only public https addresses)
+from bot import config as _cfg
+text, markup = tap(ctx, "xp:l"); assert not any("My links" in b.text for b in buttons(markup)), "no links yet: no button"
+_cfg.PUBLIC_URL, _cfg.GOOGLE_SHEET_ID, _cfg.GOOGLE_DRIVE_FOLDER_ID = "https://internify.example.com", "SHEET123", "https://drive.google.com/drive/folders/FOLDER456/"
+text, markup = tap(ctx, "xp:l"); assert any(b.text == "🔗 My links" for b in buttons(markup))
+text, markup = tap(ctx, "xp:lk")
+urls = [b.url for b in buttons(markup) if b.url]
+assert urls == ["https://internify.example.com/dashboard", "https://docs.google.com/spreadsheets/d/SHEET123/edit", "https://drive.google.com/drive/folders/FOLDER456"], urls
+valid(text)
+_cfg.PUBLIC_URL = "http://localhost:8080"; assert [u for _, u in eb.my_links()][0].startswith("https://docs.google.com"), "localhost is not a valid Telegram button address"
+_cfg.PUBLIC_URL = _cfg.GOOGLE_SHEET_ID = _cfg.GOOGLE_DRIVE_FOLDER_ID = ""
+text, markup = tap(ctx, "xp:lk"); assert "Nothing to link to yet" in text
+print("E3 ok: My links shows the dashboard, sheet and folder that are set up, and hides itself when none are")
 print("E1 ok: Popular in Malaysia lists well-known pages, one tap adds one, it shows as added")
 print("E2 ok: the pages I check are listed with link and last result, and ✕ removes one")
 print("\n✅ browser test passed")

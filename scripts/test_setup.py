@@ -98,6 +98,7 @@ assert "AI key" in save(ai_key="")["message"]
 assert "bot token" in save(telegram_token="")["message"]
 assert "Telegram ID" in save(user_id="")["message"]
 assert "numbers" in save(user_id="abc")["message"]
+assert "https" in save(public_url="http://localhost:8080")["message"]
 assert "time" in save(scan_time="25:99")["message"] and "timezone" in save(scan_timezone="Mars/Base")["message"]
 assert save(user_id="", anyone_can_use=True)["ok"]
 assert not c.post("/api/finish").json()["ok"] or server.state["saved"]
@@ -147,10 +148,10 @@ assert "Connected to Google" in c.get("/", params={"code": "good-code", "state":
 assert c.get("/api/google/status").json() == {"connected": True, "created": False}
 made = c.post("/api/google/create").json()
 assert made["ok"] and "SHEET9" in made["sheet_url"] and "FOLDER9" in made["folder_url"]
-r = save(dashboard_key="abc123def456", google={})
+r = save(dashboard_key="abc123def456", public_url="https://internify.example.com/", google={})
 got = envfile.read_env(env_path)
 assert r["ok"] and got["GOOGLE_REFRESH_TOKEN"] == "1//refresh-xyz" and got["GOOGLE_CLIENT_ID"] == "cid.apps.googleusercontent.com" and got["GOOGLE_CLIENT_SECRET"] == "GOCSPX-s"
-assert got["GOOGLE_SHEET_ID"] == "SHEET9" and got["GOOGLE_DRIVE_FOLDER_ID"] == "FOLDER9" and got["GOOGLE_SHEET_NAME"] == "Tracker" and got["DASHBOARD_KEY"] == "abc123def456"
+assert got["GOOGLE_SHEET_ID"] == "SHEET9" and got["GOOGLE_DRIVE_FOLDER_ID"] == "FOLDER9" and got["GOOGLE_SHEET_NAME"] == "Tracker" and got["DASHBOARD_KEY"] == "abc123def456" and got["PUBLIC_URL"] == "https://internify.example.com"
 assert "1//refresh-xyz" not in json.dumps(c.get("/api/state").json()) and "1//refresh-xyz" not in json.dumps(made), "the login never goes through the browser"
 assert not save(dashboard_key="has space")["ok"]
 r = save(google={"GOOGLE_SHEET_ID": "mine"}); assert envfile.read_env(env_path)["GOOGLE_SHEET_ID"] == "mine", "values typed by hand win"

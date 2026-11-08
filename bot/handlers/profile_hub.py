@@ -73,8 +73,35 @@ def list_screen(notice: str = "") -> Screen:
     rows += [[_btn(_short(f"{ICON[e.kind]} {e.label} ({e.count})", 60), "o", e.kind, e.ref, 0)] for e in entries]
     rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
     rows.append([_btn(f"🔭 Job pages I check ({len(watchlist.list_sources())})", "w")])
+    if my_links():
+        rows.append([_btn("🔗 My links", "lk")])
     rows.append([_btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
+def my_links() -> list[tuple[str, str]]:
+    """(button text, address) for what is set up: the dashboard, the tracker sheet and the resume folder.
+    Telegram only accepts public https addresses on buttons, so a localhost address is left out."""
+    links: list[tuple[str, str]] = []
+    if config.PUBLIC_URL.startswith("https://"):
+        links.append(("📊 Live dashboard", f"{config.PUBLIC_URL}/dashboard"))
+    sheet = config.GOOGLE_SHEET_ID.strip()
+    if sheet:
+        links.append(("📑 Application tracker (Google Sheet)", f"https://docs.google.com/spreadsheets/d/{sheet}/edit"))
+    folder = config.GOOGLE_DRIVE_FOLDER_ID.strip().rstrip("/").rsplit("/", 1)[-1]
+    if folder:
+        links.append(("📁 Resume folder (Google Drive)", f"https://drive.google.com/drive/folders/{folder}"))
+    return links
+
+
+def links_screen() -> Screen:
+    links = my_links()
+    if not links:
+        return ("🔗 <b>My links</b>\n\nNothing to link to yet. The dashboard link needs your website address, and the sheet and folder "
+                "come from connecting Google. Run the setup page again to add them."), InlineKeyboardMarkup([[_btn("⬅ Back to profile", "l")]])
+    rows = [[InlineKeyboardButton(text, url=url)] for text, url in links]
+    rows.append([_btn("⬅ Back to profile", "l")])
+    return "🔗 <b>My links</b>\nTap one to open it.", InlineKeyboardMarkup(rows)
 
 
 def contact_screen(notice: str = "") -> Screen:
@@ -344,6 +371,8 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return add_menu_screen()
     if action == "w":
         return watchlist_screen()
+    if action == "lk":
+        return links_screen()
     if action == "wa":
         return _prompt(context, "➕ <b>Add a link to watch</b>\n\nSend a career page or a job-board link, for example "
                        "https://boards.greenhouse.io/acme or https://jobs.lever.co/acme.", ("w",), action="source")
