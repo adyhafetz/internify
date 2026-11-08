@@ -23,7 +23,9 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 ---
 
-## 🖥️ Live Agent Dashboard
+## 🖥️ Live Agent Dashboard (optional)
+
+The bot works fully without it: everything happens in Telegram. The dashboard is only for watching the agents work (handy for a demo). On your own computer it needs no key: open it at `localhost`. A key (`DASHBOARD_KEY`) matters only if you put it on the internet with your own domain.
 
 While the bot runs, open **http://localhost:8080/live** (also reachable as `/dashboard`; if a key is set it asks for it). It's a single picture that fits your browser window (no scrolling): a ring of nine seats, **Telegram** (you) at the top and eight agents around it. The Discoverer and Matcher are grey with a dotted outline while no daily check is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
@@ -143,6 +145,8 @@ docker compose up -d --build
 ```
 
 That’s it! Open Telegram, message your bot `/start`, and you're good to go.
+
+> **Keep it running.** The bot only works while Docker is running it. If you close Docker, shut the laptop or it goes to sleep, the bot is offline: messages wait and are answered when it comes back, but **the daily job check will not run** while it is off (it does not catch up on a missed time). Want it always on? Run it on a small server: see the [VPS guide](docs/vps_deployment_guide.md).
 
 ### 4. Fill in your experience: send your current resume
 

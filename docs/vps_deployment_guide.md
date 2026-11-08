@@ -1,5 +1,7 @@
 # Cloud VPS Deployment Guide
 
+Why use a server at all: Internify only works while it is running. On your own computer it stops when Docker is closed or the computer sleeps, and the daily job check does not run while it is off. A small always-on server fixes that. If your computer is usually on, you can skip this guide.
+
 Deploying **Internify** on any Cloud VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS, Linode, etc.) is remarkably simple because the Python Telegram bot uses **long polling**—meaning:
 - **No domain name required** (optional: see [`domain_setup.md`](domain_setup.md))
 - **No SSL certificates or Caddy/Nginx required**
