@@ -199,7 +199,7 @@ assert importer.profile_is_sample(), "nothing is saved before the user taps a bu
 print("4a ok: file -> preview with Replace (recommended) / Add / Cancel; nothing saved yet")
 
 out = tap(ctx, "imp:replace")
-assert out[0].startswith("⏳") and "Imported!" in out[-1] and "backed up" in out[-1] and "/profile" in out[-1], out
+assert out[0].startswith("⏳") and "Imported!" in out[-1] and "backed up" not in out[-1] and "/profile" in out[-1], out
 assert load_skeleton().header.name == "Ady Student"
 assert tap(ctx, "imp:replace")[-1].startswith("That import has expired"), "a second tap must not import again"
 print("4b ok: Replace saves, shows a summary; a double tap does nothing")
