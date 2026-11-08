@@ -126,6 +126,38 @@ r = save(provider="gemini", ai_key="AIza-g", models={"EXTRACTOR_MODEL": "gemini-
 got = envfile.read_env(env_path)
 assert r["ok"] and got["GENERATOR_MODEL"] == "gemini-2.5-flash" and got["EMBEDDING_MODEL"] == "gemini-embedding-001"
 print("G ok: switching service never leaves the other service's model names behind")
+# L: Google sign-in on the setup page (the real Google is replaced by fakes)
+from bot.setup import google_setup
+class FakeCreds: refresh_token = "1//refresh-xyz"
+class FakeFlow:
+    credentials = FakeCreds()
+    def authorization_url(self, **kw): assert kw == {"access_type": "offline", "prompt": "consent"}; return "https://accounts.google.com/o/oauth2/auth?x=1", "STATE1"
+    def fetch_token(self, code): assert code == "good-code"
+flows = []
+google_setup.make_flow = lambda cid, secret, redirect: (flows.append((cid, secret, redirect)), FakeFlow())[1]
+google_setup.create_tracker = lambda creds: {"GOOGLE_SHEET_ID": "SHEET9", "GOOGLE_SHEET_NAME": "Tracker", "GOOGLE_DRIVE_FOLDER_ID": "FOLDER9"}
+assert not c.post("/api/google/start", json={"client_id": "", "client_secret": "x"}).json()["ok"]
+assert not c.post("/api/google/create").json()["ok"], "connect first"
+r = c.post("/api/google/start", json={"client_id": "cid.apps.googleusercontent.com", "client_secret": "GOCSPX-s"}).json()
+assert r["ok"] and r["auth_url"].startswith("https://accounts.google.com") and flows[-1][2] == "http://localhost:8765/"
+assert not c.get("/api/google/status").json()["connected"]
+assert "not valid" in c.get("/", params={"code": "good-code", "state": "WRONG"}).text
+assert "cancelled" in c.get("/", params={"error": "access_denied"}).text
+assert "Connected to Google" in c.get("/", params={"code": "good-code", "state": "STATE1"}).text
+assert c.get("/api/google/status").json() == {"connected": True, "created": False}
+made = c.post("/api/google/create").json()
+assert made["ok"] and "SHEET9" in made["sheet_url"] and "FOLDER9" in made["folder_url"]
+r = save(dashboard_key="abc123def456", google={})
+got = envfile.read_env(env_path)
+assert r["ok"] and got["GOOGLE_REFRESH_TOKEN"] == "1//refresh-xyz" and got["GOOGLE_CLIENT_ID"] == "cid.apps.googleusercontent.com" and got["GOOGLE_CLIENT_SECRET"] == "GOCSPX-s"
+assert got["GOOGLE_SHEET_ID"] == "SHEET9" and got["GOOGLE_DRIVE_FOLDER_ID"] == "FOLDER9" and got["GOOGLE_SHEET_NAME"] == "Tracker" and got["DASHBOARD_KEY"] == "abc123def456"
+assert "1//refresh-xyz" not in json.dumps(c.get("/api/state").json()) and "1//refresh-xyz" not in json.dumps(made), "the login never goes through the browser"
+assert not save(dashboard_key="has space")["ok"]
+r = save(google={"GOOGLE_SHEET_ID": "mine"}); assert envfile.read_env(env_path)["GOOGLE_SHEET_ID"] == "mine", "values typed by hand win"
+# the tracker has exactly the columns the bot writes
+import bot.services.sheets as _sheets, inspect
+assert all(f'"{h}"' in inspect.getsource(_sheets.append_application) for h in google_setup.HEADERS)
+print("L ok: Google sign-in, folder and sheet creation, login kept on the server, dashboard key saved")
 stopped = []
 server.state["finish"] = lambda: stopped.append(1)
 assert c.post("/api/finish").json()["ok"] and stopped and server.state["done"]

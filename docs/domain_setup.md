@@ -157,7 +157,9 @@ Use** sentence, who receives data, retention and deletion, and a contact address
 
 ## 4. Get the refresh token
 
-Do this on **your own computer** (it opens a browser), not on the server.
+**Easiest:** run the setup page on your own computer (`setup.bat` or `./setup.sh`), open step 4 (Google Drive and Sheets), press **Connect Google** and **Create my folder and sheet**, then copy the `.env` it writes to the server. It does steps 2 to 4 below for you.
+
+**Or by hand.** Do this on **your own computer** (it opens a browser), not on the server.
 
 1. Cloud Console → **APIs & Services → Credentials** (or **Clients**) → **Create credentials → OAuth client ID** →
    Application type **Desktop app** → Create → **Download JSON**. Save it in the project folder as `client_secret.json`.

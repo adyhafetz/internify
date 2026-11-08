@@ -1,18 +1,19 @@
 """The setup wizard's small web server. Runs on your own computer only, and stops itself when you finish."""
 from __future__ import annotations
 
+import html as _html
 import os
 import re
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from bot.setup import envfile
+from bot.setup import envfile, google_setup
 
 SETUP_DIR = os.getenv("SETUP_DIR", ".")
 ENV_PATH = os.path.join(SETUP_DIR, ".env")
@@ -28,7 +29,7 @@ OPENAI_EMBED = ["text-embedding-3-small"]
 
 app = FastAPI(docs_url=None, redoc_url=None)
 app.mount("/assets", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "dashboard", "static", "assets")), name="assets")
-state = {"saved": False, "done": False, "finish": None}    # "finish" is set by __main__ to stop the server
+state = {"saved": False, "done": False, "finish": None, "google": {}}    # "finish" is set by __main__ to stop the server
 
 
 def _get(url: str, **kw) -> httpx.Response:
@@ -187,7 +188,7 @@ def test_scrapingant(body: Key):
 
 # ---------------------------------------------------------------- state and saving
 
-SECRETS = {"OPENAI_API_KEY", "GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "SCRAPINGANT_API_KEY", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"}
+SECRETS = {"OPENAI_API_KEY", "GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "SCRAPINGANT_API_KEY", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "DASHBOARD_KEY"}
 
 
 @app.get("/api/state")
@@ -202,6 +203,77 @@ def get_state():
             "models": {k: cur.get(k, "") for k in ("EXTRACTOR_MODEL", "CRITIC_MODEL", "GENERATOR_MODEL", "EMBEDDING_MODEL")}}
 
 
+# ---------------------------------------------------------------- Google: sign in, then create the folder and sheet
+
+class GoogleClient(BaseModel):
+    client_id: str
+    client_secret: str
+
+
+def _redirect_uri() -> str:
+    # The page's own address, with no path: Google's "Desktop app" clients accept any localhost port, and nothing more is assumed.
+    return f"http://localhost:{int(os.getenv('SETUP_PORT', '8765'))}/"
+
+
+def _page(title: str, body: str) -> HTMLResponse:
+    return HTMLResponse(f"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>{_html.escape(title)}</title>"
+                        f"<body style=\"font:16px/1.6 system-ui;max-width:480px;margin:14vh auto;padding:0 18px;color:#0F172A;background:#F8FAFC\">"
+                        f"<h1 style='letter-spacing:-.03em'>{_html.escape(title)}</h1><p>{_html.escape(body)}</p>")
+
+
+@app.post("/api/google/start")
+def google_start(body: GoogleClient):
+    cid, secret = body.client_id.strip(), body.client_secret.strip()
+    if not cid or not secret:
+        return _fail("Paste both the Client ID and the Client secret first.")
+    try:
+        flow = google_setup.make_flow(cid, secret, _redirect_uri())
+        url, st = flow.authorization_url(access_type="offline", prompt="consent")
+    except Exception as err:
+        return _fail(f"I couldn't start the Google sign-in ({err}). Check the Client ID and secret.")
+    state["google"] = {"flow": flow, "state": st, "client_id": cid, "client_secret": secret, "creds": None}
+    return JSONResponse({"ok": True, "auth_url": url})
+
+
+def google_callback(request: Request):
+    g = state["google"]
+    q = request.query_params
+    if q.get("error"):
+        return _page("Google sign-in was cancelled", "Nothing was connected. Close this tab and try again from the setup page.")
+    if not g.get("flow") or q.get("state") != g.get("state") or not q.get("code"):
+        return _page("That sign-in link is not valid", "Go back to the setup page and press Connect Google again.")
+    try:
+        g["flow"].fetch_token(code=q["code"])
+        creds = g["flow"].credentials
+    except Exception:
+        return _page("Google did not accept the sign-in", "Check that the client type is Desktop app, then try again from the setup page.")
+    if not creds.refresh_token:
+        return _page("Google did not give a lasting login", "Remove Internify at myaccount.google.com/permissions, then try again from the setup page.")
+    g["creds"] = creds
+    return _page("Connected to Google", "You can close this tab and go back to the setup page.")
+
+
+@app.get("/api/google/status")
+def google_status():
+    g = state["google"]
+    return {"connected": bool(g.get("creds")), "created": bool(g.get("ids"))}
+
+
+@app.post("/api/google/create")
+def google_create():
+    g = state["google"]
+    if not g.get("creds"):
+        return _fail("Connect Google first.")
+    try:
+        ids = google_setup.create_tracker(g["creds"])
+    except Exception as err:
+        return _fail(f"I couldn't create them ({err}). Check that the Google Drive API and the Google Sheets API are both enabled for your project.")
+    g["ids"] = ids
+    return JSONResponse({"ok": True, "message": "Created a Drive folder “Internify resumes” and a spreadsheet “Internify tracker”.",
+                         "sheet_url": f"https://docs.google.com/spreadsheets/d/{ids['GOOGLE_SHEET_ID']}/edit",
+                         "folder_url": f"https://drive.google.com/drive/folders/{ids['GOOGLE_DRIVE_FOLDER_ID']}"})
+
+
 class Settings(BaseModel):
     provider: str = "openai"
     ai_key: str = ""
@@ -213,6 +285,7 @@ class Settings(BaseModel):
     scan_time: str = "08:00"
     scan_timezone: str = "UTC"
     contact_email: str = ""
+    dashboard_key: str = ""
     google: dict[str, str] = {}
 
 
@@ -256,9 +329,17 @@ def save(s: Settings):
     if s.contact_email.strip():
         values["CONTACT_EMAIL"] = s.contact_email.strip()
     allowed = {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "GOOGLE_SHEET_ID", "GOOGLE_DRIVE_FOLDER_ID"}
-    for k, v in s.google.items():
+    g = state["google"]
+    if g.get("creds"):   # signed in on this page: the login comes from here, never through the browser
+        values.update({"GOOGLE_CLIENT_ID": g["client_id"], "GOOGLE_CLIENT_SECRET": g["client_secret"], "GOOGLE_REFRESH_TOKEN": g["creds"].refresh_token})
+        values.update(g.get("ids", {}))
+    for k, v in s.google.items():   # values typed by hand win
         if k in allowed and v.strip():
             values[k] = v.strip()
+    if s.dashboard_key.strip():
+        if re.search(r"\s", s.dashboard_key):
+            return _fail("The dashboard key can't contain spaces.")
+        values["DASHBOARD_KEY"] = s.dashboard_key.strip()
     try:
         envfile.write_env(ENV_PATH, TEMPLATE_PATH, values)
     except (OSError, ValueError) as err:
@@ -279,5 +360,7 @@ def finish():
 
 
 @app.get("/")
-def page():
+def page(request: Request):
+    if {"code", "error"} & set(request.query_params):   # Google sends you back here after you sign in
+        return google_callback(request)
     return FileResponse(os.path.join(STATIC, "index.html"))

@@ -133,8 +133,9 @@ Your browser opens the setup page at `http://localhost:8765`. Choose **I already
 
 1. **Choose your AI:** [OpenAI](https://platform.openai.com/api-keys) (best quality, pay as you go) or Google Gemini (free tier, experimental; on the free tier Google may use what you send to improve its products). Paste the key and press **Check key**. Models are chosen for you from what your account offers.
 2. **Your Telegram bot:** make one with [@BotFather](https://t.me/BotFather) (`/newbot`), paste its token, then press Start in your bot and send "hi". The page finds **your Telegram ID** itself, so only you can use the bot.
-3. **Extras (all optional):** the time of the daily job check, a [ScrapingAnt](https://scrapingant.com/) key for blocked job pages, and Google Drive/Sheets values if you already have them.
-4. **Save and start Internify.** The setup page closes by itself and Internify starts.
+3. **Extras (all optional):** the time and timezone of the daily job check, a [ScrapingAnt](https://scrapingant.com/) key for blocked job pages, and (under Advanced) a dashboard key and contact email. You do **not** need the dashboard key on your own computer; it matters only if you put the dashboard on the internet.
+4. **Google Drive and Sheets (optional):** the page walks you through creating a Google project, then you press **Connect Google** and **Create my folder and sheet**. It signs you in, makes a Drive folder and a tracker spreadsheet with the right columns, and saves the login, so there is no refresh token to copy. Skip it and resumes still arrive in Telegram.
+5. **Save and start Internify.** The setup page closes by itself and Internify starts.
 
 Everything stays on your computer. The page only writes a `.env` file next to the project (your old one is kept as `.env.bak`) and talks to the services your keys belong to.
 
@@ -263,8 +264,13 @@ By default, Internify saves applications in **SQLite** (`output/internify.db`) a
 
 If you want automated cloud backups to Google Drive and Google Sheets:
 
-### 1. Copy the Official Application Tracker Sheet Template
-We provide a pre-formatted, production-ready Google Sheet tracker complete with automated formulas and dropdown menus:
+### The easy way: the setup page
+Run `./setup.sh` (or `setup.bat`) and open step 4, **Google Drive and Sheets**. Follow its short guide to create a Google project and a **Desktop app** client, paste the Client ID and secret, press **Connect Google**, then **Create my folder and sheet**. It creates a Drive folder "Internify resumes" and a spreadsheet "Internify tracker" (with the columns below and a Status drop-down) and writes everything into `.env`.
+
+Important: in the Google consent screen press **Publish app** (otherwise Google cancels the connection after 7 days). Google then shows an "unverified app" warning when you sign in; for your own app press **Advanced → Go to Internify**. Details: [`docs/domain_setup.md`](docs/domain_setup.md), part 3.
+
+### Or by hand: copy the template
+We also provide a pre-formatted tracker with automated formulas and dropdown menus:
 👉 **[Open Internify — Application Tracker Template](https://docs.google.com/spreadsheets/d/1ozOD9aYl43jPgfGXid_BOmQRXHy8Aiw_eT5JzSwgccQ/edit?usp=sharing)**
 
 1. Open the link above, click **File → Make a copy** to save it to your own Google Drive.
@@ -272,7 +278,7 @@ We provide a pre-formatted, production-ready Google Sheet tracker complete with 
    ```text
    https://docs.google.com/spreadsheets/d/<YOUR_SPREADSHEET_ID>/edit
    ```
-3. Set `GOOGLE_SHEET_ID=<YOUR_SPREADSHEET_ID>` in your `.env`.
+3. Set `GOOGLE_SHEET_ID=<YOUR_SPREADSHEET_ID>` in your `.env`, with the other Google values (see `.env.example`).
 
 #### Template Columns Explained:
 | Column | Purpose | Managed By |
