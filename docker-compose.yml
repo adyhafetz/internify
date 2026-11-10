@@ -1,13 +1,13 @@
 services:
   telegram-bot:
     build: .
-    container_name: internify-telegram-bot
     env_file: .env
     environment:
       DASHBOARD_HOST: 0.0.0.0   # inside the container; the port below is only published on this computer
     ports:
-      # Live agent dashboard: open http://localhost:8080 (bound to localhost only)
-      - "127.0.0.1:8080:8080"
+      # Live agent dashboard: open http://localhost:8080 (bound to localhost only). A second copy on the same
+      # computer sets DASHBOARD_HOST_PORT=8081 (or any free port) in its own .env.
+      - "127.0.0.1:${DASHBOARD_HOST_PORT:-8080}:8080"
     volumes:
       - ./output:/app/output
       - ./service:/app/service
@@ -32,7 +32,6 @@ services:
   # Cloudflare, with no ports opened on the server. Start with:  docker compose --profile tunnel up -d
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: internify-tunnel
     profiles: ["tunnel"]
     command: tunnel --no-autoupdate run
     environment:
