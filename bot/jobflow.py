@@ -50,6 +50,7 @@ class JobOutcome:
     drive_link: str = ""
     sheet_row: Optional[int] = None
     comment: str = ""
+    fit_note: str = ""
     error: str = ""
 
 
@@ -73,6 +74,8 @@ def build_caption(outcome: JobOutcome, intro: str = "") -> str:
         f"• Role: {html_escape(outcome.role)}\n"
         f"• Job match: {score_emoji(outcome.score)} <b>{outcome.score:.0f}%</b> ({html_escape(outcome.status)})\n"
     )
+    if outcome.fit_note:
+        caption += f"• ✂️ {html_escape(outcome.fit_note)}\n"
     if outcome.drive_link:
         caption += f'• ☁️ <a href="{html_escape(outcome.drive_link)}">Open in Google Drive</a>\n'
     else:
@@ -198,7 +201,7 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
 
     outcome = JobOutcome(ok=True, company=job.company, role=job.job_title, score=result.score, status=result.resume_status,
                          pdf_path=pdf_path, filename=filename, drive_link=drive_link or "", sheet_row=sheet_row,
-                         comment=result.comment)
+                         comment=result.comment, fit_note=result.fit_note)
     await reporter.finished(outcome)
     # 7. Deliver the PDF
     await reporter.deliver(outcome, build_caption(outcome, intro))
