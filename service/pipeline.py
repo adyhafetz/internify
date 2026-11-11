@@ -11,7 +11,8 @@ from service.extraction.extractor import extract_job_posting
 from service.fact_store.store import load_facts, load_skeleton
 from service.retrieval.retriever import retrieve_relevant_facts
 from service.agentic.loop import run_generator_critic_loop
-from service.latex.compile import compile_tex, TexCompileError
+from service.latex.compile import TexCompileError
+from service.latex.fit import fit_one_page
 from service import events
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,8 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
     events.emit("critic", events.HANDOFF, f"Approved draft, score {loop_result.feedback.score:.0f}", to="publisher")
     events.emit("publisher", events.START, "Rendering LaTeX and compiling a 1-page PDF")
     try:
-        pdf_path = compile_tex(loop_result.resume, skeleton, filename_base=filename_base)
+        fit = fit_one_page(job, candidate_facts, loop_result.resume, skeleton, filename_base)
+        pdf_path = fit.pdf_path
     except TexCompileError as e:
         events.emit("publisher", events.FAIL, "PDF compile failed after self-repair attempts")
         return ProcessResponse(
@@ -172,4 +174,5 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         score=loop_result.feedback.score,
         pdf_path=pdf_path,
         comment=loop_result.feedback.revision_notes,
+        fit_note=fit.note,
     )

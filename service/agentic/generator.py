@@ -22,6 +22,8 @@ BULLET RULES:
 - Never move a bullet under an entry_id other than the one its fact belongs to.
 - Produce at most {config.MAX_BULLETS_PER_ENTRY} bullets per entry_id. If an entry
   has fewer available facts than that, use all of them.
+- Keep every bullet to one or two lines (under about 190 characters). Lead with the strongest result or
+  number, and cut filler words. Fewer, stronger bullets beat many weak ones: the resume must fit one page.
 - Prefer facts whose tech_tags overlap with the job's core_tech_stack, hard_requirements,
   and ats_keywords, but every selected bullet still needs a real supporting fact.
 - Cover every entry_id that has at least one available fact - do not skip an entire

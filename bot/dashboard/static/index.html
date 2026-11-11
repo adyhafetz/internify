@@ -614,6 +614,7 @@ function apply(ev) {
     if (d.status === "failed") status = "bad";   // the sentence already carries the reason
     else if (d.status === "ok") status = d.attempt > 1 ? "ok" : "info";
   }
+  if (a === "publisher" && d.fit === "fail") status = "bad";
   if (a === "publisher" && d.repair_attempt) { status = "bad"; why = d.error ? "The compiler said: " + String(d.error).trim().slice(-160) : ""; }
   if (a === "publisher" && (ev.message === "PDF compiled" || /^Uploaded/.test(ev.message))) status = "ok";
   if (a === "critic" && k === "done") {

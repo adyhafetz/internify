@@ -27,7 +27,8 @@ main.retrieve_relevant_facts = lambda job, facts: [FactBulletWithScore(fact=FACT
 loop.generate_resume = lambda **kw: GeneratedResume(bullets=[ResumeBullet(fact_id="f1", entry_id="e1", text="Built FastAPI service")])
 loop.critique = lambda **kw: CriticFeedback(score=next(scores), keyword_coverage_notes="", unsupported_claims=[], overflow_risk=False, revision_notes="add more")
 pdf = os.path.join(os.environ["OUTPUT_DIR"], "x.pdf"); open(pdf, "w").write("x")
-main.compile_tex = lambda resume, skeleton, filename_base: pdf
+from service.latex.fit import FitResult
+main.fit_one_page = lambda job, facts, resume, skeleton, base: FitResult(pdf, 1)
 
 
 class FakeMsg:

@@ -155,6 +155,7 @@ class ProcessResponse(BaseModel):
     score: float
     pdf_path: Optional[str] = None
     comment: str
+    fit_note: str = ""        # what was shortened or left out to fit one page, "" if nothing
 
 
 # ---------- Agentic loop result ----------

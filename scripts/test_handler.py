@@ -136,6 +136,15 @@ last = d.edits[-1]
 assert "Your saved experience is empty" in last and "500:" not in last, last
 assert db.get_recent_applications(limit=1)[0]["status"] == "Failed"
 print("run 4 ok:", last.replace("\n", " "))
+# 4b. what was shortened or left out to fit one page is said in the caption
+jobflow.profile_is_sample = lambda: False
+jobflow.run_pipeline = lambda req, ask=None: ProcessResponse(resume_status="Good", score=80.0, pdf_path=pdf, comment="ok", fit_note="To fit one page I shortened 3 bullets & left out 1 <less> relevant item.")
+f = run("https://x.com/jobs/4b")
+assert f.docs and "✂️ To fit one page I shortened 3 bullets &amp; left out 1 &lt;less&gt; relevant item." in f.docs[-1][1], f.docs
+jobflow.run_pipeline = lambda req, ask=None: ProcessResponse(resume_status="Good", score=80.0, pdf_path=pdf, comment="ok")
+f = run("https://x.com/jobs/4c"); assert "✂️" not in f.docs[-1][1], "nothing to say when nothing changed"
+print("run 4b ok: the fit note appears in the caption only when something was trimmed")
+
 # 5. a fresh install still holds the made-up sample profile: no resume is written from it
 jobflow.profile_is_sample = lambda: True
 jobflow.run_pipeline = lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not write a resume from the sample profile"))

@@ -163,7 +163,8 @@ loop_mod.generate_resume = lambda **kw: (seen.__setitem__("facts", [f.fact.id fo
                                          GeneratedResume(bullets=[ResumeBullet(fact_id="f1", entry_id="e1", text="x")]))
 loop_mod.critique = lambda **kw: CriticFeedback(score=90.0, keyword_coverage_notes="", unsupported_claims=[], overflow_risk=False, revision_notes="")
 pdf = os.path.join(tmp, "x.pdf"); open(pdf, "w").write("x")
-main_mod.compile_tex = lambda resume, skeleton, filename_base: pdf
+from service.latex.fit import FitResult
+main_mod.fit_one_page = lambda job, facts, resume, skeleton, base: FitResult(pdf, 1)
 asked = []
 def asker(skills):
     asked.append(list(skills))
