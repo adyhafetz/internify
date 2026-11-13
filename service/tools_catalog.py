@@ -73,11 +73,18 @@ def category(name: str) -> Optional[str]:
 
 
 def mentions(tool: str, text: str) -> bool:
-    """Does the text name this tool (by its proper name or one of its other names)?"""
-    t = key(text)
+    """Does the text name this tool, by its proper name or one of its other names, as a whole word?
+    ("LLM APIs (OpenAI, Anthropic)" mentions "OpenAI API"; "Google Cloud" does not mention "Go".)"""
+    low = text.lower()
     c = canonical(tool) or tool
     names = [c] + [a for a in TOOLS.get(c, ("", ()))[1] if len(a) >= 3]
-    return any(key(n) and key(n) in t for n in names)
+    return any(n and re.search(r"(?<![a-z0-9])" + re.escape(n.lower()) + r"(?![a-z0-9])", low) for n in names)
+
+
+def covered_by(tool: str, skill_items: list[str]) -> bool:
+    """Is this tool already in a skills list, as its own item or inside a broader one ("LLM APIs (OpenAI, Gemini)")?"""
+    k = key(canonical(tool) or tool)
+    return any(key(canonical(i) or i) == k or mentions(tool, i) for i in skill_items)
 
 
 def is_soft_skill(name: str) -> bool:
