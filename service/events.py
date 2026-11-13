@@ -161,6 +161,11 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
         if k == PROGRESS and d.get("github_added"):
             return f"Added {d['github_added']} from your repo {d.get('repo')}, with a bullet point in {d.get('project')} ✓"
         if k == PROGRESS and d.get("reviewing"): return f"Reviewing every bullet point ({int(d['reviewing'])})…"
+        if k == PROGRESS and d.get("reviewed"):
+            if int(d.get("remaining", 0)) == 0:
+                return "All suggestions handled ✓"
+            return (f"You applied a suggestion: {d.get('note', '')}" if d.get("action") == "apply" else "You skipped a suggestion") \
+                + f" · {n('suggestion', int(d['remaining']))} left"
         if k == DONE:
             s = int(d.get("suggestions", 0))
             return f"{n('suggestion', s)} for you to review in Telegram" if s else "Everything looks tidy ✓"
@@ -268,6 +273,21 @@ def current_run_id() -> Optional[str]:
 
 def use_run(run_id: Optional[str]) -> None:
     _current_run.set(run_id)
+
+
+class in_run:
+    """``with events.in_run(run_id):`` emits into an earlier run, for example when you answer the tidy-up's
+    suggestions in Telegram after the run itself has finished."""
+    def __init__(self, run_id: Optional[str]):
+        self.run_id = run_id
+
+    def __enter__(self):
+        self._token = _current_run.set(self.run_id)
+        return self
+
+    def __exit__(self, *exc):
+        _current_run.reset(self._token)
+        return False
 
 
 def emit_run(state: str, **data: Any) -> None:

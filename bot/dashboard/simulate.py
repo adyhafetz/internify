@@ -224,6 +224,10 @@ def _tidy(wait) -> str:
     wait(2.4)
     ev.emit("curator", ev.DONE, "5 suggestions, 4 fixed", suggestions=5, fixed=4)
     ev.emit_run("finished", tidy=True, fixed=4, suggestions=5)
+    wait(3.0)                                   # ...you answer in Telegram
+    ev.emit("curator", ev.PROGRESS, "You chose: apply", reviewed=True, action="apply", note="Reworded it", remaining=4)
+    wait(2.0)
+    ev.emit("curator", ev.PROGRESS, "You chose: apply", reviewed=True, action="apply", note="applied 4", remaining=0)
     return rid
 
 

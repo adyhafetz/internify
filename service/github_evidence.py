@@ -153,7 +153,7 @@ def refresh_index(username: str, force: bool = False) -> dict:
                 if fr.status_code != 200:
                     continue
                 if path == "README.md":
-                    readme = fr.text[:4000]
+                    readme = fr.text[:12000]
                     continue
                 for t in tools_in_file(path, fr.text):
                     tools.setdefault(t, []).append(path)
@@ -339,13 +339,13 @@ def missing_from_profile(idx: dict, username: str, skills: dict[str, list[str]],
     return sorted(count, key=lambda t: (-count[t], t))[:limit]
 
 
-def sync_from_github(limit: int = 8) -> list[Added]:
+def sync_from_github(limit: int = 8, force: bool = False) -> list[Added]:
     """Used by the Curator: add tools from your repos that your profile is missing, each with one bullet point."""
     username = config.GITHUB_USERNAME
     if not username:
         return []
     from service.profile_data import _load_skeleton_raw
-    idx = refresh_index(username)
+    idx = refresh_index(username, force=force)
     out: list[Added] = []
     for tool in missing_from_profile(idx, username, _load_skeleton_raw().get("skills", {}), limit):
         try:
@@ -409,11 +409,12 @@ def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 20) -
             new = _llm_refresh(
                 "You review EVERY resume bullet point of a software project against its repository. Rewrite a bullet when it "
                 "can be clearer, stronger or more accurate: a strong past-tense verb first, the main technologies named as the "
-                "repository shows them, the result or purpose stated, one sentence under 190 characters. Leave out of your "
-                "answer any bullet that is already good. Use ONLY facts in that bullet or the repository text: never invent "
-                "numbers, users or results.",
+                "repository shows them, the result or purpose stated, one sentence under 190 characters. If the bullet states a "
+                "figure (a count, a version, a feature) that the repository now states differently, use the repository's current "
+                "figure. Leave out of your answer any bullet that is already good. Use ONLY facts in that bullet or the "
+                "repository text: never invent numbers, users or results.",
                 f"Project: {p['name']}\nRepository: {repo['name']} - {repo.get('description', '')}\nTools found: "
-                f"{', '.join(repo.get('tools', {}))}\nREADME:\n{repo.get('readme', '')[:3000]}\n\nCurrent bullet points:\n"
+                f"{', '.join(repo.get('tools', {}))}\nREADME:\n{repo.get('readme', '')[:8000]}\n\nCurrent bullet points:\n"
                 + "\n".join(f"{k}: {v}" for k, v in mine.items()))
         except Exception as err:
             logger.info("Project refresh skipped for %s: %s", p["name"], err)

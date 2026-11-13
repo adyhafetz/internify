@@ -254,7 +254,7 @@ def _rewrite_with_ai(items: dict[str, str], groups: Optional[dict[str, str]] = N
 
 # ---------------------------------------------------------------- running and applying
 
-def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered_with_ai) -> TidyReport:
+def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered_with_ai, fresh_github: bool = False) -> TidyReport:
     """Make the safe fixes now (with a backup first), add tools from your GitHub repos that your profile is missing
     (each with one bullet point), and return suggestions for the rest, including updates from your repos."""
     from service import github_evidence
@@ -277,7 +277,7 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
         if report.backup is None:
             report.backup = backup_current()
         try:
-            for a in github_evidence.sync_from_github():
+            for a in github_evidence.sync_from_github(force=fresh_github):
                 report.fixed.append(f"Added from GitHub: {a.label()}")
                 events.emit("curator", events.PROGRESS, f"Added {a.tool} from {a.repo}", github_added=a.tool, repo=a.repo, project=a.project)
         except Exception as err:

@@ -50,9 +50,11 @@ def _fixed() -> list[str]:
 async def run(trigger: str = "manual") -> curator.TidyReport:
     """Run the Curator (off the event loop) and keep its suggestions for review. It shows on the dashboard as its own run."""
     from service import events
-    events.start_run(url="", mode="tidy", trigger=trigger)
+    rid = events.start_run(url="", mode="tidy", trigger=trigger)
+    watchlist.set_setting("tidy_run", rid)     # so your ✅ / ✕ later show up on the dashboard in this run
     try:
-        report = await asyncio.to_thread(curator.tidy)
+        # a tidy-up you asked for re-reads GitHub now (only repos that changed are downloaded again)
+        report = await asyncio.to_thread(curator.tidy, fresh_github=(trigger == "manual"))
     except Exception as err:
         events.emit_run("failed", error=f"The tidy-up stopped: {err}")
         raise
@@ -101,15 +103,28 @@ async def handle(query, action: str, args: list[str]):
             return screen("That one was already handled.")
         note = await asyncio.to_thread(curator.apply, s) if action == "ta" else "Skipped"
         _store([x for x in sugs if x.id != s.id])
+        _tell_dashboard("apply" if action == "ta" else "skip", note, len(sugs) - 1)
         return screen(f"✅ {_h(note)}." if action == "ta" else "Skipped.")
     if action == "tA":
         notes = [await asyncio.to_thread(curator.apply, s) for s in sugs]
         _store([], [])
+        _tell_dashboard("apply", f"applied {len(notes)}", 0)
         return screen(f"✅ Applied {len(notes)} suggestion{'s' if len(notes) != 1 else ''}.")
     if action == "tX":
         _store([], [])
+        _tell_dashboard("skip", "skipped all", 0)
         return screen("Skipped them all.")
     return None
+
+
+def _tell_dashboard(action: str, note: str, remaining: int) -> None:
+    """Your answers travel back to the Curator on the dashboard, in the run that made the suggestions."""
+    from service import events
+    rid = watchlist.get_setting("tidy_run", "")
+    if not rid:
+        return
+    with events.in_run(rid):
+        events.emit("curator", events.PROGRESS, f"You chose: {action}", reviewed=True, action=action, note=note[:80], remaining=remaining)
 
 
 def summary(report: curator.TidyReport) -> str:
