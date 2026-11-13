@@ -111,7 +111,7 @@ assert rep.added == {"education": 1, "experience": 2, "projects": 1, "leadership
 assert any("Soft skills" in w for w in rep.warnings) and any("Uni Help Desk" in w and "no bullet" in w for w in rep.warnings), rep.warnings
 assert rep.backup_dir is None, "replacing the made-up sample profile is not backed up, and not mentioned"
 rep2 = importer.apply_resume(PARSED, "replace")   # now there is a real profile, so replacing it is backed up
-assert rep2.backup_dir and sorted(os.listdir(rep2.backup_dir)) == ["facts.json", "resume_skeleton.json"]
+assert rep2.backup_dir and sorted(os.listdir(rep2.backup_dir)) == ["facts.json", "reason.txt", "resume_skeleton.json"]
 assert len(_load_facts_raw.__globals__["json"].load(open(os.path.join(rep2.backup_dir, "facts.json")))) == 3, "the backup holds what was saved before (the first import)"
 print("2a ok: replace -> valid profile, sample data gone (incl. LinkedIn), backup kept:", rep.added)
 

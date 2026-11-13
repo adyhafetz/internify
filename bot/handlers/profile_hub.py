@@ -374,7 +374,7 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return watchlist_screen()
     if action == "lk":
         return links_screen()
-    if action in ("ty", "tv", "ta", "tx", "tA", "tX"):
+    if action in ("ty", "tv", "ta", "tx", "tA", "tX", "tz", "tZ", "tg"):
         from bot import tidy
         return await tidy.handle(query, action, args)
     if action == "wa":

@@ -161,4 +161,32 @@ assert not any(x.kind == "rewrite" and x.data["fact_id"] == "ok1" for x in rx.su
 assert "v1" in got_groups and " at " in got_groups["v1"], "the AI is told which entry each bullet point belongs to"
 assert curator.apply(drop[0]) == "Removed it" and not any(f["id"] == "v1" for f in _load_facts_raw())
 print("X ok: a bullet point that isn't needed can be removed (after ✅); fine job bullet points are left alone")
+# S: a suggestion you skip isn't suggested again; ↩ Undo puts the last backup back
+tidy._store([], []); tidy.watchlist.set_setting(tidy.SKIPPED, "[]")
+fx = _load_facts_raw()
+fx.append({"id": "w1", "entry_id": E, "section": "experience", "text": "Helped with testing", "tech_tags": []})
+json.dump(fx, open(config.FACT_STORE_PATH, "w"))
+def review2(items, groups=None): return {"w1": {"remove": "too vague"}}
+curator.tidy = lambda **kw: _orig_tidy(rewrite=review2, github=False, already_covered=lambda t, s: set())
+asyncio.run(tidy.handle(Q(), "ty", []))
+first = [x for x in tidy.pending() if x.kind == "drop_bullet"]
+assert first, tidy.pending()
+asyncio.run(tidy.handle(Q(), "tx", [first[0].id]))
+asyncio.run(tidy.handle(Q(), "ty", []))
+assert not [x for x in tidy.pending() if x.kind == "drop_bullet" and x.data["fact_id"] == "w1"], "a skipped suggestion doesn't come back"
+fx = _load_facts_raw(); fx[0]["text"] = "Helped with testing a lot more"; fx = [f for f in fx if f["id"] != "w1"] + [{"id": "w1", "entry_id": E, "section": "experience", "text": "Helped with QA", "tech_tags": []}]
+json.dump(fx, open(config.FACT_STORE_PATH, "w"))
+asyncio.run(tidy.handle(Q(), "ty", []))
+assert [x for x in tidy.pending() if x.kind == "drop_bullet" and x.data["fact_id"] == "w1"], "once that bullet point changes, it can be suggested again"
+print("S ok: skipped suggestions don't come back, until what they are about changes")
+from service.importer import backup_current, list_backups
+backup_current("a tidy-up")
+saved = json.dumps(_load_facts_raw())
+json.dump([], open(config.FACT_STORE_PATH, "w"))
+text, markup = asyncio.run(tidy.handle(Q(), "tz", []))
+assert "before a tidy-up" in text and any(b.callback_data == "xp:tZ" for row in markup.inline_keyboard for b in row)
+text, _ = asyncio.run(tidy.handle(Q(), "tZ", []))
+assert "back the way it was" in text and json.dumps(_load_facts_raw()) == saved
+assert list_backups()[0][2] == "undo", "what you had before the undo is backed up too"
+print("U ok: ↩ Undo asks first, then puts back the last backup (and backs up what was there)")
 print("\nALL CURATOR TESTS PASSED")

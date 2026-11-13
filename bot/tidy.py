@@ -10,12 +10,13 @@ import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot.services import watchlist
-from service import curator
+from service import curator, github_evidence
 
 logger = logging.getLogger(__name__)
 
 PENDING = "tidy_pending"
 FIXED = "tidy_fixed"
+SKIPPED = "tidy_skipped"      # suggestions you skipped are not suggested again (until what they are about changes)
 SHOW = 6
 
 
@@ -47,6 +48,18 @@ def _fixed() -> list[str]:
         return []
 
 
+def _skipped() -> set[str]:
+    try:
+        return set(json.loads(watchlist.get_setting(SKIPPED, "[]")))
+    except Exception:
+        return set()
+
+
+def _remember_skipped(sugs: list[curator.Suggestion]) -> None:
+    keys = list(_skipped() | {curator.skip_key(s) for s in sugs})
+    watchlist.set_setting(SKIPPED, json.dumps(keys[-500:]))
+
+
 async def run(trigger: str = "manual") -> curator.TidyReport:
     """Run the Curator (off the event loop) and keep its suggestions for review. It shows on the dashboard as its own run."""
     from service import events
@@ -58,6 +71,8 @@ async def run(trigger: str = "manual") -> curator.TidyReport:
     except Exception as err:
         events.emit_run("failed", error=f"The tidy-up stopped: {err}")
         raise
+    skipped = _skipped()
+    report.suggestions = [s for s in report.suggestions if curator.skip_key(s) not in skipped]
     _store(report.suggestions, report.fixed)
     events.emit_run("finished", tidy=True, fixed=len(report.fixed), suggestions=len(report.suggestions))
     return report
@@ -72,6 +87,15 @@ def screen(notice: str = ""):
         if len(fixed) > 8:
             lines.append(f"• …and {len(fixed) - 8} more")
     rows = []
+    added = github_evidence.recent_added(6)
+    if added:
+        lines += ["", "<b>Added from your GitHub</b> (tap ✕ to take one back):"]
+        chips = []
+        for i, a in enumerate(added, start=1):
+            where = f"a new project {a['project']}" if a.get("new_project") else a["project"]
+            lines.append(f"{i}. {_h(a['tool'])}, with a bullet point in {_h(where)} ({_h(a.get('at', ''))})")
+            chips.append(_btn(f"✕ {i}", "tg", i - 1))
+        rows += [chips[j:j + 6] for j in range(0, len(chips), 6)]
     if sugs:
         lines += ["", f"<b>Suggestions</b> ({len(sugs)}). Nothing changes until you tap ✅."]
         for n, s in enumerate(sugs[:SHOW], start=1):
@@ -84,8 +108,24 @@ def screen(notice: str = ""):
         lines += ["", "Everything looks tidy. ✨"]
     else:
         lines += ["", "No other suggestions. ✨"]
-    rows.append([_btn("🔄 Check again", "ty"), _btn("⬅ Back to profile", "l")])
+    rows.append([_btn("🔄 Check again", "ty"), _btn("↩ Undo last change", "tz")])
+    rows.append([_btn("⬅ Back to profile", "l")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
+_REASONS = {"a tidy-up": "before a tidy-up", "importing a resume": "before you imported a resume", "undo": "before your last undo"}
+
+
+def undo_screen():
+    from service.importer import list_backups
+    backups = list_backups()
+    if not backups:
+        return "↩ <b>Undo</b>\n\nThere is nothing to undo yet.", InlineKeyboardMarkup([[_btn("⬅ Back", "tv")]])
+    folder, when, reason = backups[0]
+    what = _REASONS.get(reason, "at that time")
+    text = (f"↩ <b>Undo last change</b>\n\nPut your saved experience back the way it was {what} ({_h(when)})?\n\n"
+            "Anything you changed since then is replaced, but what you have now is backed up first, so you can undo this too.")
+    return text, InlineKeyboardMarkup([[_btn("↩ Yes, put it back", "tZ"), _btn("Cancel", "tv")]])
 
 
 async def handle(query, action: str, args: list[str]):
@@ -96,24 +136,44 @@ async def handle(query, action: str, args: list[str]):
         return screen()
     if action == "tv":
         return screen()
+    if action == "tz":
+        return undo_screen()
+    if action == "tZ":
+        from service.importer import list_backups, restore_backup
+        backups = list_backups()
+        if not backups:
+            return screen("There is nothing to undo.")
+        await asyncio.to_thread(restore_backup, backups[0][0])
+        _store([], [])
+        return screen(f"↩ Done: your saved experience is back the way it was {_REASONS.get(backups[0][2], 'before')} ({_h(backups[0][1])}).")
+    if action == "tg":
+        added = github_evidence.recent_added(6)
+        i = int(args[0]) if args and args[0].isdigit() else -1
+        if not 0 <= i < len(added):
+            return screen("That one was already taken back.")
+        note = await asyncio.to_thread(github_evidence.undo_added, added[i]["fact_id"])
+        return screen(f"✕ {_h(note)}.")
     sugs = pending()
     if action in ("ta", "tx"):
         s = next((x for x in sugs if x.id == (args[0] if args else "")), None)
         if s is None:
             return screen("That one was already handled.")
         note = await asyncio.to_thread(curator.apply, s) if action == "ta" else "Skipped"
+        if action == "tx":
+            _remember_skipped([s])
         _store([x for x in sugs if x.id != s.id])
         _tell_dashboard("apply" if action == "ta" else "skip", note, len(sugs) - 1)
-        return screen(f"✅ {_h(note)}." if action == "ta" else "Skipped.")
+        return screen(f"✅ {_h(note)}." if action == "ta" else "Skipped. I won't suggest it again.")
     if action == "tA":
         notes = [await asyncio.to_thread(curator.apply, s) for s in sugs]
         _store([], [])
         _tell_dashboard("apply", f"applied {len(notes)}", 0)
         return screen(f"✅ Applied {len(notes)} suggestion{'s' if len(notes) != 1 else ''}.")
     if action == "tX":
+        _remember_skipped(sugs)
         _store([], [])
         _tell_dashboard("skip", "skipped all", 0)
-        return screen("Skipped them all.")
+        return screen("Skipped them all. I won't suggest them again.")
     return None
 
 

@@ -268,14 +268,14 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
     if report.fixed:
         events.emit("curator", events.PROGRESS, f"Fixed {len(report.fixed)} small things", fixed=len(report.fixed))
     if (repr(sk.get("skills")), repr(facts)) != before:
-        report.backup = backup_current()
+        report.backup = backup_current("a tidy-up")
         _save_skeleton_raw(sk)
         _save_facts_raw(facts)
         _evict_from_cache(changed)
     use_github = github and bool(config.GITHUB_USERNAME)
     if use_github:
         if report.backup is None:
-            report.backup = backup_current()
+            report.backup = backup_current("a tidy-up")
         try:
             for a in github_evidence.sync_from_github(force=fresh_github):
                 report.fixed.append(f"Added from GitHub: {a.label()}")
@@ -350,6 +350,21 @@ def apply(s: Suggestion) -> str:
     _save_facts_raw(facts)
     _evict_from_cache([d["fact_id"]])
     return msg
+
+
+def skip_key(s: Suggestion) -> str:
+    """What makes a suggestion "the same one" again: skipping it once means it won't be suggested again, until the
+    thing it is about changes (another text for that bullet point, another tech stack line)."""
+    d = s.data
+    if s.kind in ("rewrite", "drop_bullet", "drop_duplicate"):
+        return _sid(s.kind, d.get("fact_id", ""), d.get("old") or _fact_text(d.get("fact_id", "")))
+    if s.kind == "update_stack":
+        return _sid(s.kind, d.get("entry_id", ""), d.get("old", ""))
+    return _sid(s.kind, d.get("item", ""), d.get("to", ""))
+
+
+def _fact_text(fact_id: str) -> str:
+    return next((f["text"] for f in _load_facts_raw() if f["id"] == fact_id), "")
 
 
 def to_json(suggestions: list[Suggestion]) -> list[dict]:
