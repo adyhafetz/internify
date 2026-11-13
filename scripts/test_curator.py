@@ -74,7 +74,7 @@ class Q:
     async def edit_message_text(self, text, **kw): self.edits.append(text)
 json.dump(facts, open(config.FACT_STORE_PATH, "w"))
 _orig_tidy = curator.tidy
-curator.tidy = lambda: _orig_tidy(rewrite=fake_rewrite, github=False, already_covered=lambda t, s: set())
+curator.tidy = lambda **kw: _orig_tidy(rewrite=fake_rewrite, github=False, already_covered=lambda t, s: set())
 q = Q()
 text, markup = asyncio.run(tidy.handle(q, "ty", []))
 assert q.edits and "Checking" in q.edits[0] and "Fixed automatically" in text and "Suggestions" in text
@@ -97,12 +97,20 @@ finished = [e for e in seen_ev if e["kind"] == "run" and e["data"].get("state") 
 assert started["data"]["mode"] == "tidy" and started["data"]["trigger"] == "weekly" and finished["data"]["tidy"] is True
 cur = [EV.describe(e) for e in seen_ev if e["agent"] == "curator"]
 assert any("Checking your" in (x or "") for x in cur) and any("suggestion" in (x or "") or "tidy" in (x or "") for x in cur), cur
+# your answers reach the dashboard, in the tidy-up's own run
+seen_ev.clear()
+rid = tidy.watchlist.get_setting("tidy_run", "")
+tidy._store([curator.Suggestion("s1", "remove_skill", "x", {"item": "Nope"}), curator.Suggestion("s2", "remove_skill", "y", {"item": "Nope2"})])
+asyncio.run(tidy.handle(Q(), "tx", ["s1"])); asyncio.run(tidy.handle(Q(), "tA", []))
+rev = [e for e in seen_ev if e["agent"] == "curator" and e["data"].get("reviewed")]
+assert [e["run_id"] for e in rev] == [rid, rid] and [e["data"]["remaining"] for e in rev] == [1, 0]
+assert EV.describe(rev[-1]) == "All suggestions handled ✓" and "skipped" in EV.describe(rev[0]).lower()
 print("D ok: /profile → 🧹 Tidy up: shows fixes and suggestions, ✅ applies one, skip all clears; runs weekly on Sunday")
 # G with GitHub on: tools from repos are added automatically (reported), repo updates become suggestions
 from service import github_evidence as GE
 config.GITHUB_USERNAME = "u"
 proj = _load_skeleton_raw()["project_entries"][0]
-GE.sync_from_github = lambda: [GE.Added("Go", "weather-cli", "Weather Cli", True)]
+GE.sync_from_github = lambda **kw: [GE.Added("Go", "weather-cli", "Weather Cli", True)]
 GE.project_updates = lambda sk, facts: [{"kind": "update_stack", "entry_id": proj["id"], "old": proj["tech_stack"], "new": proj["tech_stack"] + ", Go",
                                          "text": "update stack"}]
 rg = _orig_tidy(rewrite=lambda items, groups=None: {}, already_covered=lambda t, s: set())

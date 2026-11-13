@@ -454,7 +454,8 @@ function renderTable() {
     inner.appendChild(chips);
     if (t.fixed) chips.appendChild(html("span", "chip", `${t.fixed} fixed`));
     if (t.added.length) chips.appendChild(html("span", "chip", `${t.added.length} from GitHub`));
-    if (S.final && S.final.suggestions) chips.appendChild(html("span", "chip coral", "review in Telegram"));
+    if (S.final && S.final.suggestions && t.remaining !== 0) chips.appendChild(html("span", "chip coral", t.remaining ? `${t.remaining} left to review` : "review in Telegram"));
+    if (S.final && S.final.suggestions && t.remaining === 0) chips.appendChild(html("span", "chip", "all handled ✓"));
     return;
   }
   if (S.scan && !S.failed) {
@@ -616,6 +617,15 @@ function apply(ev) {
   if (a === "analyst" && k === "done") { S.job.company = d.company || S.job.company; S.job.role = d.role || S.job.role; S.stack = (d.core_tech_stack || []).length; S.reqs = (d.hard_requirements || []).length; }
   if (a === "archivist" && k === "done") { S.facts = (d.facts || []).length; S.covered = (d.covered || []).length; S.missing = (d.missing || []).length; }
   if (a === "discoverer" && k === "done") S.found = d.found || 0;
+  if (a === "curator" && d.reviewed && S.tidy) {      // your ✅ / ✕ in Telegram travel back to the Curator
+    S.tidy.remaining = d.remaining;
+    sendPacket("you", "curator", d.action === "apply" ? "✅ Apply" : "✕ Skip");
+    if (!d.remaining) { setState("you", "done"); setState("curator", "done"); }
+    say(d.remaining ? "curator" : "you", text, "");
+    addLog(ev, "ok", "Telegram", text);
+    renderTable();
+    return;
+  }
   if (a === "curator" && S.tidy) {
     if (d.fixed && k === "progress") S.tidy.fixed = d.fixed;
     if (d.github_added) S.tidy.added.push(d.github_added);

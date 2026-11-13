@@ -21,6 +21,8 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 4. Tectonic renders and compiles a clean, **guaranteed 1-page LaTeX PDF** using **Jake's Resume** format.
 5. You receive the tailored PDF in Telegram within seconds, automatically tracked in your local SQLite database (or synced to Google Sheets & Drive).
 
+Behind the bot, **9 AI agents** share the work: the **Scout, Analyst, Archivist, Scribe, Critic and Publisher** write each resume; the **Discoverer and Matcher** find and pick new jobs for you every day; and the **Curator** keeps your saved experience tidy and in step with your GitHub repos.
+
 ---
 
 ## 🖥️ Live Agent Dashboard (optional)
