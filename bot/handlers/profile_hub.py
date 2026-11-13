@@ -75,6 +75,7 @@ def list_screen(notice: str = "") -> Screen:
     rows.append([_btn(f"🔭 Job pages I check ({len(watchlist.list_sources())})", "w")])
     if my_links():
         rows.append([_btn("🔗 My links", "lk")])
+    rows.append([_btn("🧹 Tidy up", "ty")])
     rows.append([_btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
@@ -373,6 +374,9 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return watchlist_screen()
     if action == "lk":
         return links_screen()
+    if action in ("ty", "tv", "ta", "tx", "tA", "tX"):
+        from bot import tidy
+        return await tidy.handle(query, action, args)
     if action == "wa":
         return _prompt(context, "➕ <b>Add a link to watch</b>\n\nSend a career page or a job-board link, for example "
                        "https://boards.greenhouse.io/acme or https://jobs.lever.co/acme.", ("w",), action="source")

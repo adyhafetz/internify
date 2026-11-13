@@ -177,6 +177,10 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
             return f"The job wants {n('tool', len(d.get('core_tech_stack', [])))} and {n('skill', len(d.get('hard_requirements', [])))}"
         if k == FAIL: return "Couldn't understand this posting"
     elif a == "archivist":
+        if k == PROGRESS and d.get("github") == "checking":
+            return f"Checking your GitHub for {', '.join(d.get('skills', []))}…"
+        if k == PROGRESS and d.get("github") == "found":
+            return f"Found {d.get('skill')} in your repo {d.get('repo')}" + (" and added a bullet point ✓" if d.get("bullet") else ", added to your skills ✓")
         if k == PROGRESS and d.get("saved"): return f"Saved your {d.get('skill')} experience ✓"
         if k == PROGRESS and d.get("answer") == "yes": return f"You've used {d.get('skill')}. Let's add it"
         if k == PROGRESS and d.get("answer") == "no": return f"No problem, skipping {d.get('skill')}"

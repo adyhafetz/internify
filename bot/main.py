@@ -64,6 +64,8 @@ async def post_init(application) -> None:
     from bot import scanner
     when = scanner.schedule(application)
     logger.info("Daily job check: %s", when or "off")
+    from bot import tidy
+    tidy.schedule(application)
 
 
 def create_bot_app():

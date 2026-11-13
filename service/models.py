@@ -156,6 +156,7 @@ class ProcessResponse(BaseModel):
     pdf_path: Optional[str] = None
     comment: str
     fit_note: str = ""        # what was shortened or left out to fit one page, "" if nothing
+    github_note: str = ""     # tools found in the user's GitHub repos and added to their profile, "" if none
 
 
 # ---------- Agentic loop result ----------

@@ -13,6 +13,7 @@ from service.retrieval.retriever import retrieve_relevant_facts
 from service.agentic.loop import run_generator_critic_loop
 from service.latex.compile import TexCompileError
 from service.latex.fit import fit_one_page
+from service.github_evidence import check_github
 from service import events
 
 logger = logging.getLogger(__name__)
@@ -113,8 +114,14 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
     candidate_facts = retrieve_relevant_facts(job, facts)
     matched, missing = _coverage(job, candidate_facts)
 
-    # Tools the job wants that the user has no saved experience for: ask the user instead of guessing.
+    # Tools the job wants that the user has no saved experience for: first look for proof in their public GitHub repos
+    # (found tools are added with no question), then ask the user about what is still missing instead of guessing.
     new_fact_ids: set[str] = set()
+    github = check_github(job, missing)
+    if github.answers:
+        candidate_facts, matched, missing, found_ids = _apply_answers(github.answers, candidate_facts, matched, missing)
+        new_fact_ids |= found_ids
+        skeleton = load_skeleton()
     gaps = _skills_to_ask_about(job, missing) if ask_skills else []
     if gaps:
         events.emit("archivist", events.ASK, f"Asking you about {', '.join(gaps)}", skills=gaps)
@@ -175,4 +182,5 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         pdf_path=pdf_path,
         comment=loop_result.feedback.revision_notes,
         fit_note=fit.note,
+        github_note=("Added from your GitHub: " + ", ".join(github.added)) if github.added else "",
     )
