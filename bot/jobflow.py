@@ -16,7 +16,7 @@ from typing import Optional
 from bot import config
 from bot.ask import SkillQuestioner, ask_choice, ask_for_job_text
 from bot.extraction import normalize_job_posting
-from bot.services.db import (USER_STATUSES, find_similar, get_application, is_duplicate_url,
+from bot.services.db import (SHEET_STATUSES, USER_STATUSES, find_similar, get_application, is_duplicate_url,
                              update_application as db_update_application, upsert_application)
 from bot.services.drive import upload_to_drive
 from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
@@ -288,7 +288,8 @@ async def _write_and_deliver(fields: dict, db_id: int, sheet_row: Optional[int],
                           facts_used=result.facts_used, details=result.summary, gaps=gaps)
     if sheet_row:
         await asyncio.to_thread(update_application_status, row_num=sheet_row, resume_link=drive_link or "",
-                                resume_status=result.resume_status, status=status, deadline=deadline,
+                                resume_status=result.resume_status, deadline=deadline,
+                                status=status if status in SHEET_STATUSES else "",   # "Ready" stays "New" in the Sheet
                                 comment=f"Match {result.score:.0f}%, shows {len(result.covered)} of "
                                         f"{len(result.covered) + len(result.missing)} requirements. {result.comment}")
     events.emit("publisher", events.DONE,

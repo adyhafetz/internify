@@ -115,7 +115,7 @@ def tap(data, msg=None):
 
 q, _ = tap(f"jb:s:{b}:A")
 assert db.get_application(b)["status"] == db.APPLIED and "applied" in q.answers[0].lower()
-assert [x.text for x in q.message.markup.inline_keyboard[0]] == ["🎤 Interview", "❌ Rejected"], "the next steps replace 'I applied'"
+assert [x.text for x in q.message.markup.inline_keyboard[0]] == ["👀 In Review", "🎤 Interviewing"], "the next steps replace 'I applied'"
 q, _ = tap(f"jb:s:{c_}:W", Msg(text="📬 Any news?"))
 assert "week" in q.answers[0]
 q, _ = tap(f"jb:d:{a}")
@@ -197,4 +197,26 @@ assert o2.ok and runs[-1].keep_entries == ["p9"] and runs[-1].company == "Shopee
 assert db.get_application(o.app_id)["status"] == db.APPLIED, "rebuilding never undoes Applied"
 o3, r = asyncio.run(rb(ask_now=True)); assert o3.gaps == [], "after asking, the 🧩 button isn't offered again"
 print("9 ok: rebuild keeps an entry, reuses the saved job, keeps the status")
+
+# ---- 10. the bot only ever writes the Sheet's own Status words, and older names are renamed on start-up
+from bot.setup.google_setup import STATUSES
+assert STATUSES == ["New", "Applied", "In Review", "Interviewing", "Offer", "Rejected", "Withdrawn"]
+assert set(tracker.STATUS_CODES.values()) <= set(STATUSES)
+sheet.clear()
+for code in ("A", "V", "I", "O", "R", "X"):
+    tracker.change_status(a, tracker.STATUS_CODES[code])
+assert [kw["status"] for _, kw in sheet] == ["Applied", "In Review", "Interviewing", "Offer", "Rejected", "Withdrawn"], sheet
+tracker.change_status(a, db.IN_REVIEW); assert db.get_application(a)["followup_at"], "In Review keeps the follow-up clock running"
+seen_sheet = []
+jobflow.update_application_status = lambda *a_, **kw: seen_sheet.append(kw)
+jobflow.find_row_by_url = lambda url: 3
+jobflow.scrape_job_url = scrape
+o4, _ = asyncio.run(go("https://new/9", interactive=True, answer="go"))
+assert o4.ok and seen_sheet and seen_sheet[-1]["status"] == "", (o4, seen_sheet)  # a fresh resume leaves the Sheet Status as New
+with db._get_connection() as conn:
+    for old in ("Interview", "Not applying", "No reply"):
+        conn.execute("UPDATE applications SET status = ? WHERE id = ?", (old, a)); conn.commit()
+        db._migrate(conn); conn.commit()
+        assert db.get_application(a)["status"] == {"Interview": "Interviewing", "Not applying": "Withdrawn", "No reply": "Rejected"}[old]
+print("10 ok: statuses match the Sheet's drop-down (New, Applied, In Review, Interviewing, Offer, Rejected, Withdrawn)")
 print("\n✅ tracker test passed")

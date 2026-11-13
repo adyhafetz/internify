@@ -19,7 +19,7 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 2. Internify extracts the tech stack, hard requirements, and ATS keywords.
 3. An **Agentic Retrieval & Generator-Critic Loop** selects and tailors only your real, verified achievements.
 4. Tectonic renders and compiles a clean, **guaranteed 1-page LaTeX PDF** using **Jake's Resume** format.
-5. You receive the tailored PDF in Telegram within seconds, with how many of the job's requirements it shows, what was used and left out, and buttons to track it: **✅ I applied**, then 🎤 Interview, 🏆 Offer or ❌ Rejected. Everything is kept in your local SQLite database (or synced to Google Sheets & Drive).
+5. You receive the tailored PDF in Telegram within seconds, with how many of the job's requirements it shows, what was used and left out, and buttons to track it: **✅ I applied**, then 👀 In Review, 🎤 Interviewing, 🏆 Offer, ❌ Rejected or 🚫 Withdrawn. Everything is kept in your local SQLite database (or synced to Google Sheets & Drive).
 
 Behind the bot, **9 AI agents** share the work: the **Scout, Analyst, Archivist, Scribe, Critic and Publisher** write each resume; the **Discoverer and Matcher** find and pick new jobs for you every day; and the **Curator** keeps your saved experience tidy and in step with your GitHub repos.
 
@@ -119,11 +119,11 @@ Every resume arrives with buttons: **✅ I applied** · **🚫 Not applying** ·
 
 - **What it says:** the match score (half the AI reviewer's opinion, half how many of the job's requirements the finished PDF visibly shows), "Shows 7 of 10 requirements. Not on it: Docker, SQL", how many bullet points were used and reworded, what was left out, and the closing date if the posting gives one.
 - **📝 What changed:** every bullet point used (✏️ marks the reworded ones), what was left out, and **➕ Keep …** to rebuild with a left-out job or project kept.
-- **After you apply:** 🎤 Interview, 🏆 Offer, ❌ Rejected, 👻 No reply. Your Google Sheet's **Status** column follows (add **Applied Date** or **Deadline** headers to row 1 to get those too).
-- **Reminders:** an hour after the daily check: "Any news from …?" `FOLLOWUP_DAYS` (default 14) after you applied (⏳ Still waiting asks again a week later), and a nudge when a job you have a resume for closes within 3 days and isn't marked applied. On Sundays, a short summary of your week.
+- **After you apply:** 👀 In Review, 🎤 Interviewing, 🏆 Offer, ❌ Rejected, 🚫 Withdrawn: the same words as the Status drop-down in your Google Sheet (New, Applied, In Review, Interviewing, Offer, Rejected, Withdrawn), and the Sheet's **Status** column follows. A fresh resume leaves it at New until you tap ✅ I applied. Add **Applied Date** or **Deadline** headers to row 1 to get those too.
+- **Reminders:** an hour after the daily check: "Any news from …?" `FOLLOWUP_DAYS` (default 14) after you applied or it went in review (⏳ Still waiting asks again a week later), and a nudge when a job you have a resume for closes within 3 days and isn't marked applied. On Sundays, a short summary of your week.
 - **It learns:** bullet points on resumes that got you an interview or an offer get a small nudge up in later jobs.
 - **Repeat jobs:** the same job through another link (LinkedIn, JobStreet and the company page) is recognised by company and title: when you send it, you're asked before a second resume is made; the daily check skips it.
-- `/applied` lists everything by status (Open, Interviews and offers, Closed, All), each with the same buttons and ♻️ Rebuild (from the saved job details, no page visit; your status is kept).
+- `/applied` lists everything by status (Open, Interviewing and offers, Closed, All), each with the same buttons and ♻️ Rebuild (from the saved job details, no page visit; your status is kept).
 
 ---
 
@@ -267,7 +267,7 @@ The slash menu shows these six:
 |---|---|
 | `/profile` | **See and edit everything on your resume.** Contact details, education, jobs, projects, leadership and skills as buttons. Tap an entry to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete (it asks first) or ➕ to add a line. **➕ Add something** adds a whole job, project, leadership role or degree: you describe it in your own words and the AI turns it into bullet points. Skills are grouped by category: tap one to add (comma-separated) or remove. |
 | `/importresume` | Fill in everything from your current resume. Send a PDF, Word or text file (or just send the file), check the preview, then choose Replace or Add. |
-| `/applied` | Your applications by status, with buttons: applied, interview, offer, rejected, rebuild, what changed (`/history` still works). |
+| `/applied` | Your applications by status, with buttons: applied, in review, interviewing, offer, rejected, withdrawn, rebuild, what changed (`/history` still works). |
 | `/resume` | Download your general resume (PDF), not tailored to any job. |
 | `/help` | Everything the bot can do. |
 | `/cancel` | Stop the current step, for example a question the bot is waiting for you to answer. |

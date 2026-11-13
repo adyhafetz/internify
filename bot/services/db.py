@@ -84,10 +84,15 @@ _NEW_COLUMNS = {
     "gaps": "TEXT DEFAULT ''",            # JSON list of tools the job wants that you have no saved experience of
 }
 
-# Where an application can be. The first four are set by the bot; the rest by you, from the buttons.
-APPLIED, INTERVIEW, OFFER, REJECTED, GHOSTED, NOT_APPLYING = "Applied", "Interview", "Offer", "Rejected", "No reply", "Not applying"
-OPEN_STATUSES = ("Ready", APPLIED, INTERVIEW)
-USER_STATUSES = (APPLIED, INTERVIEW, OFFER, REJECTED, GHOSTED, NOT_APPLYING)   # set by you; the bot never undoes them
+# Where an application can be: the same words as the Status drop-down in your Google Sheet. The bot itself uses
+# Processing / Ready / Failed (kept here only; the Sheet shows "New" until you apply); the rest you set with the buttons.
+NEW, APPLIED, IN_REVIEW, INTERVIEW, OFFER, REJECTED, WITHDRAWN = ("New", "Applied", "In Review", "Interviewing", "Offer",
+                                                                  "Rejected", "Withdrawn")
+SHEET_STATUSES = (NEW, APPLIED, IN_REVIEW, INTERVIEW, OFFER, REJECTED, WITHDRAWN)
+WAITING = (APPLIED, IN_REVIEW)                   # sent, no answer yet: the follow-up clock runs
+OPEN_STATUSES = ("Ready", APPLIED, IN_REVIEW, INTERVIEW)
+USER_STATUSES = (APPLIED, IN_REVIEW, INTERVIEW, OFFER, REJECTED, WITHDRAWN)   # set by you; the bot never undoes them
+_RENAMED = {"Interview": INTERVIEW, "Not applying": WITHDRAWN, "No reply": REJECTED}   # names used briefly before
 FOLLOWUP_DAYS = int(os.getenv("FOLLOWUP_DAYS", "14"))
 
 
@@ -96,6 +101,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for col, kind in _NEW_COLUMNS.items():
         if col not in have:
             conn.execute(f"ALTER TABLE applications ADD COLUMN {col} {kind}")
+    for old, new in _RENAMED.items():
+        conn.execute("UPDATE applications SET status = ? WHERE status = ?", (new, old))
 
 
 def is_duplicate_url(url: str) -> bool:
@@ -243,10 +250,10 @@ def get_application(app_id: int) -> Optional[dict]:
 
 
 def set_status(app_id: int, status: str) -> Optional[dict]:
-    """Move an application on (Applied, Interview, Offer, Rejected, ...). Marking it applied starts the follow-up
-    clock; any other move stops it. Returns the updated application."""
+    """Move an application on (Applied, In Review, Interviewing, Offer, Rejected, Withdrawn). Applied or In Review
+    (re)starts the follow-up clock; any other move stops it. Returns the updated application."""
     with _get_connection() as conn:
-        if status == APPLIED:
+        if status in WAITING:
             conn.execute(
                 f"""UPDATE applications SET status = ?, status_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
                        applied_at = COALESCE(applied_at, CURRENT_TIMESTAMP),
@@ -267,8 +274,8 @@ def snooze_followup(app_id: int, days: int = 7) -> None:
 def due_followups() -> list[dict]:
     """Applied a while ago and no news since: time to ask."""
     with _get_connection() as conn:
-        rows = conn.execute("""SELECT * FROM applications WHERE status = ? AND followup_at IS NOT NULL
-                                 AND followup_at <= datetime('now') ORDER BY followup_at""", (APPLIED,)).fetchall()
+        rows = conn.execute("""SELECT * FROM applications WHERE status IN (?, ?) AND followup_at IS NOT NULL
+                                 AND followup_at <= datetime('now') ORDER BY followup_at""", WAITING).fetchall()
         return [_row(r) for r in rows]
 
 
@@ -314,7 +321,7 @@ def week_stats() -> dict[str, int]:
             "interviews": one("SELECT COUNT(*) FROM applications WHERE status IN (?, ?) AND status_at >= datetime('now', '-7 days')",
                               INTERVIEW, OFFER),
             "rejected": one("SELECT COUNT(*) FROM applications WHERE status = ? AND status_at >= datetime('now', '-7 days')", REJECTED),
-            "waiting": one("SELECT COUNT(*) FROM applications WHERE status = ?", APPLIED),
+            "waiting": one("SELECT COUNT(*) FROM applications WHERE status IN (?, ?)", *WAITING),
         }
 
 
