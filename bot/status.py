@@ -44,6 +44,14 @@ def _github_line() -> str:
     return f"{_h(sc.GITHUB_USERNAME)}, {len(idx.get('repos', {}))} repos, read {age} ago"
 
 
+def _looking_for() -> str:
+    from bot.services.websearch import default_roles
+    p = watchlist.get_prefs()
+    roles = ", ".join(p.roles or default_roles())
+    return (f"  looking for: {_h(roles)} · {_h(', '.join(p.places) or 'anywhere')}"
+            f"{' · internships only' if p.interns_only else ''} · web search {'on' if p.web_search else 'off'}")
+
+
 def screen(application=None, notice: str = ""):
     provider = "Google Gemini (free tier)" if sc.AI_PROVIDER == "gemini" else "OpenAI"
     google = "set up" if (config.GOOGLE_REFRESH_TOKEN or os.path.exists(config.GOOGLE_TOKEN_FILE)) and (config.GOOGLE_SHEET_ID or config.GOOGLE_DRIVE_FOLDER_ID) else "off"
@@ -65,6 +73,7 @@ def screen(application=None, notice: str = ""):
         f"• Daily job check ({_h(config.SCAN_TIME)} {_h(config.SCAN_TIMEZONE)}): {scan}"
         + (f", next {_next_run(application, 'daily-scan')}" if _next_run(application, "daily-scan") and scan == "on" else ""),
         f"  last: {_h(watchlist.get_setting('scan_last', 'not run yet'))}",
+        _looking_for(),
         "• Tidy-up: every Sunday" + (f", next {_next_run(application, 'weekly-tidy')}" if _next_run(application, "weekly-tidy") else ""),
         f"  last: {_h(watchlist.get_setting('tidy_last', 'not run yet'))}",
     ]

@@ -188,22 +188,46 @@ def watchlist_screen(notice: str = "") -> Screen:
     lines = [notice, ""] if notice else []
     lines += ["🔭 <b>Job pages I check</b>",
               f"{_schedule_text()}, I look at these for new jobs, keep the best matches (up to {config.SCAN_MAX_TAILORED}) and write a resume for each.", ""]
-    names = {"greenhouse": "job board", "lever": "job board", "page": "career page"}
+    names = {"page": "career page"}
     if sources:
         for src in sources:
-            extra = " · from your jobs" if src.auto else ""
-            lines.append(f'• <a href="{_h(src.url)}">{_h(src.label)}</a> ({names[src.kind]}{extra})\n   {_h(_source_status(src))}')
+            extra = {1: " · from your jobs", 2: " · found by search"}.get(src.auto, "")
+            lines.append(f'• <a href="{_h(src.url)}">{_h(src.label)}</a> ({names.get(src.kind, "job board")}{extra})\n   {_h(_source_status(src))}')
     else:
-        lines.append("<i>Nothing here yet. Add a career page or a job-board link, for example https://boards.greenhouse.io/acme "
-                     "or https://jobs.lever.co/acme. Boards on Greenhouse or Lever work best.</i>")
+        lines.append("<i>Nothing here yet. Add a career page or a job-board link (for example https://boards.greenhouse.io/acme). "
+                     + ("The web search also finds companies by itself and adds them here." if watchlist.get_prefs().web_search
+                        else "Or switch on the web search in 🎯 What I look for.") + "</i>")
     if sources:
         lines += ["", "Tap ✕ to stop checking one."]
     chips = [_btn(_short(f"✕ {src.label}", 28), "wd", src.id) for src in sources]
     rows = [chips[i:i + 2] for i in range(0, len(chips), 2)]
+    rows.append([_btn("🎯 What I look for", "wf")])
     rows.append([_btn("➕ Add a link", "wa"), _btn("🇲🇾 Popular in Malaysia", "wm")])
     rows.append([_btn("⏳ Checking now…" if is_running() else "▶ Check now", "wn"),
                  _btn("▶ Resume daily check" if watchlist.scan_paused() else "⏸ Pause daily check", "wp")])
     rows.append([_btn("⬅ Back to profile", "l")])
+    return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
+def prefs_screen(notice: str = "") -> Screen:
+    """What the daily check looks for: roles and places (also used by the web search), and two switches."""
+    from bot.services.websearch import default_roles
+    p = watchlist.get_prefs()
+    lines = [notice, ""] if notice else []
+    roles = _h(", ".join(p.roles)) if p.roles else _h(", ".join(default_roles())) + " <i>(from your resume)</i>"
+    lines += ["🎯 <b>What I look for</b>", "",
+              f"• <b>Roles</b>: {roles}",
+              f"• <b>Places</b>: {_h(', '.join(p.places)) if p.places else 'anywhere'}",
+              f"• <b>Internships only</b>: {'yes' if p.interns_only else 'no, any level'}",
+              f"• <b>Search the web</b>: {'on' if p.web_search else 'off'}", "",
+              "<i>The web search looks for these roles on the hiring systems companies post on (Greenhouse, Lever, "
+              "Ashby, Workable, SmartRecruiters, Workday) and adds each company it finds to the pages I check. "
+              "Jobs that don't match your places, aren't internships, have closed, or that you already have a resume "
+              "for are skipped.</i>"]
+    rows = [[_btn("✏️ Roles", "wfr"), _btn("✏️ Places", "wfp")],
+            [_btn(("✅" if p.interns_only else "⬜") + " Internships only", "wfi"),
+             _btn(("✅" if p.web_search else "⬜") + " Search the web", "wfs")],
+            [_btn("⬅ Back", "w")]]
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -384,6 +408,22 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
     if action in ("ty", "tv", "ta", "tx", "tA", "tX", "tz", "tZ", "tg"):
         from bot import tidy
         return await tidy.handle(query, action, args)
+    if action == "wf":
+        return prefs_screen()
+    if action == "wfi":
+        on = watchlist.toggle("scan_interns_only")
+        return prefs_screen(notice="✅ Only internships from now on." if on else "✅ Any level from now on.")
+    if action == "wfs":
+        on = watchlist.toggle("scan_web_search")
+        return prefs_screen(notice="✅ The daily check also searches the web." if on else "✅ Web search is off: only your pages are checked.")
+    if action == "wfr":
+        return _prompt(context, "✏️ <b>Which roles should I look for?</b>\n\nSend up to 5, separated by commas, for example:\n"
+                       "<code>software engineer intern, data analyst intern, backend intern</code>\nSend - to use the roles on your resume.",
+                       ("wf",), action="prefs", key="scan_roles")
+    if action == "wfp":
+        return _prompt(context, "✏️ <b>Where?</b>\n\nSend up to 4 places, separated by commas, for example:\n"
+                       "<code>Malaysia, Remote</code> or <code>Kuala Lumpur, Penang</code>\nSend - for anywhere.",
+                       ("wf",), action="prefs", key="scan_places")
     if action == "wa":
         return _prompt(context, "➕ <b>Add a link to watch</b>\n\nSend a career page or a job-board link, for example "
                        "https://boards.greenhouse.io/acme or https://jobs.lever.co/acme.", ("w",), action="source")
@@ -517,6 +557,12 @@ async def _apply_answer(msg, wait: dict, text: str) -> Screen:
         notice = ("✅ Added: " + _h(", ".join(added)) if added else "") + \
                  (("\n" if added else "") + "ℹ️ Already there: " + _h(", ".join(already)) if already else "")
         return skill_category_screen(wait["index"], notice=notice)
+    if action == "prefs":
+        items = [] if text.strip() == "-" else watchlist.set_list(wait["key"], text)
+        if not items:
+            watchlist.set_setting(wait["key"], "")
+        what = "Roles" if wait["key"] == "scan_roles" else "Places"
+        return prefs_screen(notice=f"✅ {what} saved." if items else f"✅ {what} cleared.")
     if action == "source":
         try:
             src = watchlist.add_source(text)

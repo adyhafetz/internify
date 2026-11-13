@@ -368,7 +368,7 @@ print("D4 ok: /cancel clears a waiting question")
 
 # every old command, alias and typed shortcut is gone: the bot has exactly these commands
 registered = {c for g in app.handlers.values() for h in g for c in getattr(h, "commands", [])}
-assert registered == {"start", "help", "history", "cancel", "resume", "importresume", "profile"}, sorted(registered)
+assert registered == {"start", "help", "history", "applied", "cancel", "resume", "importresume", "profile"}, sorted(registered)
 for gone in ("experience", "myprofile", "listentries", "listfacts", "listeducation", "listskills", "addexperience", "addproject",
              "addleadership", "addeducation", "addskill", "setname", "deleteexperience", "updatefact"):
     assert gone not in registered, gone
@@ -379,7 +379,7 @@ class _B:
     async def set_my_description(self, d): sent["long"] = d
 from bot.main import post_init
 asyncio.run(post_init(types.SimpleNamespace(bot=_B())))
-assert [c for c, _ in sent["commands"]] == ["profile", "importresume", "history", "resume", "help", "cancel"], sent["commands"]
+assert [c for c, _ in sent["commands"]] == ["profile", "importresume", "applied", "resume", "help", "cancel"], sent["commands"]
 assert all(3 <= len(d) <= 256 and d[0].isupper() for _, d in sent["commands"]) and "job link" in sent["short"] and "resume file" in sent["long"]
 print("D5 ok: only 7 commands exist (/start /help /profile /importresume /history /resume /cancel); the menu has 6 entries with clear descriptions; the bot description tells new users what to do:")
 for c, d in sent["commands"]: print(f"     /{c:13} {d}")

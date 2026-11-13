@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.abspath("."))
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ["OUTPUT_DIR"] = tempfile.mkdtemp()
 
+from service.models import ResumeSkeleton as _RS, ResumeHeader as _RH
+_SK = _RS(header=_RH(name='T', phone='', email='t@x.y', linkedin_url='', linkedin_display='', github_url='', github_display=''))
 from service import events
 from service.models import (JobPosting, FactBullet, FactBulletWithScore, GeneratedResume, ResumeBullet,
                             CriticFeedback, ProcessRequest)
@@ -22,13 +24,13 @@ scores = iter([40.0, 90.0])
 
 main.extract_job_posting = lambda raw: JOB
 main.load_facts = lambda: [FACT]
-main.load_skeleton = lambda: object()
-main.retrieve_relevant_facts = lambda job, facts: [FactBulletWithScore(fact=FACT, similarity=0.8, keyword_boost=0.1)]
+main.load_skeleton = lambda: _SK
+main.retrieve_relevant_facts = lambda job, facts, **kw: [FactBulletWithScore(fact=FACT, similarity=0.8, keyword_boost=0.1)]
 loop.generate_resume = lambda **kw: GeneratedResume(bullets=[ResumeBullet(fact_id="f1", entry_id="e1", text="Built FastAPI service")])
 loop.critique = lambda **kw: CriticFeedback(score=next(scores), keyword_coverage_notes="", unsupported_claims=[], overflow_risk=False, revision_notes="add more")
 pdf = os.path.join(os.environ["OUTPUT_DIR"], "x.pdf"); open(pdf, "w").write("x")
 from service.latex.fit import FitResult
-main.fit_one_page = lambda job, facts, resume, skeleton, base: FitResult(pdf, 1)
+main.fit_one_page = lambda job, facts, resume, skeleton, base, **kw: FitResult(pdf, 1)
 
 
 class FakeMsg:

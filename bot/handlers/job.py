@@ -7,8 +7,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.handlers.common import restricted
-from bot.jobflow import html_escape as _html, score_emoji, tailor_job
-from bot.services.db import get_recent_applications
+from bot.jobflow import tailor_job
 from bot.progress import TelegramProgress
 from service import events
 
@@ -19,21 +18,10 @@ URL_REGEX = re.compile(r"https?://[^\s<>\"']+")
 
 @restricted
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Shows recently tracked job applications from the local SQLite database."""
-    apps = get_recent_applications(limit=8)
-    if not apps:
-        await update.effective_message.reply_text("📭 No applications tracked yet.\nSend any job link to tailor your first resume!")
-        return
-
-    lines = ["📊 <b>Your recent applications</b>\n"]
-    for app in apps:
-        score = app.get("score") or 0.0
-        drive = f' · <a href="{_html(app["drive_link"])}">Google Drive</a>' if app.get("drive_link") else ""
-        lines.append(
-            f"• <b>{_html(app['company'])}</b> – {_html(app['job_title'])}\n"
-            f"  {score_emoji(score)} Match {score:.0f}% · {_html(app['status'])} · {str(app.get('created_at', ''))[:10]}{drive}\n"
-        )
-    await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+    """/history and /applied: your applications by status, with buttons to move each one on."""
+    from bot.tracker import list_screen
+    text, kb = list_screen("o")
+    await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
 
 class TelegramReporter:
@@ -55,12 +43,12 @@ class TelegramReporter:
         events.emit_run("finished", score=outcome.score, status=outcome.status, pdf=os.path.basename(outcome.pdf_path),
                         drive_link=outcome.drive_link, company=outcome.company, role=outcome.role)
 
-    async def deliver(self, outcome, caption: str) -> None:
+    async def deliver(self, outcome, caption: str, keyboard=None) -> None:
         await self.progress.close()
         try:
             with open(outcome.pdf_path, "rb") as pdf_file:
                 await self.message.reply_document(document=pdf_file, filename=outcome.filename, caption=caption,
-                                                  parse_mode="HTML", write_timeout=60, read_timeout=60)
+                                                  parse_mode="HTML", write_timeout=60, read_timeout=60, reply_markup=keyboard)
             await self.status_msg.delete()
         except Exception as err:
             logger.error("Failed to deliver tailored PDF to Telegram: %s", err)

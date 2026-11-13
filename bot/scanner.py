@@ -32,6 +32,9 @@ class ScanSummary:
     kept: int = 0
     tailored: int = 0
     failed: int = 0
+    duplicates: int = 0
+    searched: bool = False
+    filtered: int = 0          # left out by your filters (not an internship, another place, closed, already done)
     note: str = ""
 
 
@@ -52,11 +55,11 @@ class ScanReporter:
         events.emit_run("job_finished", score=outcome.score, status=outcome.status, pdf=os.path.basename(outcome.pdf_path or ""),
                         drive_link=outcome.drive_link, company=outcome.company, role=outcome.role)
 
-    async def deliver(self, outcome: JobOutcome, caption: str) -> None:
+    async def deliver(self, outcome: JobOutcome, caption: str, keyboard=None) -> None:
         try:
             with open(outcome.pdf_path, "rb") as pdf_file:
                 await self.bot.send_document(self.chat_id, document=pdf_file, filename=outcome.filename, caption=caption,
-                                             parse_mode="HTML", write_timeout=60, read_timeout=60)
+                                             parse_mode="HTML", write_timeout=60, read_timeout=60, reply_markup=keyboard)
         except Exception as err:
             logger.error("Could not send a scan resume: %s", err)
             await self.bot.send_message(self.chat_id, f"🎯 A resume for {outcome.company} is ready, but sending it timed out.\nReason: {err}")
@@ -93,8 +96,13 @@ def _digest(s: ScanSummary) -> str:
     if s.note:
         return f"☀️ <b>Daily job check</b>\n{s.note}"
     lines = ["☀️ <b>Daily job check done</b>",
-             f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''} and found {s.found} new job{'s' if s.found != 1 else ''}",
+             f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''}"
+             + (" and searched the web" if s.searched else "") + f", and found {s.found} new job{'s' if s.found != 1 else ''} that fit your filters",
              f"• {s.kept} matched well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
+    if s.filtered:
+        lines.append(f"• {s.filtered} left out by your filters (not an internship, another place, closed or already done)")
+    if s.duplicates:
+        lines.append(f"• {s.duplicates} skipped: the same job as one you already have a resume for")
     if s.failed:
         lines.append(f"• {s.failed} couldn't be tailored (see the messages above)")
     return "\n".join(lines)
@@ -106,16 +114,20 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         return
     await asyncio.to_thread(watchlist.sources_from_history)
     sources = watchlist.list_sources()
+    prefs = watchlist.get_prefs()
     s.sources = len(sources)
-    if not sources:
+    if not sources and not prefs.web_search:
         events.emit("discoverer", events.FAIL, "No job pages yet", why="No job pages yet. Add one in /profile.")
-        s.note = ("I have nowhere to look yet. Open /profile, tap Job pages I check, and add a career page or a job-board link. "
-                  "Job boards on Greenhouse or Lever work best.")
+        s.note = ("I have nowhere to look yet. Open /profile, tap Job pages I check, and add a career page or a job-board link, "
+                  "or switch on the web search there.")
         return
 
-    # 1. Discoverer: find links
-    events.emit("discoverer", events.START, f"Checking {len(sources)} job pages", sources=len(sources))
-    candidates, results = await discover(sources)
+    # 1. Discoverer: find links (your filters are applied here, before anything is read in full)
+    events.emit("discoverer", events.START, f"Checking {len(sources)} job pages" + (" and searching the web" if prefs.web_search else ""),
+                sources=len(sources))
+    candidates, results = await discover(sources, prefs)
+    s.filtered = sum(r.skipped for r in results)
+    s.searched = any(r.label == "Web search" for r in results)
     answered = [r for r in results if r.ok]
     if not answered:
         events.emit("discoverer", events.FAIL, "No job page answered", why="None of your job pages answered")
@@ -132,20 +144,23 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     s.found = len(fresh)
     events.emit("discoverer", events.DONE, f"Found {len(fresh)} new jobs", found=len(fresh), sources=len(sources))
     if not fresh:
-        s.note = f"Checked {len(sources)} job page{'s' if len(sources) != 1 else ''}: nothing new since last time."
+        s.note = (f"Checked {len(sources)} job page{'s' if len(sources) != 1 else ''}"
+                  + (" and searched the web" if s.searched else "") + ": nothing new that fits your filters since last time.")
         return
     events.emit("discoverer", events.HANDOFF, f"{len(fresh)} new jobs", to="matcher")
 
     # 2. Matcher: pick the best fits
     events.emit("matcher", events.START, f"Scoring {len(fresh)} jobs", total=len(fresh))
-    result = await match(fresh, config.SCAN_MAX_TAILORED, config.SCAN_MIN_FIT)
+    result = await match(fresh, config.SCAN_MAX_TAILORED, config.SCAN_MIN_FIT, prefs)
+    s.filtered += sum(1 for x in result.scored if x.rejected)
     s.kept = len(result.kept)
     events.emit("matcher", events.DONE, f"Kept {s.kept} of {len(fresh)}", kept=s.kept, total=len(fresh), top=result.top,
                 picks=[{"role": k.role, "company": k.company, "fit": round(k.fit, 2), "why": k.why} for k in result.kept])
     kept_urls = {k.cand.url for k in result.kept}
     for item in result.scored:
         if item.cand.url not in kept_urls:
-            watchlist.mark_seen(item.cand.url, item.role or item.cand.title, item.company, "low-fit", item.fit, item.why)
+            watchlist.mark_seen(item.cand.url, item.role or item.cand.title, item.company,
+                                "filtered" if item.rejected else "low-fit", item.fit, item.why)
     for c in fresh:
         if not watchlist.seen(c.url) and c.url not in kept_urls:
             watchlist.mark_seen(c.url, c.title, c.company, "low-fit")
@@ -167,6 +182,9 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         if outcome.ok:
             s.tailored += 1
             watchlist.mark_seen(pick.cand.url, pick.role, pick.company, "tailored", pick.fit, pick.why)
+        elif outcome.skipped:   # the same job as one you already have a resume for
+            s.duplicates += 1
+            watchlist.mark_seen(pick.cand.url, pick.role, pick.company, "duplicate", pick.fit, outcome.error[:200])
         else:
             s.failed += 1
             watchlist.mark_seen(pick.cand.url, pick.role, pick.company, "failed", pick.fit, outcome.error[:200])

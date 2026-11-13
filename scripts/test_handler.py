@@ -34,6 +34,8 @@ jobflow.scrape_job_url, jobflow.normalize_job_posting, jobflow.run_pipeline = fa
 jobflow.find_row_by_url, jobflow.append_application, jobflow.update_application_status = fake_find, fake_append, fake_sheet_update
 jobflow.upload_to_drive = lambda path, name: "https://drive.google.com/x?a=1&b=2"
 jobflow.profile_is_sample = lambda: False   # a real profile is saved (the sample-profile guard is tested at the end)
+real_find_similar = jobflow.find_similar
+jobflow.find_similar = lambda *a, **k: None  # every fake job has the same name; the repeat-job check is tested on its own
 
 
 class Msg:
@@ -71,12 +73,19 @@ print("run 1 ok:", cap.replace("\n", " | ")[:140])
 
 from bot import config as bot_config
 from bot.ask import SkillQuestioner
-assert isinstance(seen_ask[-1], SkillQuestioner), "the pipeline must be given the questioner so the Archivist can ask"
+assert seen_ask[-1] is None, "the resume comes first: no questions during a normal run"
+async def _ask_now():
+    loop = asyncio.get_running_loop()
+    app_id = db.get_recent_applications(limit=1)[0]["id"]
+    return await jobflow.rebuild(app_id, job.TelegramReporter(Incoming("x"), Msg([]), types.SimpleNamespace(close=lambda: asyncio.sleep(0))),
+                                 bot=object(), chat_id=7, loop=loop, ask_now=True)
+out = asyncio.run(_ask_now())
+assert out.ok and isinstance(seen_ask[-1], SkillQuestioner), "🧩 rebuild must hand the questioner to the Archivist"
 bot_config.ASK_ABOUT_MISSING_SKILLS = False
-run("https://x.com/jobs/ask-off")
+asyncio.run(_ask_now())
 assert seen_ask[-1] is None, "feature switched off: no questions"
 bot_config.ASK_ABOUT_MISSING_SKILLS = True
-print("ask wiring ok: questioner passed when on, nothing passed when off")
+print("ask wiring ok: no questions during a run; the 🧩 rebuild asks (unless switched off)")
 
 # 2. same link again: no crash, rows reused, user told why
 appends_before, apps_before = calls["append"], len(db.get_recent_applications(limit=50))

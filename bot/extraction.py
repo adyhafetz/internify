@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from pydantic import BaseModel, Field
 
 from service import config
@@ -37,6 +38,7 @@ class NormalizedJob(BaseModel):
     location: str = Field("Remote", description="City/country or 'Remote'")
     job_description: str = Field(..., description="2-4 sentences summarizing the role")
     job_requirements: str = Field(..., description="Key qualifications as bullet points separated by newline")
+    deadline: str = Field("", description="Application closing date as YYYY-MM-DD if the posting states one, else empty")
 
 
 def extract_education(text: str) -> AddEducationRequest:
@@ -140,11 +142,35 @@ def extract_tech_tags(bullet_text: str) -> list[str]:
     return result.tech_tags
 
 
+_SECTION = re.compile(
+    r"(?im)^[#*_ \t>-]*(job description|about the (role|job|position)|the role|what you'?ll do|responsibilit\w*|"
+    r"requirements?|qualifications?|what you'?ll need|what we'?re looking for|who you are|you have|skills|"
+    r"minimum qualifications|preferred qualifications|job requirements?)\b")
+_JUNK_LINE = re.compile(r"^\W*(\[[^\]]*\]\([^)]*\)\W*)+$|^\W{0,3}$")
+
+
+def focus_text(raw: str, limit: int = 8000, head: int = 1500) -> str:
+    """The part of a scraped page the Analyst should read. Long pages (job boards with menus, filters and other jobs
+    around the posting) are cut so that the requirements are never what gets cut: the top of the page (title,
+    company) plus the stretch from the first job section heading onwards."""
+    lines = [ln.rstrip() for ln in raw.splitlines()]
+    text = "\n".join(ln for ln in lines if not _JUNK_LINE.match(ln))   # menus: lines that are only links
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    if len(text) <= limit:
+        return text
+    m = _SECTION.search(text, head // 2)
+    if not m or m.start() < head:
+        return text[:limit]
+    start = max(head, m.start() - 300)
+    return text[:head] + "\n...\n" + text[start:start + limit - head]
+
+
 def normalize_job_posting(raw_text: str) -> NormalizedJob:
     prompt = (
         "You extract structured job information from scraped job posting text.\n"
         "Return ONLY valid structured data with company, job_title, location, job_description (2-4 sentences), "
-        "and job_requirements (key qualifications as bullet points separated by newline).\n"
+        "job_requirements (key qualifications as bullet points separated by newline) and deadline "
+        "(the application closing date as YYYY-MM-DD, only if stated).\n"
         "Do not invent information. If a field is missing, use an empty string or 'Remote' for location."
     )
     return instructor_client.chat.completions.create(
@@ -152,7 +178,7 @@ def normalize_job_posting(raw_text: str) -> NormalizedJob:
         response_model=NormalizedJob,
         messages=[
             {"role": "system", "content": prompt},
-            {"role": "user", "content": raw_text[:8000]},  # truncate to prevent context blowout
+            {"role": "user", "content": focus_text(raw_text)},  # long pages are cut around the job sections
         ],
     )
 
