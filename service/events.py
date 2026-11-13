@@ -180,7 +180,8 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
         if k == PROGRESS and d.get("github") == "checking":
             return f"Checking your GitHub for {', '.join(d.get('skills', []))}…"
         if k == PROGRESS and d.get("github") == "found":
-            return f"Found {d.get('skill')} in your repo {d.get('repo')}" + (" and added a bullet point ✓" if d.get("bullet") else ", added to your skills ✓")
+            where = f"a new project from {d.get('repo')}" if d.get("new_project") else str(d.get("project") or d.get("repo"))
+            return f"Found {d.get('skill')} in your repo {d.get('repo')}: added it with a bullet point in {where} ✓"
         if k == PROGRESS and d.get("saved"): return f"Saved your {d.get('skill')} experience ✓"
         if k == PROGRESS and d.get("answer") == "yes": return f"You've used {d.get('skill')}. Let's add it"
         if k == PROGRESS and d.get("answer") == "no": return f"No problem, skipping {d.get('skill')}"

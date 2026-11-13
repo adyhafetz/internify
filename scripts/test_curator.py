@@ -34,7 +34,7 @@ def fake_rewrite(items):
     if "f6" in items: out["f6"] = "Shipped 12 features with the team"          # adds a number: must be refused
     return out
 
-r = curator.tidy(rewrite=fake_rewrite)
+r = curator.tidy(rewrite=fake_rewrite, github=False)
 s = _load_skeleton_raw()["skills"]
 assert s["Languages"] == ["Python", "Docker", "JavaScript"] and s["Frameworks & Libraries"] == ["React.js", "Teamwork"] and s["Databases"] == ["PostgreSQL"], s
 fs = _load_facts_raw()
@@ -61,7 +61,7 @@ assert "Redis" in s["Databases"] and "FastAPI" in s["Frameworks & Libraries"]
 fs = {f["id"]: f for f in _load_facts_raw()}
 assert fs["f5"]["text"] == GOOD and len([i for i in ("f3", "f4") if i in fs]) == 1
 assert "no longer" in curator.apply(rw[0]) or "edited since" in curator.apply(rw[0]), "a stale suggestion is refused politely"
-r2 = curator.tidy(rewrite=lambda items: {})
+r2 = curator.tidy(rewrite=lambda items: {}, github=False)
 assert not r2.fixed and r2.backup is None, "a tidy profile is left alone, no backup"
 print("C ok: suggestions apply one by one; stale ones are refused; a second run finds nothing to fix")
 
@@ -74,7 +74,7 @@ class Q:
     async def edit_message_text(self, text, **kw): self.edits.append(text)
 json.dump(facts, open(config.FACT_STORE_PATH, "w"))
 _orig_tidy = curator.tidy
-curator.tidy = lambda: _orig_tidy(rewrite=fake_rewrite)
+curator.tidy = lambda: _orig_tidy(rewrite=fake_rewrite, github=False)
 q = Q()
 text, markup = asyncio.run(tidy.handle(q, "ty", []))
 assert q.edits and "Checking" in q.edits[0] and "Fixed automatically" in text and "Suggestions" in text
@@ -90,4 +90,18 @@ class JQ:
     def run_daily(self, cb, time, days, name): self.calls.append((days, name))
 app = types.SimpleNamespace(job_queue=JQ()); tidy.schedule(app); assert app.job_queue.calls == [((0,), "weekly-tidy")]
 print("D ok: /profile → 🧹 Tidy up: shows fixes and suggestions, ✅ applies one, skip all clears; runs weekly on Sunday")
+# G with GitHub on: tools from repos are added automatically (reported), repo updates become suggestions
+from service import github_evidence as GE
+config.GITHUB_USERNAME = "u"
+proj = _load_skeleton_raw()["project_entries"][0]
+GE.sync_from_github = lambda: [GE.Added("Go", "weather-cli", "Weather Cli", True)]
+GE.project_updates = lambda sk, facts: [{"kind": "update_stack", "entry_id": proj["id"], "old": proj["tech_stack"], "new": proj["tech_stack"] + ", Go",
+                                         "text": "update stack"}]
+rg = _orig_tidy(rewrite=lambda items: {})
+assert "Added from GitHub: Go (bullet point in Weather Cli, a new project from your repo)" in rg.fixed and rg.backup
+st = next(x for x in rg.suggestions if x.kind == "update_stack")
+assert curator.apply(st).startswith("Updated the tech stack") and _load_skeleton_raw()["project_entries"][0]["tech_stack"].endswith(", Go")
+assert "changed since" in curator.apply(st), "applying a stale stack update is refused"
+config.GITHUB_USERNAME = ""
+print("G ok: with GitHub on, tools from repos are added (and reported) and tech stack updates are suggested")
 print("\nALL CURATOR TESTS PASSED")

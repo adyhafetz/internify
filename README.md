@@ -60,7 +60,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 |---|---|
 | Scout | Plain web requests, plus a small AI check that the page is really one job posting (not a login or cookie page) and, as a last resort, whether another site's page is the same job |
 | Analyst | `EXTRACTOR_MODEL` reads the posting |
-| Archivist | Embeddings find your matching experience; missing skills are worked out in code. Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills, plus a grounded bullet point if the repo is one of your saved projects, with no question |
+| Archivist | Embeddings find your matching experience; missing skills are worked out in code. Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills together with one grounded bullet point (under the matching project, or a new project made from that repo), with no question. If no bullet point can be written, nothing is added and you are asked as usual |
 | Scribe | `GENERATOR_MODEL` writes the lines |
 | Critic | `CRITIC_MODEL` scores it, and plain code blocks any claim not in your saved facts |
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
@@ -73,7 +73,8 @@ Every small helper falls back to plain rules if its model call fails.
 
 `/profile` → **🧹 Tidy up**, every Sunday, and after each resume import, the Curator checks your saved experience.
 - **Fixed automatically** (with a backup): the same skill listed twice or under two spellings ("React" and "React.js"), tag spellings, and a bullet point saved twice.
-- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't, near-duplicate bullet points, and tighter wording for long or weak bullet points. A rewrite may never add a number, tool or name.
+- **From your GitHub** (with `GITHUB_USERNAME` set): tools your public repos use that your skills don't list are added automatically, each with one bullet point that shows it; a repo that isn't one of your projects yet becomes one. Repos changed in the last two years only, never forks or your profile repo.
+- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't, near-duplicate bullet points, tighter wording for long or weak bullet points, and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
 
 ## ☀️ The Daily Job Check (finds jobs for you)
 

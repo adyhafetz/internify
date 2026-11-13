@@ -200,14 +200,15 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+def names_match(repo: str, project_name: str) -> bool:
+    """"snap-pick" matches "SnapPick"; "internify-bot" matches "Internify"."""
+    r, n = _norm(repo), _norm(project_name)
+    return bool(n and r and (n == r or (len(n) >= 4 and (n in r or r in n))))
+
+
 def match_project(repo: str, projects: list) -> Optional[object]:
-    """The saved project this repo belongs to, by name ("snap-pick" matches "SnapPick"), or None."""
-    r = _norm(repo)
-    for p in projects:
-        n = _norm(p.name)
-        if n and r and (n == r or (len(n) >= 4 and (n in r or r in n))):
-            return p
-    return None
+    """The saved project this repo belongs to, by name, or None."""
+    return next((p for p in projects if names_match(repo, p.name)), None)
 
 
 # ---------------------------------------------------------------- a grounded bullet point from a repo
@@ -245,6 +246,186 @@ def draft_bullet(ev: Evidence, project_name: str) -> Optional[str]:
     return text
 
 
+# ---------------------------------------------------------------- adding a tool, always backed by one bullet point
+
+MAX_REPO_AGE_DAYS = 730
+
+
+def _usable(repo: dict, username: str) -> bool:
+    """A repo worth writing about: yours, has some text to go on, and changed in the last two years."""
+    from datetime import datetime, timezone
+    if repo.get("name", "").lower() in (username.lower(), f"{username.lower()}.github.io"):
+        return False
+    if not (repo.get("description") or repo.get("readme")):
+        return False
+    try:
+        pushed = datetime.fromisoformat(repo.get("pushed_at", "").replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - pushed).days <= MAX_REPO_AGE_DAYS
+    except Exception:
+        return True
+
+
+def pretty_name(repo: str) -> str:
+    return " ".join(w[:1].upper() + w[1:] for w in re.split(r"[-_]+", repo) if w) or repo
+
+
+def _month(iso: str) -> str:
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).strftime("%b %Y")
+    except Exception:
+        return ""
+
+
+@dataclass
+class Added:
+    tool: str
+    repo: str
+    project: str
+    new_project: bool
+    fact: object = None          # the saved FactBullet
+
+    def label(self) -> str:
+        return f"{self.tool} (bullet point in {self.project}{', a new project from your repo' if self.new_project else ''})"
+
+
+def add_tool_with_bullet(tool: str, idx: dict, username: str) -> Optional[Added]:
+    """Add a tool to your skills ONLY together with one grounded bullet point that shows it: under the saved project
+    that matches the repo, or under a new project made from that repo. Returns None (nothing saved) if no bullet
+    point could be written from what the repo says."""
+    from service.fact_store.store import load_skeleton
+    from service.models import FactBullet
+    from service.profile_data import (AddProjectRequest, AddSkillsRequest, NewFactBullet, _load_facts_raw, _save_facts_raw,
+                                      add_fact_to_entry, add_project, add_skills)
+    skeleton = load_skeleton()
+    for ev in find_evidence(tool, idx):
+        repo = idx["repos"].get(ev.repo, {})
+        if not _usable(repo, username):
+            continue
+        project = match_project(ev.repo, skeleton.project_entries)
+        name = project.name if project else pretty_name(ev.repo)
+        text = draft_bullet(ev, name)
+        if not text:
+            continue
+        bullet = NewFactBullet(text=text, tech_tags=[ev.tool])
+        if project:
+            fact_id = add_fact_to_entry(project.id, bullet).fact_ids[0]
+        else:
+            stack = [ev.tool] + [t for t in repo.get("tools", {}) if t != ev.tool][:4]
+            fact_id = add_project(AddProjectRequest(name=name, tech_stack=", ".join(stack), date=_month(repo.get("pushed_at", "")),
+                                                    bullets=[bullet])).fact_ids[0]
+        raw = _load_facts_raw()
+        fact = None
+        for f in raw:
+            if f["id"] == fact_id:
+                f["source"] = f"github:{ev.repo}"
+                fact = FactBullet(**{k: f[k] for k in ("id", "entry_id", "section", "text", "tech_tags")})
+        _save_facts_raw(raw)
+        add_skills(AddSkillsRequest(category=tools_catalog.category(ev.tool) or tools_catalog.DEV, items=[ev.tool]))
+        return Added(ev.tool, ev.repo, name, project is None, fact)
+    return None
+
+
+def missing_from_profile(idx: dict, username: str, skills: dict[str, list[str]], limit: int) -> list[str]:
+    """Tools used in your usable repos that your skills list doesn't have, the most widely used first."""
+    have = {tools_catalog.key(i) for items in skills.values() for i in items}
+    count: dict[str, int] = {}
+    for repo in idx.get("repos", {}).values():
+        if not _usable(repo, username):
+            continue
+        for tool in repo.get("tools", {}):
+            if tools_catalog.key(tool) not in have:
+                count[tool] = count.get(tool, 0) + 1
+    return sorted(count, key=lambda t: (-count[t], t))[:limit]
+
+
+def sync_from_github(limit: int = 8) -> list[Added]:
+    """Used by the Curator: add tools from your repos that your profile is missing, each with one bullet point."""
+    username = config.GITHUB_USERNAME
+    if not username:
+        return []
+    from service.profile_data import _load_skeleton_raw
+    idx = refresh_index(username)
+    out: list[Added] = []
+    for tool in missing_from_profile(idx, username, _load_skeleton_raw().get("skills", {}), limit):
+        try:
+            added = add_tool_with_bullet(tool, idx, username)
+        except Exception as err:
+            logger.info("Could not add %s from GitHub: %s", tool, err)
+            continue
+        if added:
+            out.append(added)
+    return out
+
+
+# ---------------------------------------------------------------- refreshing a project from its repo (suggestions)
+
+def _llm_refresh(system: str, user: str) -> dict[str, str]:
+    """Blocking. key -> new text (tests replace this)."""
+    from pydantic import BaseModel
+    from service.clients import instructor_client
+
+    class _Item(BaseModel):
+        key: str
+        text: str
+
+    class _Out(BaseModel):
+        items: list[_Item]
+    r: _Out = instructor_client.chat.completions.create(model=config.GENERATOR_MODEL, response_model=_Out,
+                                                        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
+    return {i.key: i.text.strip() for i in r.items}
+
+
+def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 4) -> list[dict]:
+    """For each saved project that has a repo: tools the repo uses that its tech stack line doesn't show, and bullet points
+    rewritten to say more precisely what the repo shows. Returned as plain suggestions for the Curator (nothing is saved).
+    A rewrite may only use facts from the old bullet point or the repo."""
+    from service.latex.fit import adds_new_facts
+    username = config.GITHUB_USERNAME
+    if not username:
+        return []
+    idx = load_index()
+    if idx.get("username") != username:
+        idx = refresh_index(username)
+    out: list[dict] = []
+    done = 0
+    for p in skeleton.get("project_entries", []):
+        repo = next((r for r in idx.get("repos", {}).values() if names_match(r["name"], p["name"])), None)
+        if not repo or done >= max_projects:
+            continue
+        done += 1
+        stack = [x.strip() for x in p.get("tech_stack", "").split(",") if x.strip()]
+        have = {tools_catalog.key(tools_catalog.canonical(x) or x) for x in stack}
+        extra = [t for t in repo.get("tools", {}) if tools_catalog.key(t) not in have and t not in ("JavaScript", "Node.js")][: max(0, 6 - len(stack))]
+        if extra:
+            new_stack = ", ".join(stack + extra)
+            out.append({"kind": "update_stack", "entry_id": p["id"], "old": p.get("tech_stack", ""), "new": new_stack,
+                        "text": f"{p['name']}: tech stack “{p.get('tech_stack', '')}” → “{new_stack}” (from your repo {repo['name']})"})
+        mine = {f["id"]: f["text"] for f in facts if f["entry_id"] == p["id"]}
+        if not mine:
+            continue
+        source = f"{p['name']} {repo['name']} {repo.get('description', '')} {repo.get('readme', '')} {' '.join(repo.get('tools', {}))}"
+        try:
+            new = _llm_refresh(
+                "You update resume bullet points for a software project so they match what its repository actually shows. "
+                "Only change a bullet if the repository text lets you make it more specific or more accurate; otherwise leave it "
+                "out of your answer. Each rewrite: one sentence, past-tense verb first, under 190 characters. Use ONLY facts in "
+                "the old bullet or the repository text: never invent numbers, users or results.",
+                f"Project: {p['name']}\nRepository: {repo['name']} - {repo.get('description', '')}\nTools found: "
+                f"{', '.join(repo.get('tools', {}))}\nREADME:\n{repo.get('readme', '')[:3000]}\n\nCurrent bullet points:\n"
+                + "\n".join(f"{k}: {v}" for k, v in mine.items()))
+        except Exception as err:
+            logger.info("Project refresh skipped for %s: %s", p["name"], err)
+            continue
+        for fid, text in new.items():
+            old = mine.get(fid)
+            if not old or not text or text == old or len(text) > 200 or adds_new_facts(f"{old} {source}", text):
+                continue
+            out.append({"kind": "rewrite", "fact_id": fid, "old": old, "new": text,
+                        "text": f"{p['name']} (from your repo {repo['name']}): reword\n“{old}”\n→ “{text}”"})
+    return out
+
+
 # ---------------------------------------------------------------- the step the Archivist runs
 
 @dataclass
@@ -263,45 +444,25 @@ def concrete_missing(job, missing: list[str]) -> list[str]:
 
 
 def check_github(job, missing: list[str]) -> GithubResult:
-    """Look for proof of the missing tools in your repos and save what is found. Never raises."""
+    """Look for proof of the missing tools in your repos. A tool is added only with one bullet point that shows it; what
+    can't be backed this way is left for the usual question. Never raises."""
     res = GithubResult()
     username = config.GITHUB_USERNAME
     terms = concrete_missing(job, missing)
     if not username or not terms:
         return res
     try:
-        from service.fact_store.store import load_skeleton
-        from service.models import FactBullet, SkillAnswer
-        from service.profile_data import AddSkillsRequest, NewFactBullet, _load_facts_raw, _save_facts_raw, add_fact_to_entry, add_skills
+        from service.models import SkillAnswer
         events.emit("archivist", events.PROGRESS, f"Checking your GitHub for {', '.join(terms)}", github="checking", skills=terms)
         idx = refresh_index(username)
-        skeleton = load_skeleton()
         for term in terms:
-            found = find_evidence(term, idx)
-            if not found:
+            added = add_tool_with_bullet(term, idx, username)
+            if not added:
                 continue
-            tool = found[0].tool
-            add_skills(AddSkillsRequest(category=tools_catalog.category(tool) or tools_catalog.DEV, items=[tool]))
-            fact = None
-            for ev in found:
-                project = match_project(ev.repo, skeleton.project_entries)
-                if project is None:
-                    continue
-                text = draft_bullet(ev, project.name)
-                if not text:
-                    continue
-                resp = add_fact_to_entry(project.id, NewFactBullet(text=text, tech_tags=[tool]))
-                raw = _load_facts_raw()
-                for f in raw:
-                    if f["id"] == resp.fact_ids[0]:
-                        f["source"] = f"github:{ev.repo}"
-                        fact = FactBullet(**{k: f[k] for k in ("id", "entry_id", "section", "text", "tech_tags")})
-                _save_facts_raw(raw)
-                break
-            res.answers.append(SkillAnswer(skill=term, has=True, fact=fact))
-            res.added.append(f"{tool} ({found[0].repo})")
-            events.emit("archivist", events.PROGRESS, f"Found {tool} in your repo {found[0].repo}", github="found",
-                        skill=tool, repo=found[0].repo, bullet=bool(fact))
+            res.answers.append(SkillAnswer(skill=term, has=True, fact=added.fact))
+            res.added.append(added.label())
+            events.emit("archivist", events.PROGRESS, f"Found {added.tool} in your repo {added.repo}", github="found",
+                        skill=added.tool, repo=added.repo, bullet=True, project=added.project, new_project=added.new_project)
     except Exception as err:
         logger.warning("GitHub check skipped: %s", err)
     return res

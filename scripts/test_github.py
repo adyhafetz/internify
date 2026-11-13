@@ -1,6 +1,6 @@
 """Offline test of reading GitHub for proof of tools. GitHub and the AI are replaced by fakes."""
 from __future__ import annotations
-import json, os, shutil, sys, tempfile
+import json, os, shutil, sys, tempfile, time
 import httpx
 
 sys.path.insert(0, os.path.abspath("."))
@@ -74,22 +74,70 @@ G._llm_bullet = lambda s, u: "Improved the local setup of SnapPick"
 assert G.draft_bullet(ev[0], "SnapPick") is None, "it must name the tool"
 print("B ok: a drafted bullet point must name the tool and add nothing the repo doesn't say")
 
-# C: the Archivist step: no question, skill + bullet point added, the user told
+# C: the Archivist step: no question, skill + one bullet point added, the user told
 config.GITHUB_USERNAME = "u"
+REPOS[0]["pushed_at"] = time.strftime("%Y-%m-%dT00:00:00Z")
+idx = G.refresh_index("u", force=True)
 G._llm_bullet = lambda s, u: "Containerized SnapPick with Docker for a consistent local setup"
 job = JobPosting(company="X", role="Intern", core_tech_stack=["Docker", "Kubernetes", "Python"])
 seen = []
-unsub = events.bus.subscribe(lambda e: seen.append(e))
-rid = events.start_run(url="x")
+events.bus.subscribe(lambda e: seen.append(e))
+events.start_run(url="x")
 res = G.check_github(job, ["Docker", "Kubernetes"])
 assert [a.skill for a in res.answers] == ["Docker"] and res.answers[0].has and res.answers[0].fact is not None
-assert res.added == ["Docker (snap-pick)"]
-assert "Docker" in _load_skeleton_raw()["skills"]["Developer Tools & Infra"] or any("Docker" in v for v in _load_skeleton_raw()["skills"].values())
+assert res.added == ["Docker (bullet point in SnapPick)"], res.added
+assert any("Docker" in v for v in _load_skeleton_raw()["skills"].values())
 f = next(x for x in _load_facts_raw() if x["entry_id"] == "proj_snap")
 assert f["text"].startswith("Containerized SnapPick with Docker") and f["source"] == "github:snap-pick" and "Docker" in f["tech_tags"]
 says = [events.describe(e) for e in seen if e["agent"] == "archivist"]
-assert any("Checking your GitHub" in (x or "") for x in says) and any("Found Docker in your repo snap-pick" in (x or "") for x in says), says
+assert any("Checking your GitHub" in (x or "") for x in says) and any("added it with a bullet point in SnapPick" in (x or "") for x in says), says
+print("C ok: a tool found in your repos is added with a bullet point and no question; Kubernetes (not found) is left for the question")
+
+# D: no bullet point, no skill
+G._llm_bullet = lambda s, u: "Improved the setup a lot"           # doesn't name the tool -> refused
+before = json.dumps(_load_skeleton_raw()["skills"])
+r2 = G.check_github(JobPosting(company="X", role="I", core_tech_stack=["Expo"]), ["Expo"])
+assert r2.answers == [] and json.dumps(_load_skeleton_raw()["skills"]) == before, "a skill is never added without a bullet point to back it"
 config.GITHUB_USERNAME = ""
 assert G.check_github(job, ["Docker"]).answers == [], "no username: nothing is looked up"
-print("C ok: a tool found in your repos is added with no question; Kubernetes (not found) is left for the usual question")
+config.GITHUB_USERNAME = "u"
+print("D ok: when no bullet point can be written, the skill isn't added either")
+
+# E: the Curator's sync: tools from repos you never listed, each with a bullet point; a repo with no saved project becomes one
+REPOS.append({"name": "weather-cli", "fork": False, "pushed_at": time.strftime("%Y-%m-%dT00:00:00Z"), "default_branch": "main",
+              "html_url": "https://github.com/u/weather-cli", "description": "A command line weather app in Go", "language": "Go", "topics": []})
+FILES["weather-cli/main/go.mod"] = "module weather"
+REPOS.append({"name": "u", "fork": False, "pushed_at": time.strftime("%Y-%m-%dT00:00:00Z"), "default_branch": "main",
+              "html_url": "https://github.com/u/u", "description": "My profile", "language": "Rust", "topics": []})
+FILES["u/main/Cargo.toml"] = "[package]"
+G.refresh_index("u", force=True)
+def bullet(system, user):
+    tool = user.split("Tool: ")[1].split(" (")[0]
+    project = user.split("Project: ")[1].split("\n")[0]
+    return f"Built {project} with {tool}"
+G._llm_bullet = bullet
+added = G.sync_from_github()
+labels = [a.label() for a in added]
+assert any(l.startswith("Go (bullet point in Weather Cli, a new project") for l in labels), labels
+assert not any(l.startswith("Rust") for l in labels), "your profile-readme repo is not a project"
+sk = _load_skeleton_raw()
+weather = next(p for p in sk["project_entries"] if p["name"] == "Weather Cli")
+assert weather["tech_stack"].startswith("Go") and weather["date"]
+assert any(f["entry_id"] == weather["id"] and "Go" in f["text"] for f in _load_facts_raw())
+have = {s_.lower() for v in sk["skills"].values() for s_ in v}
+assert "go" in have and "expo" in have and "react native" in have, have
+assert G.sync_from_github() == [], "nothing left to add the second time"
+print("E ok: the Curator adds every tool from your repos, each with one bullet point:", labels)
+
+# U: refreshing a saved project from its repo (suggestions only)
+facts_now, sk_now = _load_facts_raw(), _load_skeleton_raw()
+snap_fact = next(f for f in facts_now if f["entry_id"] == "proj_snap")
+G._llm_refresh = lambda s, u: {snap_fact["id"]: "Containerized SnapPick, a recycling app, with Docker for a consistent local setup",
+                               "nope": "x"}
+ups = G.project_updates(sk_now, facts_now)
+kinds = {u["kind"] for u in ups}
+assert "rewrite" in kinds and all(u["new"] != u["old"] for u in ups)
+G._llm_refresh = lambda s, u: {snap_fact["id"]: "Containerized SnapPick with Docker for 50,000 users"}
+assert not [u for u in G.project_updates(sk_now, facts_now) if u["kind"] == "rewrite"], "a rewrite that invents a number is refused"
+print("U ok: project bullet points can be reworded from the repo, never with invented facts")
 print("\nALL GITHUB TESTS PASSED")

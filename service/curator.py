@@ -1,4 +1,4 @@
-"""The Curator: keeps your saved experience tidy.
+"""The Curator: keeps your saved experience tidy and up to date.
 
 Safe, mechanical fixes are made automatically (a backup is kept first):
   * the same skill listed twice, or under two spellings ("React" and "React.js") -> kept once, under its proper name;
@@ -11,7 +11,13 @@ Anything that changes meaning becomes a suggestion you approve or skip:
   * tools your bullet points mention that your skills list doesn't;
   * bullet points that are nearly the same;
   * long or weakly worded bullet points, rewritten more tightly. A rewrite may never add a number, tool or name that wasn't
-    in the original (the same check the one-page fitting uses)."""
+    in the original (the same check the one-page fitting uses).
+
+With your GitHub username set, it also keeps your profile in step with your public repos:
+  * automatically: a tool your repos use that your skills list lacks is added, always with one bullet point that shows it,
+    under the matching project (or a new project made from that repo);
+  * as suggestions: a project's tech stack line updated with the tools its repo uses, and its bullet points reworded to
+    match what the repo shows (using only facts from the old bullet point or the repo)."""
 from __future__ import annotations
 
 import hashlib
@@ -181,8 +187,10 @@ def _rewrite_with_ai(items: dict[str, str]) -> dict[str, str]:
 
 # ---------------------------------------------------------------- running and applying
 
-def tidy(rewrite=_rewrite_with_ai) -> TidyReport:
-    """Make the safe fixes now (with a backup first) and return suggestions for the rest."""
+def tidy(rewrite=_rewrite_with_ai, github: bool = True) -> TidyReport:
+    """Make the safe fixes now (with a backup first), add tools from your GitHub repos that your profile is missing
+    (each with one bullet point), and return suggestions for the rest, including updates from your repos."""
+    from service import github_evidence
     from service.importer import backup_current
     sk, facts = _load_skeleton_raw(), _load_facts_raw()
     report = TidyReport()
@@ -193,7 +201,25 @@ def tidy(rewrite=_rewrite_with_ai) -> TidyReport:
         _save_skeleton_raw(sk)
         _save_facts_raw(facts)
         _evict_from_cache(changed)
+    use_github = github and bool(config.GITHUB_USERNAME)
+    if use_github:
+        if report.backup is None:
+            report.backup = backup_current()
+        try:
+            for a in github_evidence.sync_from_github():
+                report.fixed.append(f"Added from GitHub: {a.label()}")
+        except Exception as err:
+            logger.warning("GitHub sync skipped: %s", err)
+        sk, facts = _load_skeleton_raw(), _load_facts_raw()
     report.suggestions = _suggestions(sk, facts, rewrite)
+    if use_github:
+        try:
+            for u in github_evidence.project_updates(sk, facts):
+                key = u.get("fact_id") or u["entry_id"]
+                data = {k: u[k] for k in ("fact_id", "entry_id", "old", "new") if k in u}
+                report.suggestions.append(Suggestion(_sid(u["kind"], key, u["new"]), u["kind"], u["text"], data))
+        except Exception as err:
+            logger.warning("Project updates skipped: %s", err)
     return report
 
 
@@ -217,6 +243,13 @@ def apply(s: Suggestion) -> str:
         sk["skills"].setdefault(cat, []).append(d["item"])
         _save_skeleton_raw(sk)
         return f"Added {d['item']} to {cat}"
+    if s.kind == "update_stack":
+        p = next((x for x in sk.get("project_entries", []) if x["id"] == d["entry_id"]), None)
+        if p is None or p.get("tech_stack", "") != d["old"]:
+            return "That project changed since, so I left it"
+        p["tech_stack"] = d["new"]
+        _save_skeleton_raw(sk)
+        return f"Updated the tech stack of {p['name']}"
     f = next((x for x in facts if x["id"] == d["fact_id"]), None)
     if f is None:
         return "That bullet point is no longer there"
