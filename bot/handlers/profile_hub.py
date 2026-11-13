@@ -75,7 +75,7 @@ def list_screen(notice: str = "") -> Screen:
     rows.append([_btn(f"🔭 Job pages I check ({len(watchlist.list_sources())})", "w")])
     if my_links():
         rows.append([_btn("🔗 My links", "lk")])
-    rows.append([_btn("🧹 Tidy up", "ty")])
+    rows.append([_btn("🧹 Tidy up", "ty"), _btn("⚙️ Status", "st")])
     rows.append([_btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
@@ -374,6 +374,13 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return watchlist_screen()
     if action == "lk":
         return links_screen()
+    if action in ("st", "sT"):
+        from bot import status
+        app = getattr(context, "application", None)
+        if action == "st":
+            return status.screen(app)
+        await query.edit_message_text("🔍 Testing the AI key and Google…")
+        return await status.test(app)
     if action in ("ty", "tv", "ta", "tx", "tA", "tX", "tz", "tZ", "tg"):
         from bot import tidy
         return await tidy.handle(query, action, args)
