@@ -149,7 +149,7 @@ def pdf(filename: str):
 @app.post("/api/simulate")
 def simulate(scenario: str = "normal"):
     """Play a scripted run through the real event bus. Needs no API keys.
-    scenario: normal | blocked (Scout finds another way in) | paste (no route works, Scout asks you to paste) | scan (the overnight scan)"""
+    scenario: normal | blocked (Scout finds another way in) | paste (no route works, Scout asks you to paste) | scan (the overnight scan) | tidy (the Curator)"""
     from bot.dashboard.simulate import run_simulation
 
     threading.Thread(target=run_simulation, kwargs={"scenario": scenario}, daemon=True).start()

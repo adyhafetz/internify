@@ -47,10 +47,17 @@ def _fixed() -> list[str]:
         return []
 
 
-async def run() -> curator.TidyReport:
-    """Run the Curator (off the event loop) and keep its suggestions for review."""
-    report = await asyncio.to_thread(curator.tidy)
+async def run(trigger: str = "manual") -> curator.TidyReport:
+    """Run the Curator (off the event loop) and keep its suggestions for review. It shows on the dashboard as its own run."""
+    from service import events
+    events.start_run(url="", mode="tidy", trigger=trigger)
+    try:
+        report = await asyncio.to_thread(curator.tidy)
+    except Exception as err:
+        events.emit_run("failed", error=f"The tidy-up stopped: {err}")
+        raise
     _store(report.suggestions, report.fixed)
+    events.emit_run("finished", tidy=True, fixed=len(report.fixed), suggestions=len(report.suggestions))
     return report
 
 
@@ -127,7 +134,7 @@ async def weekly(context) -> None:
     if chat_id is None:
         return
     try:
-        await send_report(context.bot, chat_id, await run())
+        await send_report(context.bot, chat_id, await run("weekly"))
     except Exception as err:
         logger.warning("Weekly tidy-up failed: %s", err)
 

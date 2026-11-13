@@ -203,6 +203,7 @@ body {
       <button data-s="blocked" role="menuitem">A blocked page<small>The Scout finds another way in</small></button>
       <button data-s="paste" role="menuitem">Nothing works<small>The Scout asks you to paste the text</small></button>
       <button data-s="scan" role="menuitem">The daily job check<small>New jobs found and matched overnight</small></button>
+      <button data-s="tidy" role="menuitem">A tidy-up<small>The Curator cleans up and updates your profile</small></button>
     </div>
   </div>
   <button class="pill iconbtn" id="themeBtn" aria-label="Switch light or dark">
@@ -252,6 +253,7 @@ const ICONS = {
   critic: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>',
   discoverer: '<circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8"/>',
   matcher: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  curator: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
   publisher: '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
 };
 const ACTORS = [
@@ -264,8 +266,9 @@ const ACTORS = [
   { id: "publisher", name: "Publisher", role: "Builds and files the PDF" },
   { id: "discoverer", name: "Discoverer", role: "Finds new jobs" },
   { id: "matcher", name: "Matcher", role: "Picks the best matches" },
+  { id: "curator", name: "Curator", role: "Keeps your profile tidy" },
 ];
-const RING = ["you", "discoverer", "matcher", "scout", "analyst", "archivist", "scribe", "critic", "publisher"];   // clockwise from the top
+const RING = ["you", "discoverer", "matcher", "scout", "analyst", "archivist", "scribe", "critic", "publisher", "curator"];   // clockwise from the top
 const PIPE = ["scout", "analyst", "archivist", "scribe", "critic", "publisher"], N = RING.length, IDX = Object.fromEntries(RING.map((id, i) => [id, i]));
 const NAME = Object.fromEntries(ACTORS.map(a => [a.id, a.name]));
 const room = $("#room"), stage = $("#stage"), layer = $("#layer"), tableEl = $("#table"), actorsEl = $("#actors"), callout = $("#callout");
@@ -274,14 +277,14 @@ const room = $("#room"), stage = $("#stage"), layer = $("#layer"), tableEl = $("
 let S, animate = true;
 function fresh(runId = null, ts = 0) {
   return { run: runId, t0: ts, url: "", actors: Object.fromEntries(ACTORS.map(a => [a.id, { state: "idle" }])), edges: {}, hot: null,
-    scan: null, jobs: { i: 0, n: 0, done: 0, failed: 0 }, found: 0, kept: 0, top: null,
+    scan: null, tidy: null, jobs: { i: 0, n: 0, done: 0, failed: 0 }, found: 0, kept: 0, top: null,
     log: [], ok: 0, bad: 0, job: {}, stack: 0, reqs: 0, facts: 0, covered: 0, missing: 0, scores: [], blocked: 0, lastUnsupported: 0, say: null, final: null, failed: null };
 }
 S = fresh();
 
 /* ------------------------------------------------------------ layout */
 const L = { W: 0, H: 0, cx: 0, cy: 0, cw: 0, ch: 0, compact: false, pos: {}, side: {} };
-const SIDE = { you: "below", discoverer: "above", matcher: "above", scout: "below", analyst: "below", archivist: "below", scribe: "below", critic: "below", publisher: "above" };
+const SIDE = { you: "below", discoverer: "above", matcher: "above", scout: "below", analyst: "below", archivist: "below", scribe: "below", critic: "below", publisher: "above", curator: "above" };
 function layout() {
   // The scene is drawn at one fixed size and scaled to fit the window, so nothing ever scrolls.
   const RW = room.clientWidth, RH = room.clientHeight, compact = RW < 760;
@@ -310,8 +313,13 @@ function buildActors() {
   syncDormant();
 }
 /* the two overnight agents are asleep (grey, dotted outline) unless a daily check is running; everyone else is always ready */
+/* agents that only work on their own runs (the daily check, the tidy-up) are grey and dotted the rest of the time */
 const OVERNIGHT = ["discoverer", "matcher"];
-function syncDormant() { const on = !!(S.scan && !S.final && !S.failed); OVERNIGHT.forEach(id => { const d = $("#a-" + id); if (d) d.classList.toggle("dormant", !on); }); }
+function syncDormant() {
+  const live = !S.final && !S.failed;
+  OVERNIGHT.forEach(id => { const d = $("#a-" + id); if (d) d.classList.toggle("dormant", !(S.scan && live)); });
+  const c = $("#a-curator"); if (c) c.classList.toggle("dormant", !(S.tidy && live));
+}
 function place() {
   ACTORS.forEach(a => { const d = $("#a-" + a.id), p = L.pos[a.id]; if (!p) return; d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.width = L.compact ? "" : L.cw + "px"; });
   Object.assign(tableEl.style, { left: L.table.x + "px", top: L.table.y + "px", width: L.table.w + "px", height: L.table.h + "px" });
@@ -439,6 +447,16 @@ function renderTable() {
     add("h2", "", "Your next chapter"); add("p", "sub", "Send a job link on Telegram, or wait for the daily job check.");
     return;
   }
+  if (S.tidy && !S.failed) {
+    const t = S.tidy, chips = html("div", "chips");
+    add("div", "lbl label", S.final ? "Tidy-up done" : "Tidying up");
+    add("div", "role", S.final ? `${S.final.suggestions || 0} suggestion${S.final.suggestions === 1 ? "" : "s"}` : (t.reviewing ? "Reviewing bullet points" : "Checking your profile"));
+    inner.appendChild(chips);
+    if (t.fixed) chips.appendChild(html("span", "chip", `${t.fixed} fixed`));
+    if (t.added.length) chips.appendChild(html("span", "chip", `${t.added.length} from GitHub`));
+    if (S.final && S.final.suggestions) chips.appendChild(html("span", "chip coral", "review in Telegram"));
+    return;
+  }
   if (S.scan && !S.failed) {
     const chips = html("div", "chips"), j = S.jobs;
     if (S.final) {
@@ -516,6 +534,14 @@ function handoffLabel(ev) {
 /* ------------------------------------------------------------ events -> scene */
 function runEvent(ev) {
   const d = ev.data || {};
+  if (d.state === "started" && d.mode === "tidy") {
+    S = fresh(ev.run_id, ev.ts); S.tidy = { trigger: d.trigger || "", fixed: 0, suggestions: 0, added: [] }; callout.classList.remove("show");
+    ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
+    addLog(ev, "ok", "Tidy-up", d.trigger === "weekly" ? "The weekly tidy-up started" : d.trigger === "import" ? "Tidying what you just imported" : "You asked for a tidy-up");
+    if (d.trigger !== "weekly") { setState("you", "done"); sendPacket("you", "curator", "Tidy up"); }
+    say("curator", "I'm checking your saved experience.", "");
+    return;
+  }
   if (d.state === "started" && d.mode === "scan") {
     S = fresh(ev.run_id, ev.ts); S.scan = { trigger: d.trigger || "" }; callout.classList.remove("show");
     ACTORS.forEach(a => setState(a.id, "idle")); drawBase(); drawEdges(); renderTable();
@@ -547,6 +573,14 @@ function runEvent(ev) {
   }
   if (d.state === "job_failed") {
     S.jobs.failed++; addLog(ev, "bad", "Result", "One match couldn't be tailored", d.error || ""); say("you", "I couldn't finish one of the resumes. Details are in your chat.", "coral"); renderTable(); setProgress();
+    return;
+  }
+  if (d.state === "finished" && d.tidy) {
+    S.final = d; addLog(ev, "ok", "Tidy-up", `Done: ${d.fixed || 0} fixed automatically, ${d.suggestions || 0} suggestions`);
+    setState("you", d.suggestions ? "asking" : "done");
+    sendPacket("curator", "you", d.suggestions ? `${d.suggestions} suggestions` : "All tidy");
+    say("you", d.suggestions ? "Review the suggestions in Telegram: ✅ to apply, ✕ to skip." : "Everything looks tidy.", d.suggestions ? "coral" : "");
+    renderTable(); setProgress();
     return;
   }
   if (d.state === "finished" && d.scan) {
@@ -582,6 +616,11 @@ function apply(ev) {
   if (a === "analyst" && k === "done") { S.job.company = d.company || S.job.company; S.job.role = d.role || S.job.role; S.stack = (d.core_tech_stack || []).length; S.reqs = (d.hard_requirements || []).length; }
   if (a === "archivist" && k === "done") { S.facts = (d.facts || []).length; S.covered = (d.covered || []).length; S.missing = (d.missing || []).length; }
   if (a === "discoverer" && k === "done") S.found = d.found || 0;
+  if (a === "curator" && S.tidy) {
+    if (d.fixed && k === "progress") S.tidy.fixed = d.fixed;
+    if (d.github_added) S.tidy.added.push(d.github_added);
+    if (d.reviewing) S.tidy.reviewing = d.reviewing;
+  }
   if (a === "matcher" && k === "done") { S.kept = d.kept || 0; S.top = d.top; }
   if (a === "critic" && k === "done") { S.scores.push(d.score); S.lastUnsupported = (d.unsupported || []).length; S.blocked += S.lastUnsupported; }
 
@@ -617,6 +656,7 @@ function apply(ev) {
   if (a === "publisher" && d.fit === "fail") status = "bad";
   if (a === "publisher" && d.repair_attempt) { status = "bad"; why = d.error ? "The compiler said: " + String(d.error).trim().slice(-160) : ""; }
   if (a === "publisher" && (ev.message === "PDF compiled" || /^Uploaded/.test(ev.message))) status = "ok";
+  if (a === "curator" && (d.github_added || d.fixed)) status = "ok";
   if (a === "critic" && k === "done") {
     status = d.unsupported && d.unsupported.length ? "bad" : "ok";
     if (status === "bad") { const q = /"([^"]{5,})"/.exec(d.unsupported[0] || ""); why = q ? `“${q[1]}” isn't in your real experience, so it was sent back to be fixed.` : ""; }

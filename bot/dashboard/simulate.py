@@ -188,12 +188,14 @@ def _tailor(wait, url: str, scenario: str, ask: bool) -> None:
 
 
 def run_simulation(url: str = URL, scenario: str = "normal", speed: float = 1.0) -> str:
-    """scenario: normal | blocked (page blocked, another route works) | paste (every route fails, user pastes the text) | scan."""
+    """scenario: normal | blocked (page blocked, another route works) | paste (every route fails, user pastes the text) | scan | tidy."""
     def wait(sec: float) -> None:
         time.sleep(sec / max(speed, 0.1))
 
     if scenario == "scan":
         return _scan(wait)
+    if scenario == "tidy":
+        return _tidy(wait)
     rid = ev.start_run(url=url)
     wait(0.5)
     _tailor(wait, url, scenario, ask=True)
@@ -206,6 +208,23 @@ PICKS = [
     ("Software Engineering Intern", "Stripe", 0.82, "Matches Python, FastAPI, PostgreSQL, Docker. Missing: Kubernetes."),
     ("Backend Developer Intern", "Globex", 0.71, "Matches Python, REST APIs, Git. Missing: Kafka."),
 ]
+
+
+def _tidy(wait) -> str:
+    """The Curator: automatic fixes, a tool added from GitHub with its bullet point, every bullet point reviewed."""
+    rid = ev.start_run(url="", mode="tidy", trigger="manual")
+    wait(1.2)
+    ev.emit("curator", ev.START, "Checking your saved experience", bullets=18, skills=27)
+    wait(1.6)
+    ev.emit("curator", ev.PROGRESS, "Fixed 3 small things", fixed=3)
+    wait(1.4)
+    ev.emit("curator", ev.PROGRESS, "Added Docker from snap-pick", github_added="Docker", repo="snap-pick", project="SnapPick")
+    wait(1.4)
+    ev.emit("curator", ev.PROGRESS, "Reviewing every bullet point", reviewing=18)
+    wait(2.4)
+    ev.emit("curator", ev.DONE, "5 suggestions, 4 fixed", suggestions=5, fixed=4)
+    ev.emit_run("finished", tidy=True, fixed=4, suggestions=5)
+    return rid
 
 
 def _scan(wait) -> str:
