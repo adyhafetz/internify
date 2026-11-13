@@ -56,7 +56,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• or use /profile to add it yourself\n\n"
         "Other things:\n"
         "• /profile – see and edit everything on your resume\n"
-        "• /applied – your applications: mark applied, interviews and offers\n"
+        "• /applied – your applications: applied, in review, interviewing, offers\n"
         "• /resume – your general resume, not tailored to any job\n"
         "• /help – everything I can do"
     )
@@ -68,7 +68,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📚 What I can do\n\n"
         "Tailor a resume\n"
         "• Paste a job link – I write a resume for that job\n"
-        "• /applied – your applications: mark applied, interviews and offers\n"
+        "• /applied – your applications: applied, in review, interviewing, offers\n"
         "• /resume – your general resume (not tailored)\n\n"
         "Tell me about you\n"
         "• /importresume – send your current resume file (PDF or Word) and I'll fill everything in\n"
@@ -80,7 +80,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "match you best and write a resume for each. Set it up in /profile → Job pages I check → 🎯 What I look for, "
         "and tap Check now to try it.\n\n"
         "Track your applications\n"
-        "• Under every resume: ✅ I applied, then 🎤 Interview, 🏆 Offer or ❌ Rejected. I check in if you hear nothing, "
+        "• Under every resume: ✅ I applied, then 👀 In Review, 🎤 Interviewing, 🏆 Offer, ❌ Rejected or 🚫 Withdrawn (the same as your Google Sheet). I check in if you hear nothing, "
         "and remind you before a deadline.\n\n"
         "• /cancel – stop whatever I'm asking you"
     )

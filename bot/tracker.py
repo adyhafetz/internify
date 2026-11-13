@@ -1,7 +1,8 @@
 """Your application tracker in Telegram: where each job stands after the resume is written.
 
   * Under every resume: ✅ I applied · 📝 What changed · 🧩 Add the missing tools and rebuild.
-  * After you apply: 🎤 Interview · 🏆 Offer · ❌ Rejected, and a check-in after FOLLOWUP_DAYS ("any reply yet?").
+  * After you apply: 👀 In Review · 🎤 Interviewing · 🏆 Offer · ❌ Rejected · 🚫 Withdrawn (the same words as the Status
+    drop-down in your Google Sheet), and a check-in after FOLLOWUP_DAYS ("any reply yet?").
   * A reminder when a job you have a resume for closes in the next few days and isn't marked applied.
   * /applied: every application by status, with the same buttons.
   * Sundays: a short summary of the week (written, sent, replies).
@@ -24,11 +25,11 @@ from service import events, outcomes
 logger = logging.getLogger(__name__)
 
 PAGE = 6
-STATUS_CODES = {"A": db.APPLIED, "I": db.INTERVIEW, "O": db.OFFER, "R": db.REJECTED, "G": db.GHOSTED, "N": db.NOT_APPLYING}
-ICON = {"Ready": "📄", db.APPLIED: "📨", db.INTERVIEW: "🎤", db.OFFER: "🏆", db.REJECTED: "❌", db.GHOSTED: "👻",
-        db.NOT_APPLYING: "🚫", "Failed": "⚠️", "Processing": "⏳", "New": "🆕"}
-FILTERS = {"o": ("Open", ("Ready", db.APPLIED, db.INTERVIEW)), "i": ("Interviews and offers", (db.INTERVIEW, db.OFFER)),
-           "c": ("Closed", (db.REJECTED, db.GHOSTED, db.NOT_APPLYING, db.OFFER)), "a": ("All", None)}
+STATUS_CODES = {"A": db.APPLIED, "V": db.IN_REVIEW, "I": db.INTERVIEW, "O": db.OFFER, "R": db.REJECTED, "X": db.WITHDRAWN}
+ICON = {"Ready": "📄", db.APPLIED: "📨", db.IN_REVIEW: "👀", db.INTERVIEW: "🎤", db.OFFER: "🏆", db.REJECTED: "❌",
+        db.WITHDRAWN: "🚫", "Failed": "⚠️", "Processing": "⏳", "New": "🆕"}
+FILTERS = {"o": ("Open", db.OPEN_STATUSES), "i": ("Interviewing and offers", (db.INTERVIEW, db.OFFER)),
+           "c": ("Closed", (db.REJECTED, db.WITHDRAWN, db.OFFER)), "a": ("All", None)}
 
 
 def _h(t: object) -> str:
@@ -49,13 +50,17 @@ def _gap_label(gaps: list[str]) -> str:
 def status_rows(app: dict) -> list[list[InlineKeyboardButton]]:
     """The buttons that move this application on from where it is now."""
     aid, status = app["id"], app.get("status") or "Ready"
-    if status in ("Ready", "Failed", "Processing", "New"):
-        return [[_btn("✅ I applied", "s", aid, "A"), _btn("🚫 Not applying", "s", aid, "N")]]
+    if status in ("Ready", "Failed", "Processing", db.NEW):
+        return [[_btn("✅ I applied", "s", aid, "A"), _btn("🚫 Not applying", "s", aid, "X")]]
     if status == db.APPLIED:
-        return [[_btn("🎤 Interview", "s", aid, "I"), _btn("❌ Rejected", "s", aid, "R")],
-                [_btn("🏆 Offer", "s", aid, "O"), _btn("👻 No reply", "s", aid, "G")]]
+        return [[_btn("👀 In Review", "s", aid, "V"), _btn("🎤 Interviewing", "s", aid, "I")],
+                [_btn("❌ Rejected", "s", aid, "R"), _btn("🚫 Withdrawn", "s", aid, "X")]]
+    if status == db.IN_REVIEW:
+        return [[_btn("🎤 Interviewing", "s", aid, "I"), _btn("❌ Rejected", "s", aid, "R")],
+                [_btn("🚫 Withdrawn", "s", aid, "X")]]
     if status == db.INTERVIEW:
-        return [[_btn("🏆 Offer", "s", aid, "O"), _btn("❌ Rejected", "s", aid, "R")]]
+        return [[_btn("🏆 Offer", "s", aid, "O"), _btn("❌ Rejected", "s", aid, "R")],
+                [_btn("🚫 Withdrawn", "s", aid, "X")]]
     return [[_btn("↩ Reopen (applied)", "s", aid, "A")]]
 
 
@@ -112,7 +117,7 @@ def list_screen(flt: str = "o", page: int = 0) -> tuple[str, InlineKeyboardMarku
     apps, total = db.list_applications(statuses, PAGE, page * PAGE)
     counts = db.status_counts()
     summary = " · ".join(f"{ICON.get(s, '')} {counts.get(s, 0)} {s.lower()}" for s in
-                         ("Ready", db.APPLIED, db.INTERVIEW, db.OFFER) if counts.get(s))
+                         ("Ready", db.APPLIED, db.IN_REVIEW, db.INTERVIEW, db.OFFER) if counts.get(s))
     lines = ["📊 <b>Your applications</b>", summary or "Nothing tracked yet. Send me a job link to start.", "",
              f"<b>{_h(title)}</b>" + (f" ({total})" if total else "")]
     rows = []
@@ -172,14 +177,14 @@ def change_status(app_id: int, status: str) -> Optional[dict]:
         return None
     if status in (db.INTERVIEW, db.OFFER):     # the resume worked: remember its bullet points
         outcomes.record(str(app_id), app.get("facts_used") or [], good=True)
-    elif status in (db.APPLIED, db.NOT_APPLYING):   # reopened or a mis-tap: forget it again
+    elif status in (db.APPLIED, db.IN_REVIEW, db.WITHDRAWN):   # reopened or a mis-tap: forget it again
         outcomes.record(str(app_id), [], good=False)
     try:
         from bot.services.sheets import find_row_by_url, update_application_status
         row = find_row_by_url(app["job_link"]) if app.get("job_link") else None
         if row:
-            update_application_status(row, status=status,
-                                      applied_date=_when(app.get("applied_at")) if status == db.APPLIED else "")
+            update_application_status(row, status=status,   # one of the Sheet's own drop-down words
+                                      applied_date=_when(app.get("applied_at")) if status in db.WAITING else "")
     except Exception as err:   # the Sheet is a mirror: never lose the change because Google hiccuped
         logger.warning("Could not update the Sheet status: %s", err)
     return app
@@ -189,8 +194,10 @@ def _status_toast(app: dict) -> str:
     s = app["status"]
     if s == db.APPLIED:
         return f"📨 Marked as applied. I'll check in with you in {db.FOLLOWUP_DAYS} days."
+    if s == db.IN_REVIEW:
+        return "👀 Marked as in review. I'll check in again later."
     if s == db.INTERVIEW:
-        return "🎤 Nice! Marked as interview. Good luck!"
+        return "🎤 Nice! Marked as interviewing. Good luck!"
     if s == db.OFFER:
         return "🏆 Congratulations! Marked as an offer."
     if s == db.REJECTED:
@@ -303,7 +310,7 @@ async def _refresh_buttons(query, app: dict) -> None:
             await msg.edit_text(app_card(app), parse_mode="HTML", disable_web_page_preview=True, reply_markup=_app_keyboard(app, "o"))
         else:   # a reminder: replace its buttons with the outcome
             await msg.edit_text(f"{msg.text_html}\n\n➡️ {_h(app['status'])}", parse_mode="HTML",
-                                reply_markup=InlineKeyboardMarkup(status_rows(app)) if app["status"] == db.APPLIED else None)
+                                reply_markup=InlineKeyboardMarkup(status_rows(app)) if app["status"] in db.WAITING else None)
     except Exception as err:
         logger.debug("Could not refresh the buttons: %s", err)
 
@@ -324,11 +331,12 @@ def followup_message(app: dict) -> tuple[str, InlineKeyboardMarkup]:
     except Exception:
         pass
     text = (f"📬 <b>Any news from {_h(app['company'])}?</b>\n"
-            f"You applied for {_h(app['job_title'])} {days} days ago. Heard back?\n"
+            f"You applied for {_h(app['job_title'])} {days} days ago"
+            + (" (in review)" if app.get("status") == db.IN_REVIEW else "") + ". Heard back?\n"
             "<i>If not, a short polite follow-up email to the recruiter often helps.</i>")
     aid = app["id"]
-    kb = InlineKeyboardMarkup([[_btn("🎤 Interview", "s", aid, "I"), _btn("❌ Rejected", "s", aid, "R")],
-                               [_btn("⏳ Still waiting", "s", aid, "W"), _btn("👻 No reply, close it", "s", aid, "G")]])
+    kb = InlineKeyboardMarkup([[_btn("🎤 Interviewing", "s", aid, "I"), _btn("❌ Rejected", "s", aid, "R")],
+                               [_btn("⏳ Still waiting", "s", aid, "W"), _btn("🚫 Withdrawn", "s", aid, "X")]])
     return text, kb
 
 
@@ -337,7 +345,7 @@ def deadline_message(app: dict) -> tuple[str, InlineKeyboardMarkup]:
     text = (f"⏰ <b>{_h(app['job_title'])} at {_h(app['company'])} closes {_h(app['deadline'])}</b>\n"
             f"Your resume is ready but you haven't marked it applied.{link}")
     aid = app["id"]
-    kb = InlineKeyboardMarkup([[_btn("✅ I applied", "s", aid, "A"), _btn("🚫 Not applying", "s", aid, "N")]])
+    kb = InlineKeyboardMarkup([[_btn("✅ I applied", "s", aid, "A"), _btn("🚫 Not applying", "s", aid, "X")]])
     return text, kb
 
 
@@ -345,7 +353,7 @@ def weekly_text() -> str:
     w = db.week_stats()
     lines = ["📈 <b>Your week</b>",
              f"• {w['written']} resume{'s' if w['written'] != 1 else ''} written, {w['applied']} application{'s' if w['applied'] != 1 else ''} sent",
-             f"• {w['interviews']} interview{'s' if w['interviews'] != 1 else ''} or offer{'s' if w['interviews'] != 1 else ''}, {w['rejected']} rejection{'s' if w['rejected'] != 1 else ''}",
+             f"• {w['interviews']} moved to interviewing or an offer, {w['rejected']} rejection{'s' if w['rejected'] != 1 else ''}",
              f"• {w['waiting']} still waiting for a reply"]
     ready = db.status_counts().get("Ready", 0)
     if ready:

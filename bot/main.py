@@ -46,7 +46,7 @@ async def post_init(application) -> None:
     commands = [
         BotCommand("profile", "See and edit everything on your resume"),
         BotCommand("importresume", "Fill it in from your current resume (PDF or Word)"),
-        BotCommand("applied", "Your applications: applied, interviews, offers"),
+        BotCommand("applied", "Your applications: applied, in review, interviewing, offers"),
         BotCommand("resume", "Download your general resume (PDF)"),
         BotCommand("help", "Everything I can do"),
         BotCommand("cancel", "Stop the current step"),

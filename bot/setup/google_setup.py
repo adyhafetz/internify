@@ -13,7 +13,8 @@ FOLDER_NAME = "Internify resumes"
 SHEET_TITLE = "Internify tracker"
 TAB_NAME = "Tracker"
 HEADERS = ["Company", "Job Title", "Location", "Job Description", "Job Requirements", "Job Link", "Status", "Resume Link", "Resume Status", "Comment"]
-STATUSES = ["New", "Applied", "In Review", "Interviewing", "Offer", "Rejected", "Withdrawn"]
+from bot.services.db import SHEET_STATUSES
+STATUSES = list(SHEET_STATUSES)   # the Status drop-down: the same words the bot writes
 
 
 def make_flow(client_id: str, client_secret: str, redirect_uri: str):
