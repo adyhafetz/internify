@@ -27,22 +27,23 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 
 The bot works fully without it: everything happens in Telegram. The dashboard is only for watching the agents work (handy for a demo). On your own computer it needs no key: open it at `localhost`. A key (`DASHBOARD_KEY`) matters only if you put it on the internet with your own domain.
 
-While the bot runs, open **http://localhost:8080/live** (also reachable as `/dashboard`; if a key is set it asks for it). It's a single picture that fits your browser window (no scrolling): a ring of nine seats, **Telegram** (you) at the top and eight agents around it. The Discoverer and Matcher are grey with a dotted outline while no daily check is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
+While the bot runs, open **http://localhost:8080/live** (also reachable as `/dashboard`; if a key is set it asks for it). It's a single picture that fits your browser window (no scrolling): a ring of ten seats, **Telegram** (you) at the top and nine agents around it. The Discoverer and Matcher are grey with a dotted outline unless a daily check is running, and the Curator unless a tidy-up is running; the others are always ready. Send a job link in Telegram and watch the work move around the ring: documents fly along arrows that appear only when work is actually handed over, the active seat lights up in brand blue, and each one says what it's doing in plain words with the numbers. When the Archivist needs you ("do you have real experience with Kubernetes?"), each question goes to the Telegram seat in coral, and your answer travels back. The finished PDF returns to Telegram, which closes the loop.
 
 | Seat | What it does |
 |---|---|
 | 💬 Telegram | You, on your phone: send the link, answer questions, receive the PDF |
 | 🔎 Scout | Reads the job page, and finds another way in if it's blocked |
 | 📄 Analyst | Works out what the job wants |
-| 🗄 Archivist | Finds your matching experience, and asks you about gaps |
+| 🗄 Archivist | Finds your matching experience; checks your GitHub for missing tools, and asks you about what it can't find |
 | ✏️ Scribe | Writes the resume lines |
 | 🛡 Critic | Checks every line is true, and scores the match |
 | 📦 Publisher | Builds the PDF (and repairs it if needed), files it, and logs it |
 | 🧭 Discoverer | *Daily check:* visits your job pages each day and finds new postings |
 | 🎯 Matcher | *Daily check:* compares the new postings against your experience and the jobs you sent lately, and keeps the best few |
+| ✨ Curator | *Tidy-up:* fixes repeats and spellings, adds tools from your GitHub with a bullet point, and suggests removals and rewordings for you to approve |
 
 - **Log** (top right): every success (blue ✓) and failure (coral ✕) in this run, with filters, plain-language reasons and a JSON download. Failures such as "the site blocked us (HTTP 403)" or "caught an invented claim" are listed with why.
-- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text, and **The daily job check** (the Discoverer and Matcher at work, then two resumes written without questions).
+- **Demo** (top right) plays a run with no keys: a normal run, a blocked page where the Scout finds another way in, and one where nothing works and the Scout asks you to paste the text, **The daily job check** (the Discoverer and Matcher at work, then two resumes written without questions), and **A tidy-up** (the Curator at work).
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
@@ -66,15 +67,16 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
 | Discoverer | Greenhouse and Lever are read directly; for any other career page a model lists the real openings (invented links are dropped) |
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
+| Curator | Code does the safe fixes; a model reviews every bullet point (reword or remove, checked by code that nothing is added), drafts GitHub bullet points, and settles whether a tool is already covered by a broader skill |
 
 Every small helper falls back to plain rules if its model call fails.
 
 ## 🧹 Tidy up (the Curator)
 
 `/profile` → **🧹 Tidy up**, every Sunday, and after each resume import, the Curator checks your saved experience.
-- **Fixed automatically** (with a backup): the same skill listed twice or under two spellings ("React" and "React.js"), tag spellings, and a bullet point saved twice.
+- **Fixed automatically** (with a backup): the same skill listed twice or under two spellings ("React" and "React.js"), tag spellings, and a bullet point saved twice (exact duplicate).
 - **From your GitHub** (with `GITHUB_USERNAME` set): tools your public repos use that your skills don't list are added automatically, each with one bullet point that shows it; a repo that isn't one of your projects yet becomes one. Repos changed in the last two years only, never forks or your profile repo.
-- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't (a tool listed inside a broader skill such as "LLM APIs (OpenAI, Gemini)" counts, and the AI settles unclear cases), near-duplicate bullet points, tighter wording for long or weak bullet points and for **every** project bullet point (each one is reviewed), and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
+- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't (a tool listed inside a broader skill such as "LLM APIs (OpenAI, Gemini)" counts, and the AI settles unclear cases), near-duplicate bullet points, bullet points that aren't needed (too vague to tell a recruiter anything, or saying the same as another bullet point of that entry, in other words), tighter wording for long or weak bullet points and for **every** project bullet point (each one is reviewed), and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
 
 ## ☀️ The Daily Job Check (finds jobs for you)
 

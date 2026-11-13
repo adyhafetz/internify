@@ -55,7 +55,7 @@ assert 'mailto:me@example.com' in c.get("/privacy").text
 _bc.CONTACT_EMAIL = ""
 live = c2.get("/live").text
 assert 'data-theme="light"' in live, "light mode first"
-for must in ("Telegram", "Scout", "Analyst", "Archivist", "Scribe", "Critic", "Publisher", 'id="logBtn"', 'id="demoMenu"', "#2563EB", "#F97316", "Inter"):
+for must in ("Telegram", "Scout", "Analyst", "Archivist", "Scribe", "Critic", "Publisher", "Curator", "Discoverer", "Matcher", 'data-s="tidy"', 'id="logBtn"', 'id="demoMenu"', "#2563EB", "#F97316", "Inter"):
     assert must in live, must
 for gone in ("Show technical details", "Requirements matched", "Invented claims blocked", "Resume draft", "Your verified facts"):
     assert gone not in live, f"the old panel text {gone!r} should be gone"

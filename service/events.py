@@ -25,6 +25,8 @@ AGENTS: dict[str, dict[str, str]] = {
     "critic":    {"name": "Critic",    "role": "Checks claims and scores fit",   "emoji": "🛡️"},
     "publisher": {"name": "Publisher", "role": "Builds PDF, files it, logs it",  "emoji": "📎"},
     # The daily job check: these two work before the six above, on a schedule
+    # The tidy-up: keeps the saved experience clean and in step with your GitHub repos
+    "curator":    {"name": "Curator",    "role": "Keeps your profile tidy",      "emoji": "🧹"},
     "discoverer": {"name": "Discoverer", "role": "Finds new jobs for you",       "emoji": "🔎"},
     "matcher":    {"name": "Matcher",    "role": "Picks the best fits",          "emoji": "🎯"},
 }
@@ -153,6 +155,15 @@ def describe(ev: dict[str, Any]) -> Optional[str]:
                 return f"{_READ.get(d.get('method'), 'Read the posting from ' + str(d.get('label')))} ({chars} characters)"
             return f"Read the whole posting ({chars} characters)"
         if k == FAIL: return "Couldn't read this page by any route"
+    elif a == "curator":
+        if k == START: return f"Checking your {n('bullet point', int(d.get('bullets', 0)))} and {n('skill', int(d.get('skills', 0)))}…"
+        if k == PROGRESS and d.get("fixed"): return f"Fixed {n('small thing', int(d['fixed']))} automatically ✓"
+        if k == PROGRESS and d.get("github_added"):
+            return f"Added {d['github_added']} from your repo {d.get('repo')}, with a bullet point in {d.get('project')} ✓"
+        if k == PROGRESS and d.get("reviewing"): return f"Reviewing every bullet point ({int(d['reviewing'])})…"
+        if k == DONE:
+            s = int(d.get("suggestions", 0))
+            return f"{n('suggestion', s)} for you to review in Telegram" if s else "Everything looks tidy ✓"
     elif a == "discoverer":
         if k == START: return f"Checking your {n('job page', int(d.get('sources', 0)))}…"
         if k == PROGRESS and d.get("ai_read"): return f"Reading {d['ai_read']} to find the jobs…"

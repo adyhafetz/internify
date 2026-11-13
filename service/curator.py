@@ -26,20 +26,20 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
-from service import config, tools_catalog
+from service import config, events, tools_catalog
 from service.profile_data import SKILL_CATEGORIES, _evict_from_cache, _load_facts_raw, _load_skeleton_raw, _save_facts_raw, _save_skeleton_raw
 
 logger = logging.getLogger(__name__)
 
 WEAK_OPENERS = ("responsible for", "helped", "worked on", "assisted", "was involved", "involved in", "tasked with", "participated in")
 LONG_BULLET = 220
-MAX_REWRITES = 30
+MAX_REWRITES = 40
 
 
 @dataclass
 class Suggestion:
     id: str
-    kind: str            # remove_skill | move_skill | add_skill | drop_duplicate | rewrite
+    kind: str            # remove_skill | move_skill | add_skill | drop_duplicate | drop_bullet | rewrite | update_stack
     text: str            # what the user reads
     data: dict = field(default_factory=dict)
 
@@ -156,18 +156,40 @@ def _suggestions(sk: dict, facts: list[dict], rewrite, already_covered=None, rev
                     out.append(Suggestion(_sid("dup", drop["id"]), "drop_duplicate",
                                           f"Remove a near-duplicate bullet point: “{drop['text'][:90]}” (you also have “{keep['text'][:60]}…”)",
                                           {"fact_id": drop["id"]}))
+    # Every remaining bullet point is reviewed: the AI may suggest removing one that adds nothing (vague, or saying the
+    # same as another bullet point of that entry), and rewording one that can be stronger. Job bullet points are
+    # reworded only when long or weakly worded; project bullet points are always considered (``review_ids``).
     review = review_ids or set()
-    flagged = {f["id"]: f["text"] for f in facts if f["id"] not in dup_ids and
-               (f["id"] in review or len(f["text"]) > LONG_BULLET or f["text"].lower().startswith(WEAK_OPENERS))}
-    if flagged and rewrite:
+    rewordable = {f["id"] for f in facts if f["id"] in review or len(f["text"]) > LONG_BULLET or f["text"].lower().startswith(WEAK_OPENERS)}
+    items = {f["id"]: f["text"] for f in facts if f["id"] not in dup_ids}
+    items = dict(list(items.items())[:MAX_REWRITES])
+    groups = {f["id"]: _entry_label(sk, f["entry_id"]) for f in facts if f["id"] in items}
+    if items and rewrite:
         from service.latex.fit import adds_new_facts
-        items = dict(list(flagged.items())[:MAX_REWRITES])
-        for fid, new in (rewrite(items) or {}).items():
+        for fid, new in (rewrite(items, groups) or {}).items():
             old = items.get(fid)
-            if not old or not new or new.strip() == old.strip() or adds_new_facts(old, new) or len(new) > max(len(old), LONG_BULLET):
+            if not old or not new:
+                continue
+            if isinstance(new, dict) and new.get("remove") is not None:
+                reason = str(new.get("remove") or "it adds nothing the others don't say")
+                out.append(Suggestion(_sid("rmb", fid), "drop_bullet", f"Remove a bullet point that isn't needed ({reason}):\n“{old}”",
+                                      {"fact_id": fid, "reason": reason}))
+                continue
+            new = str(new)
+            if fid not in rewordable or new.strip() == old.strip() or adds_new_facts(old, new) or len(new) > max(len(old), LONG_BULLET):
                 continue
             out.append(Suggestion(_sid("rw", fid, new), "rewrite", f"Reword:\n“{old}”\n→ “{new}”", {"fact_id": fid, "old": old, "new": new}))
     return out
+
+
+def _entry_label(sk: dict, entry_id: str) -> str:
+    for e in sk.get("experience_entries", []):
+        if e["id"] == entry_id:
+            return f"{e['title']} at {e['company']}"
+    for p in sk.get("project_entries", []):
+        if p["id"] == entry_id:
+            return f"project {p['name']}"
+    return entry_id
 
 
 def _covered_with_ai(tools: list[str], skills: dict[str, list[str]]) -> set[str]:
@@ -191,29 +213,42 @@ def _covered_with_ai(tools: list[str], skills: dict[str, list[str]]) -> set[str]
         return set()
 
 
-def _rewrite_with_ai(items: dict[str, str]) -> dict[str, str]:
-    """Blocking. fact id -> tighter wording. Fails open."""
+def _rewrite_with_ai(items: dict[str, str], groups: Optional[dict[str, str]] = None) -> dict:
+    """Blocking. fact id -> new wording (str), or {"remove": reason} for a bullet point that isn't needed. Fails open."""
+    from typing import Literal
     from pydantic import BaseModel
     from service.clients import instructor_client
 
     class _Item(BaseModel):
         key: str
-        text: str
+        action: Literal["rewrite", "remove"]
+        text: str = ""
+        reason: str = ""
 
     class _Out(BaseModel):
         items: list[_Item]
+    groups = groups or {}
+    lines = [f"{k} [{groups.get(k, '')}]: {v}" for k, v in items.items()]
     try:
         r: _Out = instructor_client.chat.completions.create(
             model=config.GENERATOR_MODEL, response_model=_Out,
             messages=[{"role": "system", "content": (
-                "Review each resume bullet point. Rewrite it only if it can be clearer or stronger: a strong past-tense action "
-                "verb first (no 'Responsible for', 'Helped', 'Worked on'), the result or number early where there is one, one "
-                "sentence under 200 characters. Use only facts already in that bullet: never add a number, technology, name or "
-                "claim. Leave out of your answer any bullet that is already good.")},
-                {"role": "user", "content": "\n".join(f"{k}: {v}" for k, v in items.items())}])
-        return {i.key: i.text.strip() for i in r.items if i.key in items}
+                "Review these resume bullet points (the entry each belongs to is in brackets). For each, decide:\n"
+                "- action 'remove' with a short reason, ONLY if it isn't needed: it says the same as another bullet point of "
+                "the same entry, or it is too vague to tell a recruiter anything ('Helped the team', 'Did various tasks');\n"
+                "- action 'rewrite' with new text if it can be clearer or stronger: a strong past-tense verb first (no "
+                "'Responsible for', 'Helped', 'Worked on'), the result or number early where there is one, one sentence under "
+                "200 characters, using only facts already in that bullet (never add a number, technology, name or claim);\n"
+                "- leave it out of your answer if it is already good. Be conservative about removing.")},
+                {"role": "user", "content": "\n".join(lines)}])
+        out: dict = {}
+        for i in r.items:
+            if i.key not in items:
+                continue
+            out[i.key] = {"remove": i.reason.strip()} if i.action == "remove" else i.text.strip()
+        return out
     except Exception as err:
-        logger.info("Rewrites skipped: %s", err)
+        logger.info("Review skipped: %s", err)
         return {}
 
 
@@ -226,8 +261,12 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
     from service.importer import backup_current
     sk, facts = _load_skeleton_raw(), _load_facts_raw()
     report = TidyReport()
+    events.emit("curator", events.START, "Checking your saved experience", bullets=len(facts),
+                skills=sum(len(v) for v in sk.get("skills", {}).values()))
     before = (repr(sk.get("skills")), repr(facts))
     report.fixed, changed = _safe_fixes(sk, facts)
+    if report.fixed:
+        events.emit("curator", events.PROGRESS, f"Fixed {len(report.fixed)} small things", fixed=len(report.fixed))
     if (repr(sk.get("skills")), repr(facts)) != before:
         report.backup = backup_current()
         _save_skeleton_raw(sk)
@@ -240,6 +279,7 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
         try:
             for a in github_evidence.sync_from_github():
                 report.fixed.append(f"Added from GitHub: {a.label()}")
+                events.emit("curator", events.PROGRESS, f"Added {a.tool} from {a.repo}", github_added=a.tool, repo=a.repo, project=a.project)
         except Exception as err:
             logger.warning("GitHub sync skipped: %s", err)
         sk, facts = _load_skeleton_raw(), _load_facts_raw()
@@ -250,6 +290,7 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
         repo_names = [r["name"] for r in idx.get("repos", {}).values()]
         repo_projects = {p["id"] for p in sk.get("project_entries", []) if any(github_evidence.names_match(n, p["name"]) for n in repo_names)}
     review = {f["id"] for f in facts if f.get("section") == "project" and f["entry_id"] not in repo_projects}
+    events.emit("curator", events.PROGRESS, "Reviewing every bullet point", reviewing=len(facts))
     report.suggestions = _suggestions(sk, facts, rewrite, already_covered, review)
     if use_github:
         try:
@@ -263,6 +304,8 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
                 report.suggestions.append(Suggestion(_sid(u["kind"], key, u["new"]), u["kind"], u["text"], data))
         except Exception as err:
             logger.warning("Project updates skipped: %s", err)
+    events.emit("curator", events.DONE, f"{len(report.suggestions)} suggestions, {len(report.fixed)} fixed",
+                suggestions=len(report.suggestions), fixed=len(report.fixed))
     return report
 
 
@@ -296,9 +339,9 @@ def apply(s: Suggestion) -> str:
     f = next((x for x in facts if x["id"] == d["fact_id"]), None)
     if f is None:
         return "That bullet point is no longer there"
-    if s.kind == "drop_duplicate":
+    if s.kind in ("drop_duplicate", "drop_bullet"):
         facts.remove(f)
-        msg = "Removed the near-duplicate"
+        msg = "Removed the near-duplicate" if s.kind == "drop_duplicate" else "Removed it"
     else:
         if f["text"] != d["old"]:
             return "That bullet point was edited since, so I left it"

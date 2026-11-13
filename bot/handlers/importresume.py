@@ -158,6 +158,6 @@ async def import_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(build_summary(report, action), parse_mode="HTML")
     try:   # a quick tidy-up of what was just imported (duplicates, spellings, suggestions to review)
         from bot import tidy
-        await tidy.send_report(context.bot, query.message.chat_id, await tidy.run())
+        await tidy.send_report(context.bot, query.message.chat_id, await tidy.run("import"))
     except Exception as err:
         logger.warning("Tidy-up after import skipped: %s", err)
