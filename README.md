@@ -73,6 +73,10 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 
 Every small helper falls back to plain rules if its model call fails.
 
+## ⚙️ Status
+
+`/profile` → **⚙️ Status** shows, in plain words, how this copy is set up (AI service and models, whether only you can use it, GitHub username and how fresh its repo list is, Google, ScrapingAnt, dashboard) and when the daily job check and the tidy-up next run and last ran. **🔍 Test connections** checks the AI key and Google live. Useful when you run more than one copy.
+
 ## 🧹 Tidy up (the Curator)
 
 `/profile` → **🧹 Tidy up**, every Sunday, and after each resume import, the Curator checks your saved experience.
@@ -80,6 +84,7 @@ Every small helper falls back to plain rules if its model call fails.
 - **From your GitHub** (with `GITHUB_USERNAME` set): tools your public repos use that your skills don't list are added automatically, each with one bullet point that shows it; a repo that isn't one of your projects yet becomes one. Repos changed in the last two years only, never forks or your profile repo.
 - **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't (a tool listed inside a broader skill such as "LLM APIs (OpenAI, Gemini)" counts, and the AI settles unclear cases), near-duplicate bullet points, bullet points that aren't needed (too vague to tell a recruiter anything, or saying the same as another bullet point of that entry, in other words), tighter wording for long or weak bullet points and for **every** project bullet point (each one is reviewed), and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
 - **Skipped once, gone for good:** a suggestion you ✕ isn't suggested again, until the bullet point or skill it is about changes.
+- **Backups:** one is made before every tidy-up, import and undo; only the newest 20 are kept.
 - **Undo:** each "Added from your GitHub" line has a ✕ to take it back (its bullet point, a project made for it, and the skill if nothing else needs it), and **↩ Undo last change** puts your saved experience back the way it was before the last tidy-up or import (what you have now is backed up first).
 
 ## ☀️ The Daily Job Check (finds jobs for you)

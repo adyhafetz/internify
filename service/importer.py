@@ -70,7 +70,22 @@ def backup_current(reason: str = "") -> str:
     if reason:
         with open(os.path.join(folder, "reason.txt"), "w", encoding="utf-8") as f:
             f.write(reason)
+    prune_backups()
     return folder
+
+
+KEEP_BACKUPS = 20
+
+
+def prune_backups(keep: int = KEEP_BACKUPS) -> int:
+    """Keep only the newest backups (they are made before every tidy-up, import and undo). Returns how many were removed."""
+    root = _backups_dir()
+    if not os.path.isdir(root):
+        return 0
+    folders = sorted((n for n in os.listdir(root) if os.path.isdir(os.path.join(root, n))), reverse=True)
+    for name in folders[keep:]:
+        shutil.rmtree(os.path.join(root, name), ignore_errors=True)
+    return max(0, len(folders) - keep)
 
 
 def list_backups() -> list[tuple[str, str, str]]:

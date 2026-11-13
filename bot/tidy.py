@@ -6,6 +6,7 @@ import asyncio
 import html
 import json
 import logging
+import time
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -75,6 +76,7 @@ async def run(trigger: str = "manual") -> curator.TidyReport:
     report.suggestions = [s for s in report.suggestions if curator.skip_key(s) not in skipped]
     _store(report.suggestions, report.fixed)
     events.emit_run("finished", tidy=True, fixed=len(report.fixed), suggestions=len(report.suggestions))
+    watchlist.set_setting("tidy_last", time.strftime("%a %d %b %H:%M") + f" · {len(report.fixed)} fixed, {len(report.suggestions)} suggestions")
     return report
 
 

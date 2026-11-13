@@ -211,7 +211,7 @@ def command(args, text="/experience"):
 ctx = types.SimpleNamespace(user_data={})
 # C1 edit a bullet point: open list -> open job -> tap ✏️ 2 -> type the new text
 text, markup = tap(ctx, "xp:l")
-assert "Your profile" in text and [b.text for b in buttons(markup)][0] == "👤 Contact details" and [b.text for b in buttons(markup)][-4].startswith("🔧 Skills") and [b.text for b in buttons(markup)][-3].startswith("🔭 Job pages I check") and [b.text for b in buttons(markup)][-2] == "🧹 Tidy up" and [b.text for b in buttons(markup)][-1] == "➕ Add something"
+assert "Your profile" in text and [b.text for b in buttons(markup)][0] == "👤 Contact details" and [b.text for b in buttons(markup)][-5].startswith("🔧 Skills") and [b.text for b in buttons(markup)][-4].startswith("🔭 Job pages I check") and [b.text for b in buttons(markup)][-3] == "🧹 Tidy up" and [b.text for b in buttons(markup)][-2] == "⚙️ Status" and [b.text for b in buttons(markup)][-1] == "➕ Add something"
 text, markup = tap(ctx, find(markup, "💼"))
 assert "1. Built REST APIs with FastAPI" in text and "2. Containerized with Docker" in text
 text, markup = tap(ctx, find(markup, "✏️ 2"))
@@ -418,6 +418,16 @@ _cfg.PUBLIC_URL = "http://localhost:8080"; assert [u for _, u in eb.my_links()][
 _cfg.PUBLIC_URL = _cfg.GOOGLE_SHEET_ID = _cfg.GOOGLE_DRIVE_FOLDER_ID = ""
 text, markup = tap(ctx, "xp:lk"); assert "Nothing to link to yet" in text
 print("E3 ok: My links shows the dashboard, sheet and folder that are set up, and hides itself when none are")
+# E4 ⚙️ Status: what is set up and when the agents next run; a live test of the AI key and Google
+from bot import status as _status
+text, markup = tap(ctx, "xp:st")
+valid(text)
+assert "Status" in text and "AI:" in text and "Daily job check" in text and "Tidy-up" in text and "GitHub" in text, text
+_status._test_ai = lambda: "✓ works"
+_status._test_google = lambda: ["Google sync: OFF."]
+text, markup = tap(ctx, "xp:sT")
+assert "Tested just now" in text and "✓ works" in text and "Google sync: OFF." in text
+print("E4 ok: ⚙️ Status shows the setup and schedule, and tests the connections live")
 print("E1 ok: Popular in Malaysia lists well-known pages, one tap adds one, it shows as added")
 print("E2 ok: the pages I check are listed with link and last result, and ✕ removes one")
 print("\n✅ browser test passed")

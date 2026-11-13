@@ -5,6 +5,7 @@ need a tool you haven't saved experience for just say so in the message, and you
 from __future__ import annotations
 
 import asyncio
+import time
 import logging
 import os
 from dataclasses import dataclass
@@ -80,6 +81,8 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
             return summary
         events.emit_run("finished", scan=True, found=summary.found, shortlisted=summary.kept, tailored=summary.tailored,
                         failed=summary.failed, note=summary.note)
+        watchlist.set_setting("scan_last", time.strftime("%a %d %b %H:%M") + " · " + (summary.note[:80] if summary.note else
+                              f"{summary.found} new jobs, {summary.tailored} resumes written"))
         await bot.send_message(chat_id, _digest(summary), parse_mode="HTML")
         return summary
     finally:

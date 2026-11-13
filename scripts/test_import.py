@@ -228,6 +228,11 @@ assert not os.path.exists(_target)
 assert _store.load_facts(_target), "a fresh install starts from the sample"
 assert os.path.exists(_target)
 open(_target, "w").write("[]"); assert _store.load_facts(_target) == [], "an existing file is never overwritten"
+import service.importer as _imp2
+for _ in range(25):
+    _imp2.backup_current("a tidy-up")
+assert len(_imp2.list_backups()) <= _imp2.KEEP_BACKUPS, "only the newest backups are kept"
+print("F3 ok: only the newest 20 backups are kept")
 print("F1 ok: saved experience is created in the data folder from the sample, and never overwritten")
 
 # F2 the very first import on a fresh install: no data files exist yet (only the sample ships with the code)
