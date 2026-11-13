@@ -127,6 +127,18 @@ assert any(f["entry_id"] == weather["id"] and "Go" in f["text"] for f in _load_f
 have = {s_.lower() for v in sk["skills"].values() for s_ in v}
 assert "go" in have and "expo" in have and "react native" in have, have
 assert G.sync_from_github() == [], "nothing left to add the second time"
+rec = G.recent_added()
+assert [r["tool"] for r in rec][:3] == ["React Native", "Go", "Expo"] and rec[1]["new_project"] and not rec[0]["new_project"], rec
+go = next(r for r in rec if r["tool"] == "Go")
+msg = G.undo_added(go["fact_id"])
+assert "the project Weather Cli" in msg and "the skill Go" in msg, msg
+sk2 = _load_skeleton_raw()
+assert not any(p["name"] == "Weather Cli" for p in sk2["project_entries"]) and not any(i == "Go" for v in sk2["skills"].values() for i in v)
+assert G.undo_added(go["fact_id"]) == "That was already taken back"
+expo = next(r for r in G.recent_added() if r["tool"] == "Expo")
+msg = G.undo_added(expo["fact_id"])
+assert "SnapPick" in msg and "the project" not in msg and any(p["name"] == "SnapPick" for p in _load_skeleton_raw()["project_entries"]), "a saved project is never removed"
+print("T ok: one tap takes an addition back: its bullet point, a project made for it, and the skill if nothing else needs it")
 print("E ok: the Curator adds every tool from your repos, each with one bullet point:", labels)
 
 # U: refreshing a saved project from its repo (suggestions only)

@@ -50,14 +50,59 @@ def profile_is_sample() -> bool:
     return _load_skeleton_raw()["header"].get("name", "").strip() == SAMPLE_NAME
 
 
-def backup_current() -> str:
-    """Copy the saved profile and bullet points aside, so a replace can be undone by hand."""
-    folder = os.path.join(os.path.dirname(config.FACT_STORE_PATH), "backups", time.strftime("%Y%m%d-%H%M%S"))
+def _backups_dir() -> str:
+    return os.path.join(os.path.dirname(config.FACT_STORE_PATH), "backups")
+
+
+def backup_current(reason: str = "") -> str:
+    """Copy the saved profile and bullet points aside, so a change can be undone (↩ Undo in the tidy-up screen)."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    folder = os.path.join(_backups_dir(), stamp)
+    n = 1
+    while os.path.exists(folder):            # two backups in the same second
+        n += 1
+        folder = os.path.join(_backups_dir(), f"{stamp}-{n}")
     os.makedirs(folder, exist_ok=True)
     ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")   # a fresh install has not created these yet
     ensure_data_file(config.FACT_STORE_PATH, "facts.json")
     for path in (config.SKELETON_PATH, config.FACT_STORE_PATH):
         shutil.copy2(path, os.path.join(folder, os.path.basename(path)))
+    if reason:
+        with open(os.path.join(folder, "reason.txt"), "w", encoding="utf-8") as f:
+            f.write(reason)
+    return folder
+
+
+def list_backups() -> list[tuple[str, str, str]]:
+    """(folder, when, what it was before), newest first."""
+    out = []
+    root = _backups_dir()
+    if not os.path.isdir(root):
+        return out
+    for name in sorted(os.listdir(root), reverse=True):
+        folder = os.path.join(root, name)
+        if not os.path.exists(os.path.join(folder, "facts.json")):
+            continue
+        try:
+            when = time.strftime("%d %b %H:%M", time.strptime(name[:15], "%Y%m%d-%H%M%S"))
+        except ValueError:
+            when = name
+        reason = ""
+        if os.path.exists(os.path.join(folder, "reason.txt")):
+            reason = open(os.path.join(folder, "reason.txt"), encoding="utf-8").read().strip()
+        out.append((folder, when, reason))
+    return out
+
+
+def restore_backup(folder: str) -> str:
+    """Put a backup back. What is saved now is backed up first, so the undo can itself be undone."""
+    if not os.path.isdir(folder) or not os.path.exists(os.path.join(folder, "facts.json")):
+        raise FileNotFoundError("That backup is gone.")
+    backup_current("undo")
+    for name, path in (("resume_skeleton.json", config.SKELETON_PATH), ("facts.json", config.FACT_STORE_PATH)):
+        src = os.path.join(folder, name)
+        if os.path.exists(src):
+            shutil.copy2(src, path)
     return folder
 
 
@@ -86,7 +131,7 @@ def apply_resume(parsed, mode: str) -> ImportReport:
 
     if mode == "replace":
         if not was_sample:   # the sample profile is not worth keeping, so there is nothing to tell you about
-            report.backup_dir = backup_current()
+            report.backup_dir = backup_current("importing a resume")
         _clear_everything()
 
     # Contact details. Replacing (or still on the sample profile) sets every field, including empty ones, so no

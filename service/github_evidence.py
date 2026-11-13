@@ -298,6 +298,7 @@ def add_tool_with_bullet(tool: str, idx: dict, username: str) -> Optional[Added]
     from service.profile_data import (AddProjectRequest, AddSkillsRequest, NewFactBullet, _load_facts_raw, _save_facts_raw,
                                       add_fact_to_entry, add_project, add_skills)
     skeleton = load_skeleton()
+    had_skill = tools_catalog.covered_by(tool, [i for v in skeleton.skills.values() for i in v])
     for ev in find_evidence(tool, idx):
         repo = idx["repos"].get(ev.repo, {})
         if not _usable(repo, username):
@@ -322,8 +323,66 @@ def add_tool_with_bullet(tool: str, idx: dict, username: str) -> Optional[Added]
                 fact = FactBullet(**{k: f[k] for k in ("id", "entry_id", "section", "text", "tech_tags")})
         _save_facts_raw(raw)
         add_skills(AddSkillsRequest(category=tools_catalog.category(ev.tool) or tools_catalog.DEV, items=[ev.tool]))
+        entry_id = next((f["entry_id"] for f in raw if f["id"] == fact_id), "")
+        _log_added({"tool": ev.tool, "repo": ev.repo, "project": name, "entry_id": entry_id, "new_project": project is None,
+                    "fact_id": fact_id, "skill_added": not had_skill, "at": time.strftime("%d %b")})
         return Added(ev.tool, ev.repo, name, project is None, fact)
     return None
+
+
+# ---------------------------------------------------------------- what was added, and taking one back
+
+def _added_path() -> str:
+    return os.path.join(os.path.dirname(config.FACT_STORE_PATH) or ".", "github_added.json")
+
+
+def recent_added(limit: int = 10) -> list[dict]:
+    """The most recent additions from GitHub (newest first), so each can be taken back with one tap."""
+    try:
+        with open(_added_path(), encoding="utf-8") as f:
+            return list(reversed(json.load(f)))[:limit]
+    except Exception:
+        return []
+
+
+def _log_added(rec: dict) -> None:
+    items = list(reversed(recent_added(200)))
+    items.append(rec)
+    os.makedirs(os.path.dirname(_added_path()) or ".", exist_ok=True)
+    with open(_added_path(), "w", encoding="utf-8") as f:
+        json.dump(items[-200:], f, indent=1)
+
+
+def undo_added(fact_id: str) -> str:
+    """Take back one addition from GitHub: its bullet point; the project too if it was made for it and is now empty;
+    the skill too if it was added with it and no other bullet point mentions it."""
+    from service.profile_data import _load_facts_raw, _load_skeleton_raw, _save_skeleton_raw, delete_fact, delete_project
+    items = list(reversed(recent_added(200)))
+    rec = next((r for r in items if r.get("fact_id") == fact_id), None)
+    if rec is None:
+        return "That was already taken back"
+    facts = _load_facts_raw()
+    if any(f["id"] == fact_id for f in facts):
+        delete_fact(fact_id)
+    facts = _load_facts_raw()
+    removed = [f"the bullet point in {rec['project']}"]
+    if rec.get("new_project") and not any(f["entry_id"] == rec["entry_id"] for f in facts):
+        sk = _load_skeleton_raw()
+        if any(p["id"] == rec["entry_id"] for p in sk.get("project_entries", [])):
+            delete_project(rec["entry_id"])
+            removed.append(f"the project {rec['project']}")
+    if rec.get("skill_added") and not any(tools_catalog.mentions(rec["tool"], f["text"]) for f in _load_facts_raw()):
+        sk = _load_skeleton_raw()
+        for cat, items_ in sk.get("skills", {}).items():
+            keep = [i for i in items_ if tools_catalog.key(i) != tools_catalog.key(rec["tool"])]
+            if len(keep) != len(items_):
+                sk["skills"][cat] = keep
+                removed.append(f"the skill {rec['tool']}")
+        _save_skeleton_raw(sk)
+    items = [r for r in items if r.get("fact_id") != fact_id]
+    with open(_added_path(), "w", encoding="utf-8") as f:
+        json.dump(items, f, indent=1)
+    return "Took back " + ", ".join(removed)
 
 
 def missing_from_profile(idx: dict, username: str, skills: dict[str, list[str]], limit: int) -> list[str]:
