@@ -119,12 +119,12 @@ def update_application_status(
     status: str = "",
     applied_date: str = "",
     deadline: str = "",
-) -> None:
+) -> bool:
     """Updates the status and resume link for an existing row. Columns your sheet doesn't have are skipped
     (add "Applied Date" or "Deadline" headers to row 1 to get those too)."""
     ws = _get_worksheet()
     if not ws or row_num <= 1:
-        return
+        return False
     try:
         headers = ws.row_values(1)
         header_map = {h: idx + 1 for idx, h in enumerate(headers)}
@@ -137,6 +137,31 @@ def update_application_status(
         for header, value in (("Status", status), ("Applied Date", applied_date), ("Deadline", deadline)):
             if header in header_map and value:
                 ws.update_cell(row_num, header_map[header], value)
+        return True
     except Exception as e:
         logger.error("Failed to update row %d in Google Sheet: %s", row_num, e)
+        return False
 
+
+
+def read_statuses() -> Optional[dict[str, str]]:
+    """{job link (lower case): what your Status column says} for every row, or None if the Sheet can't be read
+    (not connected, or Google didn't answer). Blank statuses are left out."""
+    ws = _get_worksheet()
+    if not ws:
+        return None
+    try:
+        rows = ws.get_all_values()
+    except Exception as e:
+        logger.warning("Could not read the Google Sheet: %s", e)
+        return None
+    if not rows or "Job Link" not in rows[0] or "Status" not in rows[0]:
+        return {}
+    link_col, status_col = rows[0].index("Job Link"), rows[0].index("Status")
+    out: dict[str, str] = {}
+    for r in rows[1:]:
+        link = r[link_col].strip().lower() if len(r) > link_col else ""
+        status = r[status_col].strip() if len(r) > status_col else ""
+        if link and status:
+            out[link] = status
+    return out

@@ -20,7 +20,27 @@ provided resume bullets match the job posting's core tech stack, hard requiremen
 and ATS keywords. Also flag if the bullet count/length looks likely to overflow a
 single page (rough guideline: more than ~14 bullets total is risky). Be specific
 and actionable in revision_notes so a rewrite can act on it directly. Never suggest
-adding a tool, number or claim the bullets don't already support."""
+adding a tool, number or claim the bullets don't already support. Score the whole page:
+education, courses, skills and leadership are on it too, so never ask for an education
+section, a degree line or a skill that is already there. Revision notes are only about
+the bullets (the only part that is rewritten)."""
+
+def _rest_of_resume(resume: GeneratedResume, sk: ResumeSkeleton) -> str:
+    """Education, courses, honors, skills and leadership as they will appear on the page (fixed, not rewritten)."""
+    lines = ["The rest of the same one-page resume (already on it, not rewritten by the Scribe):"]
+    for e in sk.education:
+        courses = resume.selected_courses.get(e.id) or e.courses[:5]
+        lines.append(f"Education: {e.degree_line}, {e.institution} ({e.dates})"
+                     + (f". Courses: {', '.join(courses)}" if courses else "")
+                     + (f". {' '.join(e.honor_bullets)}" if e.honor_bullets else ""))
+    skills = resume.selected_skills if any(resume.selected_skills.values()) else sk.skills
+    for cat, items in skills.items():
+        if items:
+            lines.append(f"Skills, {cat}: {', '.join(items)}")
+    for lead in sk.leadership:
+        lines.append(f"Leadership: {lead.title}, {lead.org}" + (f": {' '.join(lead.bullets)}" if lead.bullets else ""))
+    return "\n".join(lines)
+
 
 AI_WEIGHT = 0.5   # the shown score: half the AI reviewer's opinion, half the requirements the resume visibly covers
 
@@ -86,6 +106,8 @@ def critique(
 
     bullets_text = "\n".join(f"- [{b.entry_id}] {b.text}" for b in resume.bullets)
     user_content = job.format_context() + f"Resume bullets:\n{bullets_text}"
+    if skeleton is not None:   # the rest of the page, so the review doesn't ask for things that are already there
+        user_content += "\n\n" + _rest_of_resume(resume, skeleton)
 
     llm_result: _LLMCriticScore = instructor_client.chat.completions.create(
         model=config.CRITIC_MODEL,

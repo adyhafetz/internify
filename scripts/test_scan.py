@@ -242,4 +242,28 @@ matcher._read = lambda cand: asyncio.sleep(0, result=cand.title + "\nposting")
 b, s, _ = scan()
 assert s.searched and s.found >= 1 and tailored, (b.sent, s)
 print("B5 ok: a scan with no pages still finds jobs through the web search")
+assert "ok:" in watchlist.get_setting("search_last", ""), "Status shows whether the last web search got answers"
+
+# jobs not read in full wait in line for the next check instead of being dismissed by their title
+watchlist.mark_seen("https://w/1", "Waiting Intern", "Co", "waiting")
+assert not watchlist.seen("https://w/1") and watchlist.known("https://w/1")
+with db._get_connection() as conn:
+    conn.execute("INSERT INTO seen_jobs (url, status, first_seen) VALUES ('https://w/old', 'waiting', datetime('now', '-30 days'))"); conn.commit()
+assert watchlist.expire_waiting() == 1 and watchlist.seen("https://w/old") and not watchlist.seen("https://w/1")
+many = [{"title": f"Backend Intern {i}", "absolute_url": f"https://boards.greenhouse.io/acme-corp/jobs/q{i}", "content": "x" * 500} for i in range(12)]
+GH["jobs"] = many
+def handler3(req):
+    if "boards-api.greenhouse.io/v1/boards/acme-corp" in str(req.url): return httpx.Response(200, json=GH)
+    return httpx.Response(404)
+scraper._client = lambda t: httpx.AsyncClient(transport=httpx.MockTransport(handler3), timeout=t, follow_redirects=True, headers=scraper.HEADERS)
+watchlist.set_setting("scan_web_search", "0")
+for s_ in watchlist.list_sources(): watchlist.remove_source(s_.id)
+watchlist.add_source("https://boards.greenhouse.io/acme-corp")
+matcher._analyse = lambda text: (_job(text.split("\n")[0], is_internship=True), [], ["Rust"])   # read, but low fit
+b, s, _ = scan()
+waiting = [j["absolute_url"] for j in many if not watchlist.seen(j["absolute_url"])]
+assert s.found == 12 and s.left_waiting == len(waiting) > 0 and "waiting in line" in b.sent[-1], (s, b.sent[-1])
+b, s2, _ = scan()
+assert s2.found == 0 and s2.waiting == len(waiting), "the next check reads the ones still waiting (not counted as new)"
+print("B6 ok: jobs not read in full wait for the next check; old ones expire")
 print("ALL SCAN TESTS PASSED")

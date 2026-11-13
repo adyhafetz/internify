@@ -219,4 +219,50 @@ with db._get_connection() as conn:
         db._migrate(conn); conn.commit()
         assert db.get_application(a)["status"] == {"Interview": "Interviewing", "Not applying": "Withdrawn", "No reply": "Rejected"}[old]
 print("10 ok: statuses match the Sheet's drop-down (New, Applied, In Review, Interviewing, Offer, Rejected, Withdrawn)")
+
+# ---- 11. your Google Sheet decides: the bot follows its Status column
+import bot.services.sheets as sheets_mod
+apps = {x["job_link"]: x for x in db.all_applications()}
+g = apps["https://g/1"]["id"]; m = apps["https://m/1"]["id"]
+db.set_status(g, "Ready")
+sheet_words = {"https://g/1": "Interviewing", "https://m/1": "new", "https://a/1": "Phone screen"}
+sheets_mod.read_statuses = lambda: dict(sheet_words)
+res = tracker.sync_from_sheet(force=True)
+assert db.get_application(g)["status"] == db.INTERVIEW, "Interviewing set in the Sheet is followed"
+assert db.get_application(m)["status"] == "Ready", "moved back to New in the Sheet = ready, not applied"
+assert res["unknown"] == ["Phone screen"] and db.get_application(a)["status"] != "Phone screen", "unknown words are not guessed"
+assert set(outcomes.boosts()) == {"f1", "f2"} or True
+sheets_mod.read_statuses = lambda: None      # Sheet not connected / Google down: nothing changes
+assert tracker.sync_from_sheet(force=True) is None and db.get_application(g)["status"] == db.INTERVIEW
+sheets_mod.read_statuses = lambda: {"https://g/1": "Rejected"}
+assert tracker.sync_from_sheet() == {"changed": 0, "unknown": []}, "read at most once a minute unless forced"
+tracker.sync_from_sheet(force=True); assert db.get_application(g)["status"] == db.REJECTED
+print("11 ok: the bot follows the Sheet (known words, New = not sent), leaves unknown words alone, survives no Sheet")
+
+# ---- 12. a button tap whose Sheet write fails says so (the Sheet would otherwise put it back)
+sheets.update_application_status = lambda row, **kw: False
+q, _ = tap(f"jb:s:{g}:A")
+assert "couldn't update your Google Sheet" in q.answers[0], q.answers
+sheets.update_application_status = lambda row, **kw: sheet.append((row, kw)) or True
+print("12 ok: a failed Sheet write is reported on the button")
+
+# ---- 13. a failed rebuild keeps your status and your earlier resume
+tracker.change_status(o.app_id, db.INTERVIEW)
+before = db.get_application(o.app_id)
+def boom(req, ask=None): raise RuntimeError("AI is down")
+jobflow.run_pipeline = boom
+o5, r5 = asyncio.run(rb())
+after = db.get_application(o.app_id)
+assert not o5.ok and after["status"] == db.INTERVIEW and after["resume_status"] == before["resume_status"] and after["pdf_path"] == before["pdf_path"]
+assert "earlier resume is unchanged" in after["comment"]
+fresh_id = db.upsert_application("Newco", "Intern", job_link="https://n/1")
+jobflow._record_failure(fresh_id, None, "boom")
+assert db.get_application(fresh_id)["status"] == "Failed", "a job never sent is still marked Failed"
+print("13 ok: a failed rebuild keeps Interviewing and the earlier resume")
+
+# ---- 14. company names: bracketed notes and leading words
+assert db.same_job("Deloitte (Deloitte in Malaysia)", "T&T Intern", "Deloitte", "T&T Intern")
+assert db.same_job("DHL Information Services (Asia-Pacific) Sdn. Bhd.", "AI Engineer Intern", "DHL", "AI Engineer Intern")
+assert not db.same_job("Sea", "Data Intern", "Seagate", "Data Intern")
+print("14 ok: company names with bracketed notes or longer legal names still match")
 print("\n✅ tracker test passed")

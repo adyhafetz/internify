@@ -34,6 +34,8 @@ class ScanSummary:
     failed: int = 0
     duplicates: int = 0
     searched: bool = False
+    waiting: int = 0           # from earlier checks, still in line to be read
+    left_waiting: int = 0      # not read this time, kept in line for the next check
     filtered: int = 0          # left out by your filters (not an internship, another place, closed, already done)
     note: str = ""
 
@@ -99,6 +101,8 @@ def _digest(s: ScanSummary) -> str:
              f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''}"
              + (" and searched the web" if s.searched else "") + f", and found {s.found} new job{'s' if s.found != 1 else ''} that fit your filters",
              f"• {s.kept} matched well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
+    if s.left_waiting:
+        lines.append(f"• {s.left_waiting} more waiting in line: I read the most promising first, the rest get their turn next time")
     if s.filtered:
         lines.append(f"• {s.filtered} left out by your filters (not an internship, another place, closed or already done)")
     if s.duplicates:
@@ -112,6 +116,8 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     if profile_is_sample():
         s.note = "I can't write resumes yet: your saved experience is still the sample profile. Send me your resume first (/importresume)."
         return
+    from bot.tracker import sync
+    await sync(force=True)   # your Google Sheet decides each job's status
     await asyncio.to_thread(watchlist.sources_from_history)
     sources = watchlist.list_sources()
     prefs = watchlist.get_prefs()
@@ -133,6 +139,8 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         events.emit("discoverer", events.FAIL, "No job page answered", why="None of your job pages answered")
         s.note = "None of your job pages answered today. I'll try again tomorrow."
         return
+    # New jobs, plus the ones from earlier checks that are still waiting in line to be read in full
+    await asyncio.to_thread(watchlist.expire_waiting)
     fresh = []
     for c in candidates:
         if watchlist.seen(c.url):
@@ -140,8 +148,10 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         if is_duplicate_url(c.url):   # you already applied to this one
             watchlist.mark_seen(c.url, c.title, c.company, "applied")
             continue
+        if watchlist.known(c.url):
+            s.waiting += 1
         fresh.append(c)
-    s.found = len(fresh)
+    s.found = len(fresh) - s.waiting
     events.emit("discoverer", events.DONE, f"Found {len(fresh)} new jobs", found=len(fresh), sources=len(sources))
     if not fresh:
         s.note = (f"Checked {len(sources)} job page{'s' if len(sources) != 1 else ''}"
@@ -161,12 +171,17 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
         if item.cand.url not in kept_urls:
             watchlist.mark_seen(item.cand.url, item.role or item.cand.title, item.company,
                                 "filtered" if item.rejected else "low-fit", item.fit, item.why)
-    for c in fresh:
-        if not watchlist.seen(c.url) and c.url not in kept_urls:
-            watchlist.mark_seen(c.url, c.title, c.company, "low-fit")
+    read = {item.cand.url for item in result.scored}
+    s.left_waiting = 0
+    for c in fresh:   # not read in full this time: they stay in line for the next check (not dismissed by title alone)
+        if c.url not in kept_urls and c.url not in read and not watchlist.seen(c.url):
+            watchlist.mark_seen(c.url, c.title, c.company, "waiting")
+            s.left_waiting += 1
     if not result.kept:
         best = f" The best match was {round(result.top * 100)}%." if result.top is not None else ""
         s.note = f"Found {len(fresh)} new job{'s' if len(fresh) != 1 else ''}, but none matched well enough to write a resume for.{best}"
+        if s.left_waiting:
+            s.note += f" {s.left_waiting} more are waiting in line and get read next time."
         return
     events.emit("matcher", events.HANDOFF, f"{s.kept} picked", to="scout")
 

@@ -48,8 +48,11 @@ def _looking_for() -> str:
     from bot.services.websearch import default_roles
     p = watchlist.get_prefs()
     roles = ", ".join(p.roles or default_roles())
-    return (f"  looking for: {_h(roles)} · {_h(', '.join(p.places) or 'anywhere')}"
+    line = (f"  looking for: {_h(roles)} · {_h(', '.join(p.places) or 'anywhere')}"
             f"{' · internships only' if p.interns_only else ''} · web search {'on' if p.web_search else 'off'}")
+    if p.web_search:
+        line += f"\n  last web search: {_h(watchlist.get_setting('search_last', 'not run yet'))}"
+    return line
 
 
 def screen(application=None, notice: str = ""):

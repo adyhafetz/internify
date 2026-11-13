@@ -71,8 +71,18 @@ def fallback_source(page: Page) -> str:
 
 
 def _record_failure(db_id: int, sheet_row: Optional[int], comment: str, score: float = 0.0, resume_status: str = "Failed") -> None:
-    """Mark an application as failed in both trackers."""
-    db_update_application(db_id, status="Failed", score=score, resume_status=resume_status, comment=comment)
+    """Record that writing the resume failed. A status you set (Applied, Interviewing, ...) is kept: only a job that
+    was never sent is marked Failed. The Sheet's Status column is never touched here."""
+    app = get_application(db_id) or {}
+    if app.get("pdf_path"):   # a rebuild failed: the earlier resume is still good, keep it as it is
+        comment = f"Rebuild failed ({comment[:200]}); the earlier resume is unchanged."
+        db_update_application(db_id, status=app.get("status") if app.get("status") in USER_STATUSES else "Ready",
+                              comment=comment)
+        if sheet_row:
+            update_application_status(sheet_row, comment=comment)
+        return
+    status = app.get("status") if app.get("status") in USER_STATUSES else "Failed"
+    db_update_application(db_id, status=status, score=score, resume_status=resume_status, comment=comment)
     if sheet_row:
         update_application_status(sheet_row, resume_status=resume_status, comment=comment)
 
