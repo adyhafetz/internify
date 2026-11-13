@@ -196,9 +196,28 @@ def sources_from_history() -> int:
 
 # ---------------------------------------------------------------- jobs already seen
 
+WAIT_DAYS = 14   # a job not read yet stays in line for the next checks this long
+
+
 def seen(url: str) -> bool:
+    """Already dealt with (read, tailored, filtered, ...). A job still waiting in line to be read is not."""
+    with _get_connection() as conn:
+        return conn.execute("SELECT 1 FROM seen_jobs WHERE url = ? AND status != 'waiting'", (url,)).fetchone() is not None
+
+
+def known(url: str) -> bool:
+    """Seen in any earlier check, including one still waiting to be read."""
     with _get_connection() as conn:
         return conn.execute("SELECT 1 FROM seen_jobs WHERE url = ?", (url,)).fetchone() is not None
+
+
+def expire_waiting(days: int = WAIT_DAYS) -> int:
+    """Jobs that waited in line this long without making the cut are let go (so the line can't grow forever)."""
+    with _get_connection() as conn:
+        cur = conn.execute("UPDATE seen_jobs SET status = 'low-fit', reason = 'waited too long without making the cut' "
+                           "WHERE status = 'waiting' AND first_seen < datetime('now', ?)", (f"-{int(days)} days",))
+        conn.commit()
+        return cur.rowcount
 
 
 def mark_seen(url: str, title: str = "", company: str = "", status: str = "new", fit: float = 0.0, reason: str = "") -> None:

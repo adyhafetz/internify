@@ -65,7 +65,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 | Analyst | `EXTRACTOR_MODEL` reads the posting |
 | Archivist | Embeddings find your matching experience (every job or internship keeps its best two bullet points, and bullet points from resumes that got you an interview get a small nudge); missing skills are worked out in code, by tool name and its other names ("Postgres" finds "PostgreSQL"). Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills together with one grounded bullet point (under the matching project, or a new project made from that repo), with no question. If no bullet point can be written, nothing is added and you are asked as usual |
 | Scribe | `GENERATOR_MODEL` writes the lines |
-| Critic | Code compares every line with its fact (a new tool, number or name sends it back for a rewrite, and anything still added is put back to your own words before the PDF is built) and counts which of the job's requirements the resume shows; `CRITIC_MODEL` gives its opinion and rewrite notes. The score you see is half each |
+| Critic | Sees the whole page (education, courses, skills, leadership too, so it never asks for what is already there). Code compares every line with its fact (a new tool, number or name sends it back for a rewrite, and anything still added is put back to your own words before the PDF is built) and counts which of the job's requirements the resume shows; `CRITIC_MODEL` gives its opinion and rewrite notes. The score you see is half each |
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
 | Discoverer | Boards on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their APIs; the web search is plain code; for any other career page a model lists the real openings (invented links are dropped) |
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
@@ -96,7 +96,7 @@ Once a day the bot looks for jobs on its own, so you don't have to hunt:
    - **The web search** (on by default, no key needed) searches for the roles and places you look for on the hiring systems companies post on, and adds each company it finds to your job pages (marked "found by search"). So the list of companies grows by itself; remove any with ✕ and it isn't added back.
    - **Any other page** you add (a career page, or a job board such as JobStreet from 🇲🇾 Popular in Malaysia) is read through ScrapingAnt (if you set a key) or a plain visit, and the job links are picked out.
 2. **Your filters** come next, before anything is read in full: **internships only** (on by default), and your **places** (default Malaysia and Remote). After reading, jobs that have closed, are in another place, or are the same job as one you already have a resume for (even through another link) are skipped too.
-3. **Matcher** compares each remaining posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match.
+3. **Matcher** compares each remaining posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match. Only the most promising 6 to 8 titles are read in full each day; the rest **wait in line** for the next check (for up to 14 days) instead of being dismissed by their title alone.
 4. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
 
 A check **never asks you questions** (you may be asleep): a job that needs a tool you haven't saved experience for gets the 🧩 button under its resume.
@@ -111,7 +111,7 @@ Manage it in `/profile` → **🔭 Job pages I check**: **🎯 What I look for**
 | `SCAN_MAX_TAILORED` | `3` | Most resumes written per scan |
 | `SCAN_MIN_FIT` | `0.5` | Minimum fit (0 to 1) to be kept |
 
-The web search reads Bing's (then DuckDuckGo's) public results pages; a day when they don't answer just means no extra jobs. The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+The web search reads Bing's (then DuckDuckGo's) public results pages; a day when they don't answer just means no extra jobs. ⚙️ Status shows how the last web search went, so you can tell if your server is being blocked. The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
 
 ## 📊 Tracking your applications
 
@@ -119,10 +119,11 @@ Every resume arrives with buttons: **✅ I applied** · **🚫 Not applying** ·
 
 - **What it says:** the match score (half the AI reviewer's opinion, half how many of the job's requirements the finished PDF visibly shows), "Shows 7 of 10 requirements. Not on it: Docker, SQL", how many bullet points were used and reworded, what was left out, and the closing date if the posting gives one.
 - **📝 What changed:** every bullet point used (✏️ marks the reworded ones), what was left out, and **➕ Keep …** to rebuild with a left-out job or project kept.
-- **After you apply:** 👀 In Review, 🎤 Interviewing, 🏆 Offer, ❌ Rejected, 🚫 Withdrawn: the same words as the Status drop-down in your Google Sheet (New, Applied, In Review, Interviewing, Offer, Rejected, Withdrawn), and the Sheet's **Status** column follows. A fresh resume leaves it at New until you tap ✅ I applied. Add **Applied Date** or **Deadline** headers to row 1 to get those too.
+- **Your Google Sheet is in charge of the status.** Change a job's **Status** in the Sheet (New, Applied, In Review, Interviewing, Offer, Rejected, Withdrawn) and the bot follows it: it reads the column at start-up, when you open `/applied`, before the daily reminders and before the daily check. The buttons (👀 In Review, 🎤 Interviewing, 🏆 Offer, ❌ Rejected, 🚫 Withdrawn) are a shortcut that writes the same words to the Sheet for you; if that write fails, the button says so. A word that isn't one of the seven is left alone, never guessed. A fresh resume leaves it at New until you tap ✅ I applied. Add **Applied Date** or **Deadline** headers to row 1 to get those too.
 - **Reminders:** an hour after the daily check: "Any news from …?" `FOLLOWUP_DAYS` (default 14) after you applied or it went in review (⏳ Still waiting asks again a week later), and a nudge when a job you have a resume for closes within 3 days and isn't marked applied. On Sundays, a short summary of your week.
 - **It learns:** bullet points on resumes that got you an interview or an offer get a small nudge up in later jobs.
-- **Repeat jobs:** the same job through another link (LinkedIn, JobStreet and the company page) is recognised by company and title: when you send it, you're asked before a second resume is made; the daily check skips it.
+- **A failed rebuild changes nothing:** your status and your earlier resume stay as they were; only a note is added.
+- **Repeat jobs:** the same job through another link (LinkedIn, JobStreet and the company page) is recognised by company and title (notes in brackets and legal endings are ignored, so "Deloitte (Deloitte in Malaysia)" matches "Deloitte"): when you send it, you're asked before a second resume is made; the daily check skips it.
 - `/applied` lists everything by status (Open, Interviewing and offers, Closed, All), each with the same buttons and ♻️ Rebuild (from the saved job details, no page visit; your status is kept).
 
 ---

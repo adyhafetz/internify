@@ -6,7 +6,11 @@
   * A reminder when a job you have a resume for closes in the next few days and isn't marked applied.
   * /applied: every application by status, with the same buttons.
   * Sundays: a short summary of the week (written, sent, replies).
-Marking an interview or an offer also teaches the Archivist which of your bullet points tend to work."""
+Marking an interview or an offer also teaches the Archivist which of your bullet points tend to work.
+
+Your Google Sheet is in charge of the status: the bot reads its Status column back (at start-up, before /applied, the
+daily reminders and the daily check) and follows whatever you set there. The buttons are a shortcut that writes to the
+Sheet for you."""
 from __future__ import annotations
 
 import asyncio
@@ -170,23 +174,34 @@ def details_text(app: dict) -> tuple[str, InlineKeyboardMarkup]:
 
 # ---------------------------------------------------------------- changing the status
 
-def change_status(app_id: int, status: str) -> Optional[dict]:
-    """Save the new status everywhere: the database, your Google Sheet, and what the Archivist learns from."""
+def _apply(app_id: int, status: str) -> Optional[dict]:
+    """Save a status in the bot's own records and in what the Archivist learns from (not in the Sheet)."""
     app = db.set_status(app_id, status)
     if app is None:
         return None
     if status in (db.INTERVIEW, db.OFFER):     # the resume worked: remember its bullet points
         outcomes.record(str(app_id), app.get("facts_used") or [], good=True)
-    elif status in (db.APPLIED, db.IN_REVIEW, db.WITHDRAWN):   # reopened or a mis-tap: forget it again
+    elif status in (db.APPLIED, db.IN_REVIEW, db.WITHDRAWN, "Ready"):   # reopened or a mis-tap: forget it again
         outcomes.record(str(app_id), [], good=False)
+    return app
+
+
+def change_status(app_id: int, status: str) -> Optional[dict]:
+    """A button was tapped: save the new status, and write it to your Google Sheet (which stays in charge)."""
+    app = _apply(app_id, status)
+    if app is None:
+        return None
+    app["sheet"] = "none"      # no Sheet connected, or this job has no row in it
     try:
         from bot.services.sheets import find_row_by_url, update_application_status
         row = find_row_by_url(app["job_link"]) if app.get("job_link") else None
         if row:
-            update_application_status(row, status=status,   # one of the Sheet's own drop-down words
-                                      applied_date=_when(app.get("applied_at")) if status in db.WAITING else "")
-    except Exception as err:   # the Sheet is a mirror: never lose the change because Google hiccuped
+            ok = update_application_status(row, status=status if status in db.SHEET_STATUSES else db.NEW,
+                                           applied_date=_when(app.get("applied_at")) if status in db.WAITING else "")
+            app["sheet"] = "ok" if ok is not False else "failed"
+    except Exception as err:
         logger.warning("Could not update the Sheet status: %s", err)
+        app["sheet"] = "failed"
     return app
 
 
@@ -203,6 +218,56 @@ def _status_toast(app: dict) -> str:
     if s == db.REJECTED:
         return "Marked as rejected. On to the next one."
     return f"Marked as {s.lower()}."
+
+
+# ---------------------------------------------------------------- your Google Sheet decides
+
+_WORDS = {s.lower(): s for s in db.SHEET_STATUSES}
+_synced_at = 0.0
+SYNC_EVERY = 60   # seconds: reading the Sheet again sooner than this is not worth the wait
+
+
+def sync_from_sheet(force: bool = False) -> Optional[dict]:
+    """Blocking. Make the bot follow your Sheet's Status column. Returns {"changed": n, "unknown": [words]} or None
+    when the Sheet isn't connected or couldn't be read (the bot then keeps what it has).
+    "New" in the Sheet means the resume is ready but not sent; a word that isn't one of the drop-down's is left alone
+    (and reported) instead of guessed."""
+    global _synced_at
+    import time
+    if not force and time.time() - _synced_at < SYNC_EVERY:
+        return {"changed": 0, "unknown": []}
+    from bot.services.sheets import read_statuses
+    sheet = read_statuses()
+    if sheet is None:
+        return None
+    _synced_at = time.time()
+    changed, unknown = 0, set()
+    for app in db.all_applications():
+        word = sheet.get((app.get("job_link") or "").strip().lower())
+        if not word:
+            continue
+        status = _WORDS.get(word.lower())
+        if status is None:
+            unknown.add(word)
+            continue
+        if status == db.NEW:
+            if app["status"] not in db.USER_STATUSES:
+                continue                       # New in the Sheet = Ready / Processing / Failed here: nothing to change
+            status = "Ready"                   # you moved it back to New
+        if status != app["status"]:
+            _apply(app["id"], status)
+            changed += 1
+    if unknown:
+        logger.info("Statuses in the Sheet that aren't drop-down words (left as they are): %s", ", ".join(sorted(unknown)))
+    return {"changed": changed, "unknown": sorted(unknown)}
+
+
+async def sync(force: bool = False) -> Optional[dict]:
+    try:
+        return await asyncio.to_thread(sync_from_sheet, force)
+    except Exception as err:   # never let the Sheet stop the bot
+        logger.warning("Reading statuses from the Sheet failed: %s", err)
+        return None
 
 
 # ---------------------------------------------------------------- rebuilding from the tracker
@@ -228,6 +293,7 @@ async def _rebuild(query, context, app_id: int, keep: Optional[list[str]] = None
 
 @restricted
 async def applied_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await sync()
     text, kb = list_screen("o")
     await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
@@ -240,6 +306,7 @@ async def tracker_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if act == "L":
             await query.answer()
+            await sync()
             text, kb = list_screen(args[0] if args else "o", int(args[1]) if len(args) > 1 else 0)
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
             return
@@ -262,7 +329,10 @@ async def tracker_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if app is None:
                 await query.answer("That job is no longer in your tracker.")
                 return
-            await query.answer(_status_toast(app), show_alert=False)
+            toast = _status_toast(app)
+            if app.get("sheet") == "failed":   # the Sheet decides, so say so: the next read would put it back
+                toast = "⚠️ Saved here, but I couldn't update your Google Sheet. Change it there too, or tap again."
+            await query.answer(toast, show_alert=app.get("sheet") == "failed")
             await _refresh_buttons(query, app)
             return
         if act == "d":
@@ -366,6 +436,7 @@ async def daily_check(context) -> None:
     chat_id = watchlist.owner_chat_id()
     if chat_id is None:
         return
+    await sync(force=True)   # your Sheet decides: someone marked applied there gets no "apply before" nudge
     bot = context.bot
     for app in db.due_followups()[:5]:
         text, kb = followup_message(app)

@@ -68,6 +68,8 @@ async def post_init(application) -> None:
     tidy.schedule(application)
     from bot import tracker
     tracker.schedule(application)
+    import asyncio
+    asyncio.get_running_loop().create_task(tracker.sync(force=True))   # follow your Google Sheet's statuses from the start
 
 
 def create_bot_app():

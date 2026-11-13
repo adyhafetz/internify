@@ -260,6 +260,7 @@ async def _search_web(prefs: Prefs, seen_urls: set[str]) -> tuple[list[Candidate
         postings, queries = await websearch.find_postings(prefs)
     except Exception as err:
         logger.info("Web search failed: %s", err)
+        _remember_search("failed: the search engines didn't answer")
         return [], SourceResult("Web search", False, 0, "the search engines didn't answer")
     if not queries:
         return [], None
@@ -269,8 +270,20 @@ async def _search_web(prefs: Prefs, seen_urls: set[str]) -> tuple[list[Candidate
     events.emit("discoverer", events.PROGRESS, f"Web search: {len(kept)} jobs", status="ok", label="Web search",
                 found=len(kept), queries=queries)
     if not postings:
+        _remember_search("no results: the search engines may be blocking this server")
         return [], SourceResult("Web search", False, 0, "no results today")
+    _remember_search(f"ok: {len(postings)} postings, {len(kept)} new that fit your filters")
     return kept, SourceResult("Web search", True, len(kept), skipped=len(found) - len(kept))
+
+
+def _remember_search(text: str) -> None:
+    """For ⚙️ Status: did the last web search get answers?"""
+    import time
+    try:
+        from bot.services.watchlist import set_setting
+        set_setting("search_last", time.strftime("%d %b %H:%M") + " · " + text)
+    except Exception:
+        pass
 
 
 async def discover(sources: list[Source], prefs: Optional[Prefs] = None) -> tuple[list[Candidate], list[SourceResult]]:

@@ -95,7 +95,14 @@ assert fb.ai_score == 80 and fb.score == round(0.5 * 80 + 0.5 * cov_pct, 1) and 
 assert "Requirements not visible" in fb.revision_notes
 fb2 = C.critique(GeneratedResume(bullets=[ResumeBullet(fact_id="a1", entry_id="e1", text="Built Kubernetes APIs")]), job, cand, sk)
 assert fb2.score <= 40 and fb2.unsupported_claims
-print("5 ok: the shown score mixes the AI's opinion with requirements counted in code; any addition caps it")
+seen_prompt = []
+class _Spy(_AI):
+    def create(self, **kw):
+        seen_prompt.append(kw["messages"][1]["content"]); return super().create(**kw)
+C.instructor_client.chat.completions = _Spy([70])
+C.critique(good, job, cand, sk)
+assert "Education: Bachelor of Computer Science" in seen_prompt[0] and "Courses: Databases" in seen_prompt[0], seen_prompt[0]
+print("5 ok: the shown score mixes the AI's opinion with requirements counted in code; any addition caps it; the reviewer sees education and skills")
 
 # ---- 6. the loop keeps the best draft, stops when a rewrite stops helping, and never sends an addition
 from service.agentic import loop as L

@@ -306,6 +306,11 @@ def list_applications(statuses: Optional[tuple[str, ...]] = None, limit: int = 8
         return [_row(r) for r in rows], total
 
 
+def all_applications() -> list[dict]:
+    with _get_connection() as conn:
+        return [_row(r) for r in conn.execute("SELECT * FROM applications ORDER BY id").fetchall()]
+
+
 def status_counts() -> dict[str, int]:
     with _get_connection() as conn:
         return {r[0]: r[1] for r in conn.execute("SELECT status, COUNT(*) FROM applications GROUP BY status").fetchall()}
@@ -334,7 +339,20 @@ _TITLE_NOISE = re.compile(r"\b(20\d\d|19\d\d|summer|winter|fall|spring|intake|ba
 
 
 def _norm_company(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", _COMPANY_NOISE.sub(" ", (name or "").lower())).strip()
+    low = re.sub(r"\([^)]*\)", " ", (name or "").lower())   # "Deloitte (Deloitte in Malaysia)" -> "deloitte"
+    return re.sub(r"[^a-z0-9]+", " ", _COMPANY_NOISE.sub(" ", low)).strip()
+
+
+def _same_company(a: str, b: str) -> bool:
+    """Equal once legal endings and bracketed notes are dropped, or one is the other's leading words
+    ("DHL" and "DHL Information Services (Asia-Pacific) Sdn. Bhd.")."""
+    ca, cb = _norm_company(a), _norm_company(b)
+    if not ca or not cb:
+        return False
+    if ca == cb:
+        return True
+    short, long_ = sorted((ca, cb), key=len)
+    return len(short) >= 3 and (long_ + " ").startswith(short + " ")
 
 
 def _title_words(title: str) -> set[str]:
@@ -344,8 +362,7 @@ def _title_words(title: str) -> set[str]:
 
 
 def same_job(company_a: str, title_a: str, company_b: str, title_b: str) -> bool:
-    ca, cb = _norm_company(company_a), _norm_company(company_b)
-    if not ca or ca != cb:
+    if not _same_company(company_a, company_b):
         return False
     wa, wb = _title_words(title_a), _title_words(title_b)
     return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.75
