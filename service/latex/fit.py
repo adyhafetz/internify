@@ -35,6 +35,8 @@ class FitResult:
     fits: bool = True
     shortened: int = 0
     dropped: list[str] = field(default_factory=list)
+    resume: Optional[GeneratedResume] = None      # what is actually on the PDF
+    skeleton: Optional[ResumeSkeleton] = None
 
 
 # ---------------------------------------------------------------- measuring
@@ -117,6 +119,26 @@ def adds_new_facts(original: str, shortened: str) -> bool:
     return bool(_fact_tokens(shortened) - known)
 
 
+def new_claims(source: str, text: str) -> list[str]:
+    """The numbers, tools and names in ``text`` that ``source`` does not support (empty = fully grounded).
+    Numbers must match exactly. A word may change form ("Dockerized" from "Docker", "RESTful" from "REST"), but a tool
+    or name that isn't there at all is a new claim."""
+    known: set[str] = set()
+    for tok in _FACT_TOKEN.findall(source):
+        low = tok.lower().rstrip(".,")
+        known.add(low)
+        known.update(p for p in re.split(r"[-/_]", low) if p)
+    out = []
+    for tok in sorted(_fact_tokens(text) - known):
+        if not any(c.isdigit() for c in tok):
+            parts = [p for p in re.split(r"[-/_]", tok) if p]
+            if all(p in known or any(len(k) >= 4 and (p.startswith(k) or k.startswith(p) and len(p) >= 4) for k in known)
+                   for p in parts):
+                continue
+        out.append(tok)
+    return out
+
+
 def _shorten_with_ai(items: dict[str, str], limit: int) -> dict[str, str]:
     """Blocking. key -> shorter text. Fails open: an error returns nothing and the original wording stays."""
     from service.clients import instructor_client
@@ -144,7 +166,8 @@ def _est_lines(text: str) -> float:
 
 def fit_one_page(job: JobPosting, candidate_facts: list[FactBulletWithScore], resume: GeneratedResume, skeleton: ResumeSkeleton,
                  filename_base: str, *, compile_fn: Callable = compile_tex, pages_fn: Callable = count_pages,
-                 overflow_fn: Callable = overflow_lines, shorten_fn: Callable = _shorten_with_ai) -> FitResult:
+                 overflow_fn: Callable = overflow_lines, shorten_fn: Callable = _shorten_with_ai,
+                 keep_entries: Optional[list[str]] = None) -> FitResult:
     """Build the PDF and, if it is longer than one page, shorten and trim copies until it fits."""
     work_resume, work_sk = resume.model_copy(deep=True), skeleton.model_copy(deep=True)
     terms = job_terms(job)
@@ -157,11 +180,11 @@ def fit_one_page(job: JobPosting, candidate_facts: list[FactBulletWithScore], re
 
     path, pages = build()
     if pages is None or pages <= 1:
-        return FitResult(path, pages)
+        return FitResult(path, pages, resume=work_resume, skeleton=work_sk)
     events.emit("publisher", events.PROGRESS, "Over one page, trimming", fit="start", pages=pages)
 
     def done(fits: bool) -> FitResult:
-        return FitResult(path, pages, _note(changes, fits), fits, changes["shortened"], changes["dropped"])
+        return FitResult(path, pages, _note(changes, fits), fits, changes["shortened"], changes["dropped"], work_resume, work_sk)
 
     # 1. leadership with nothing to do with this job goes first
     gone = [e for e in work_sk.leadership if overlap(" ".join([e.title, e.org] + e.bullets), terms) == 0]
@@ -206,7 +229,7 @@ def fit_one_page(job: JobPosting, candidate_facts: list[FactBulletWithScore], re
         need = overflow_fn(path)
         freed = 0.0
         while freed < need:
-            victim = _least_relevant(work_resume, work_sk, score, terms)
+            victim = _least_relevant(work_resume, work_sk, score, terms, set(keep_entries or []))
             if victim is None:
                 break
             freed += _remove(victim, work_resume, work_sk, changes)
@@ -236,10 +259,13 @@ def fit_one_page(job: JobPosting, candidate_facts: list[FactBulletWithScore], re
     return done(fits)
 
 
-def _least_relevant(resume: GeneratedResume, sk: ResumeSkeleton, score: dict[str, float], terms: set[str]):
+def _least_relevant(resume: GeneratedResume, sk: ResumeSkeleton, score: dict[str, float], terms: set[str],
+                    keep: Optional[set[str]] = None):
     """The next thing to leave out, by lowest relevance across the whole resume: ("bullet", i) or ("lead_bullet", li, bi)
     when an entry has several bullets (its weakest goes), or a whole entry ("entry", id) / ("lead_entry", li) once it has
-    just one. The last work experience is never removed."""
+    just one. A whole job or internship (or an entry you asked to keep) goes only after every project and spare bullet,
+    and the last work experience is never removed."""
+    keep = keep or set()
     cands: list[tuple[float, tuple]] = []
     per_entry: dict[str, list[int]] = {}
     for i, b in enumerate(resume.bullets):
@@ -251,7 +277,8 @@ def _least_relevant(resume: GeneratedResume, sk: ResumeSkeleton, score: dict[str
             worst = min(idxs, key=lambda i: score.get(resume.bullets[i].fact_id, 0.0))
             cands.append((score.get(resume.bullets[worst].fact_id, 0.0), ("bullet", worst)))
         elif not (entry_id in work_ids and work_left <= 1):
-            cands.append((score.get(resume.bullets[idxs[0]].fact_id, 0.0), ("entry", entry_id)))
+            protect = 10.0 if entry_id in keep else 2.0 if entry_id in work_ids else 0.0
+            cands.append((protect + score.get(resume.bullets[idxs[0]].fact_id, 0.0), ("entry", entry_id)))
     for li, e in enumerate(sk.leadership):
         if len(e.bullets) > 1:
             bi = min(range(len(e.bullets)), key=lambda b: overlap(e.bullets[b], terms))

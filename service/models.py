@@ -12,6 +12,7 @@ class ProcessRequest(BaseModel):
     job_description: str = Field(..., description="Job description summary")
     job_requirements: str = Field(..., description="Requirements and qualifications")
     job_link: str = Field(..., description="Original job posting URL")
+    keep_entries: list[str] = Field(default_factory=list, description="Entry ids that must stay on the resume")
 
 
 # ---------- Extraction ----------
@@ -19,6 +20,9 @@ class ProcessRequest(BaseModel):
 class JobPosting(BaseModel):
     company: str
     role: str
+    location: str = Field("", description="City/country, or 'Remote', as stated in the posting")
+    deadline: Optional[str] = Field(None, description="Application closing date as YYYY-MM-DD, only if the posting states one")
+    is_internship: Optional[bool] = Field(None, description="True for an internship, industrial training, placement or trainee role")
     core_tech_stack: list[str] = Field(default_factory=list)
     hard_requirements: list[str] = Field(default_factory=list)
     soft_skills: list[str] = Field(default_factory=list)
@@ -137,6 +141,11 @@ class CriticFeedback(BaseModel):
     unsupported_claims: list[str] = Field(default_factory=list)
     overflow_risk: bool
     revision_notes: str
+    ai_score: float = 0.0                              # the AI reviewer's own opinion (0-100)
+    coverage: float = 0.0                              # % of the job's requirements the resume shows (counted in code)
+    covered: list[str] = Field(default_factory=list)   # requirements the resume shows
+    missing: list[str] = Field(default_factory=list)   # requirements it doesn't
+    reworded: list[str] = Field(default_factory=list)  # fact ids whose bullet added something; kept to its own words
 
 
 # ---------- Asking the user about missing skills ----------
@@ -157,6 +166,13 @@ class ProcessResponse(BaseModel):
     comment: str
     fit_note: str = ""        # what was shortened or left out to fit one page, "" if nothing
     github_note: str = ""     # tools found in the user's GitHub repos and added to their profile, "" if none
+    ai_score: float = 0.0     # the AI reviewer's opinion alone
+    coverage: float = 0.0     # % of the job's requirements the resume shows, counted in code
+    covered: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)          # tools the job wants that you have no saved experience of
+    facts_used: list[str] = Field(default_factory=list)    # fact ids on the finished resume
+    summary: dict = Field(default_factory=dict)             # what was picked, left out and reworded (for "What changed")
 
 
 # ---------- Agentic loop result ----------

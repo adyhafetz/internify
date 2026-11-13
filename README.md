@@ -19,7 +19,7 @@ When applying to dozens of software engineering roles, manually rewriting bullet
 2. Internify extracts the tech stack, hard requirements, and ATS keywords.
 3. An **Agentic Retrieval & Generator-Critic Loop** selects and tailors only your real, verified achievements.
 4. Tectonic renders and compiles a clean, **guaranteed 1-page LaTeX PDF** using **Jake's Resume** format.
-5. You receive the tailored PDF in Telegram within seconds, automatically tracked in your local SQLite database (or synced to Google Sheets & Drive).
+5. You receive the tailored PDF in Telegram within seconds, with how many of the job's requirements it shows, what was used and left out, and buttons to track it: **✅ I applied**, then 🎤 Interview, 🏆 Offer or ❌ Rejected. Everything is kept in your local SQLite database (or synced to Google Sheets & Drive).
 
 Behind the bot, **9 AI agents** share the work: the **Scout, Analyst, Archivist, Scribe, Critic and Publisher** write each resume; the **Discoverer and Matcher** find and pick new jobs for you every day; and the **Curator** keeps your saved experience tidy and in step with your GitHub repos.
 
@@ -38,9 +38,9 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 | 📄 Analyst | Works out what the job wants |
 | 🗄 Archivist | Finds your matching experience; checks your GitHub for missing tools, and asks you about what it can't find |
 | ✏️ Scribe | Writes the resume lines |
-| 🛡 Critic | Checks every line is true, and scores the match |
+| 🛡 Critic | Compares every line with the fact it came from (no new tool, number or name), and scores the match |
 | 📦 Publisher | Builds the PDF (and repairs it if needed), files it, and logs it |
-| 🧭 Discoverer | *Daily check:* visits your job pages each day and finds new postings |
+| 🧭 Discoverer | *Daily check:* reads your job pages and searches the web for postings that match what you look for |
 | 🎯 Matcher | *Daily check:* compares the new postings against your experience and the jobs you sent lately, and keeps the best few |
 | ✨ Curator | *Tidy-up:* fixes repeats and spellings, adds tools from your GitHub with a bullet point, and suggests removals and rewordings for you to approve |
 
@@ -49,8 +49,8 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
-- Offline checks (no keys needed; they also run automatically on every pull request, see `.github/workflows/tests.yml`): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_setup.py` (the setup page), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_github.py` (GitHub evidence), `python scripts/test_curator.py` (tidy-up), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
-- **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
+- Offline checks (no keys needed; they also run automatically on every pull request, see `.github/workflows/tests.yml`): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_quality.py` (requirement matching, grounding, the score, retrieval), `python scripts/test_tracker.py` (statuses, reminders, repeat jobs, rebuilding), `python scripts/test_setup.py` (the setup page), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_github.py` (GitHub evidence), `python scripts/test_curator.py` (tidy-up), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- **The resume comes first, questions after.** If a job wants a tool you have no saved experience for (say Kubernetes), you still get the resume right away, with a **🧩 I know Kubernetes: rebuild** button under it. Tap it and the Archivist asks: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) and the resume is rebuilt with it. Say no, and the resume won't claim it. Turn the button off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
 - Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
 - Put it on your own domain (home, privacy policy, terms and the private live dashboard): see [`docs/domain_setup.md`](docs/domain_setup.md).
@@ -63,11 +63,11 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 |---|---|
 | Scout | Plain web requests, plus a small AI check that the page is really one job posting (not a login or cookie page) and, as a last resort, whether another site's page is the same job |
 | Analyst | `EXTRACTOR_MODEL` reads the posting |
-| Archivist | Embeddings find your matching experience; missing skills are worked out in code. Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills together with one grounded bullet point (under the matching project, or a new project made from that repo), with no question. If no bullet point can be written, nothing is added and you are asked as usual |
+| Archivist | Embeddings find your matching experience (every job or internship keeps its best two bullet points, and bullet points from resumes that got you an interview get a small nudge); missing skills are worked out in code, by tool name and its other names ("Postgres" finds "PostgreSQL"). Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills together with one grounded bullet point (under the matching project, or a new project made from that repo), with no question. If no bullet point can be written, nothing is added and you are asked as usual |
 | Scribe | `GENERATOR_MODEL` writes the lines |
-| Critic | `CRITIC_MODEL` scores it, and plain code blocks any claim not in your saved facts |
+| Critic | Code compares every line with its fact (a new tool, number or name sends it back for a rewrite, and anything still added is put back to your own words before the PDF is built) and counts which of the job's requirements the resume shows; `CRITIC_MODEL` gives its opinion and rewrite notes. The score you see is half each |
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
-| Discoverer | Greenhouse and Lever are read directly; for any other career page a model lists the real openings (invented links are dropped) |
+| Discoverer | Boards on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their APIs; the web search is plain code; for any other career page a model lists the real openings (invented links are dropped) |
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
 | Curator | Code does the safe fixes; a model reviews every bullet point (reword or remove, checked by code that nothing is added), drafts GitHub bullet points, and settles whether a tool is already covered by a broader skill |
 
@@ -91,13 +91,17 @@ Every small helper falls back to plain rules if its model call fails.
 
 Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
-1. **Discoverer** visits your *job pages*: career pages or job boards you added, plus the boards (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Jobvite, Workday) behind jobs you already sent. In Malaysia? `/profile` → Job pages I check → 🇲🇾 Popular in Malaysia adds well-known job pages with one tap. Greenhouse and Lever are read from their public listings; any other career page goes through ScrapingAnt (if you set a key) or a plain visit.
-2. **Matcher** compares each new posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match.
-3. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
+1. **Discoverer** finds new postings in three ways:
+   - **Company job boards** on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their public job-listing APIs (clean data, no scraping). These are found for you: from the jobs you sent, from the web search, and from career pages (a career page that is really one of these boards is switched to its API automatically).
+   - **The web search** (on by default, no key needed) searches for the roles and places you look for on the hiring systems companies post on, and adds each company it finds to your job pages (marked "found by search"). So the list of companies grows by itself; remove any with ✕ and it isn't added back.
+   - **Any other page** you add (a career page, or a job board such as JobStreet from 🇲🇾 Popular in Malaysia) is read through ScrapingAnt (if you set a key) or a plain visit, and the job links are picked out.
+2. **Your filters** come next, before anything is read in full: **internships only** (on by default), and your **places** (default Malaysia and Remote). After reading, jobs that have closed, are in another place, or are the same job as one you already have a resume for (even through another link) are skipped too.
+3. **Matcher** compares each remaining posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match.
+4. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
 
-A check **never asks you questions** (you may be asleep): if a job needs a tool you haven't saved experience for, it says so. Send that link yourself to be asked.
+A check **never asks you questions** (you may be asleep): a job that needs a tool you haven't saved experience for gets the 🧩 button under its resume.
 
-Manage it in `/profile` → **🔭 Job pages I check**: see every page with its link and what happened on the last visit, add one (**➕ Add a link**, or **🇲🇾 Popular in Malaysia** for one-tap well-known pages), remove one with its **✕**, **Check now**, or pause and resume. **🔗 My links** (also in `/profile`) opens your dashboard, tracker sheet and Drive folder with one tap; the dashboard button needs `PUBLIC_URL` (your website address) in `.env`. Settings (the setup page sets the time and timezone; the others go in `.env`):
+Manage it in `/profile` → **🔭 Job pages I check**: **🎯 What I look for** (roles, places, internships only, web search on or off; with no roles set, the roles on your resume are used), every page with its link and what happened on the last visit, **➕ Add a link** or **🇲🇾 Popular in Malaysia**, remove one with its **✕**, **Check now**, or pause and resume. **🔗 My links** (also in `/profile`) opens your dashboard, tracker sheet and Drive folder with one tap; the dashboard button needs `PUBLIC_URL` (your website address) in `.env`. Settings (the setup page sets the time and timezone; the others go in `.env`):
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -107,7 +111,19 @@ Manage it in `/profile` → **🔭 Job pages I check**: see every page with its 
 | `SCAN_MAX_TAILORED` | `3` | Most resumes written per scan |
 | `SCAN_MIN_FIT` | `0.5` | Minimum fit (0 to 1) to be kept |
 
-The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+The web search reads Bing's (then DuckDuckGo's) public results pages; a day when they don't answer just means no extra jobs. The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+
+## 📊 Tracking your applications
+
+Every resume arrives with buttons: **✅ I applied** · **🚫 Not applying** · **📝 What changed** · and **🧩** when the job wants a tool you haven't saved.
+
+- **What it says:** the match score (half the AI reviewer's opinion, half how many of the job's requirements the finished PDF visibly shows), "Shows 7 of 10 requirements. Not on it: Docker, SQL", how many bullet points were used and reworded, what was left out, and the closing date if the posting gives one.
+- **📝 What changed:** every bullet point used (✏️ marks the reworded ones), what was left out, and **➕ Keep …** to rebuild with a left-out job or project kept.
+- **After you apply:** 🎤 Interview, 🏆 Offer, ❌ Rejected, 👻 No reply. Your Google Sheet's **Status** column follows (add **Applied Date** or **Deadline** headers to row 1 to get those too).
+- **Reminders:** an hour after the daily check: "Any news from …?" `FOLLOWUP_DAYS` (default 14) after you applied (⏳ Still waiting asks again a week later), and a nudge when a job you have a resume for closes within 3 days and isn't marked applied. On Sundays, a short summary of your week.
+- **It learns:** bullet points on resumes that got you an interview or an offer get a small nudge up in later jobs.
+- **Repeat jobs:** the same job through another link (LinkedIn, JobStreet and the company page) is recognised by company and title: when you send it, you're asked before a second resume is made; the daily check skips it.
+- `/applied` lists everything by status (Open, Interviews and offers, Closed, All), each with the same buttons and ♻️ Rebuild (from the saved job details, no page visit; your status is kept).
 
 ---
 
@@ -128,8 +144,9 @@ One process runs everything: `bot/` is Telegram, the dashboard and the daily che
 the PDF builder (`latex/`). There is no separate web service.
 
 ### Key Highlights
-- **Zero Hallucinations Guarantee**: Every bullet point generated cites a verified `fact_id` from your master fact store. The AI calibrates and highlights your true experience—it never invents jobs or skills.
-- **One page, measured**: after building the PDF, Internify counts the pages. If it runs over, it leaves out leadership that doesn't relate to the job, tightens long bullets (a code check refuses any rewrite that adds a number, tool or name), then leaves out the least relevant bullets, projects and roles, and finally trims courses and skills. Your saved profile is never changed, and the Telegram message says what was trimmed. If it still can't fit, it says so.
+- **Zero Hallucinations Guarantee**: Every bullet point cites a verified `fact_id` from your master fact store, and code compares its wording with that fact: a tool, number or name the fact doesn't have is sent back for a rewrite, and anything still added is put back to your own words before the PDF is built.
+- **Every job stays on**: each job or internship keeps at least its two best bullet points, and when trimming to one page, projects and spare bullet points go before a whole job.
+- **One page, measured**: after building the PDF, Internify counts the pages. If it runs over, it leaves out leadership that doesn't relate to the job, tightens long bullets (a code check refuses any rewrite that adds a number, tool or name), then leaves out the least relevant bullets and projects (a whole job only as a last resort), and finally trims courses and skills. Your saved profile is never changed, and the Telegram message says what was trimmed. If it still can't fit, it says so.
 - **Strict 1-Page Layout**: Work Experience and Leadership & Activities stay distinct, and a section with nothing in it is not printed.
 - **Self-Healing LaTeX Engine**: If Tectonic compilation encounters a LaTeX issue, an LLM diagnostic agent patches the TeX code automatically before retrying.
 - **Zero Infrastructure Friction**: Works out-of-the-box locally with **SQLite**. No domain name, no SSL setup, no webhooks, and no Google Cloud required to start.
@@ -250,7 +267,7 @@ The slash menu shows these six:
 |---|---|
 | `/profile` | **See and edit everything on your resume.** Contact details, education, jobs, projects, leadership and skills as buttons. Tap an entry to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete (it asks first) or ➕ to add a line. **➕ Add something** adds a whole job, project, leadership role or degree: you describe it in your own words and the AI turns it into bullet points. Skills are grouped by category: tap one to add (comma-separated) or remove. |
 | `/importresume` | Fill in everything from your current resume. Send a PDF, Word or text file (or just send the file), check the preview, then choose Replace or Add. |
-| `/history` | Jobs you've applied to, with match scores and links. |
+| `/applied` | Your applications by status, with buttons: applied, interview, offer, rejected, rebuild, what changed (`/history` still works). |
 | `/resume` | Download your general resume (PDF), not tailored to any job. |
 | `/help` | Everything the bot can do. |
 | `/cancel` | Stop the current step, for example a question the bot is waiting for you to answer. |

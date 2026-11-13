@@ -10,13 +10,14 @@ import asyncio
 import html
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from bot import config
-from bot.ask import SkillQuestioner, ask_for_job_text
+from bot.ask import SkillQuestioner, ask_choice, ask_for_job_text
 from bot.extraction import normalize_job_posting
-from bot.services.db import is_duplicate_url, update_application as db_update_application, upsert_application
+from bot.services.db import (USER_STATUSES, find_similar, get_application, is_duplicate_url,
+                             update_application as db_update_application, upsert_application)
 from bot.services.drive import upload_to_drive
 from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
 from bot.services.sheets import append_application, find_row_by_url, update_application_status
@@ -53,6 +54,14 @@ class JobOutcome:
     fit_note: str = ""
     github_note: str = ""
     error: str = ""
+    app_id: Optional[int] = None
+    coverage: float = 0.0
+    covered: list = field(default_factory=list)
+    missing: list = field(default_factory=list)
+    gaps: list = field(default_factory=list)          # tools to offer "add these and rebuild" for
+    summary: dict = field(default_factory=dict)
+    deadline: str = ""
+    skipped: bool = False                              # not written on purpose (the same job was done already)
 
 
 def fallback_source(page: Page) -> str:
@@ -68,6 +77,11 @@ def _record_failure(db_id: int, sheet_row: Optional[int], comment: str, score: f
         update_application_status(sheet_row, resume_status=resume_status, comment=comment)
 
 
+def _names(items: list, limit: int = 4) -> str:
+    shown = ", ".join(str(i) for i in items[:limit])
+    return shown + (f" and {len(items) - limit} more" if len(items) > limit else "")
+
+
 def build_caption(outcome: JobOutcome, intro: str = "") -> str:
     caption = (
         f"🎯 <b>Your resume for {html_escape(outcome.company)} is ready!</b>\n\n" if not intro else intro
@@ -75,6 +89,19 @@ def build_caption(outcome: JobOutcome, intro: str = "") -> str:
         f"• Role: {html_escape(outcome.role)}\n"
         f"• Job match: {score_emoji(outcome.score)} <b>{outcome.score:.0f}%</b> ({html_escape(outcome.status)})\n"
     )
+    total = len(outcome.covered) + len(outcome.missing)
+    if total:
+        caption += f"• Shows <b>{len(outcome.covered)} of {total}</b> of the job's requirements"
+        caption += (f". Not on it: {html_escape(_names(outcome.missing))}\n" if outcome.missing else "\n")
+    sm = outcome.summary or {}
+    if sm.get("bullets"):
+        places = len(sm.get("picked", []))
+        caption += (f"• 📝 {sm['bullets']} bullet points from {places} place{'s' if places != 1 else ''}"
+                    + (f", {sm['reworded']} reworded for this job" if sm.get("reworded") else ""))
+        out = [e["name"] for e in sm.get("left_out", [])] + sm.get("leadership_out", [])
+        caption += (f". Left out: {html_escape(_names(out, 2))}\n" if out else "\n")
+    if outcome.deadline:
+        caption += f"• ⏰ Applications close {html_escape(outcome.deadline)}\n"
     if outcome.github_note:
         caption += f"• 🐙 {html_escape(outcome.github_note)}\n"
     if outcome.fit_note:
@@ -85,14 +112,22 @@ def build_caption(outcome: JobOutcome, intro: str = "") -> str:
         caption += "• 💾 Saved on this computer only (Google Drive isn't connected)\n"
     if not outcome.sheet_row:
         caption += "• 📋 Not added to your Google Sheet (not connected)\n"
-    return caption + f"\n💡 <b>How it could be better:</b>\n<i>{html_escape(outcome.comment[:400])}</i>"
+    if outcome.gaps:
+        caption += f"• 🧩 The job also wants {html_escape(_names(outcome.gaps))}. Have real experience? Tap 🧩 below.\n"
+    room = min(300, 980 - len(caption) - 40)   # a file caption may be at most 1024 characters
+    if room > 60 and outcome.comment:
+        tip = outcome.comment if len(outcome.comment) <= room else outcome.comment[:room - 1].rsplit(" ", 1)[0] + "…"
+        caption += f"\n💡 <b>How it could be better:</b>\n<i>{html_escape(tip)}</i>"
+    return caption
 
 
 async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio.AbstractEventLoop,
-                     interactive: bool, intro: str = "") -> JobOutcome:
+                     interactive: bool, intro: str = "", ask_now: bool = False) -> JobOutcome:
     """Run the whole flow for one link. ``reporter`` has: ``notice(text)``, ``fail(text)``, ``finished(outcome)``
-    and ``deliver(outcome, caption_html)``. ``interactive`` lets the Scout and the Archivist ask the user questions;
-    the daily job check passes False because nobody is awake to answer."""
+    and ``deliver(outcome, caption_html, keyboard)``. ``interactive`` lets the Scout ask you to paste a page it can't
+    read and check with you before redoing a job you already have a resume for; the daily job check passes False
+    because nobody is awake to answer. Missing tools are not asked about during the run (``ask_now`` turns that back
+    on): the resume comes first, and a 🧩 button offers to add them and rebuild."""
 
     async def fail(text: str) -> JobOutcome:
         await reporter.fail(text)
@@ -149,6 +184,27 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
                 company=job.company, role=job.job_title, location=job.location,
                 description=job.job_description, requirements=job.job_requirements)
 
+    # 3b. The same job through another link (LinkedIn, JobStreet and the company's own page)? Don't do it twice
+    #     without asking.
+    if not already_tracked:
+        twin = find_similar(job.company, job.job_title, exclude_link=job_url)
+        if twin is not None:
+            when = str(twin.get("created_at") or "")[:10]
+            text = (f"ℹ️ You already have a resume for <b>{html_escape(twin['job_title'])}</b> at "
+                    f"<b>{html_escape(twin['company'])}</b> from {html_escape(when)} ({html_escape(twin['status'])}), "
+                    "through another link. It looks like the same job.")
+            events.emit("publisher", events.PROGRESS, "Looks like a job you already have a resume for",
+                        duplicate=True, twin=twin["job_link"])
+            if not interactive:
+                await reporter.notice(text)
+                return JobOutcome(ok=False, skipped=True, company=job.company, role=job.job_title,
+                                  error=f"Same job as one from {when}")
+            choice = await ask_choice(bot, chat_id, loop, text + "\n\nMake another one anyway?",
+                                      [("✍️ Yes, make a new one", "go"), ("✋ No, stop here", "stop")])
+            if choice == "stop":
+                await reporter.fail("👍 Okay, I stopped. Your earlier resume is in /applied.")
+                return JobOutcome(ok=False, skipped=True, company=job.company, role=job.job_title, error="stopped")
+
     # 4. Log to the trackers. A link that is already tracked is re-tailored: its rows are reused, never duplicated.
     try:
         db_id = upsert_application(
@@ -156,6 +212,8 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
             job_description=job.job_description, job_requirements=job.job_requirements,
             job_link=job_url, status="Processing",
         )
+        if job.deadline:
+            db_update_application(db_id, deadline=job.deadline)
         if sheet_row is None:
             sheet_row = await asyncio.to_thread(
                 append_application,
@@ -168,13 +226,42 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
         events.emit("publisher", events.FAIL, f"Couldn't update the tracker: {err}")
         return await fail(f"❌ Couldn't update your application tracker.\nReason: {err}")
 
+    fields = dict(company=job.company, job_title=job.job_title, location=job.location,
+                  job_description=job.job_description, job_requirements=job.job_requirements, job_link=job_url)
+    return await _write_and_deliver(fields, db_id, sheet_row, reporter, bot=bot, chat_id=chat_id, loop=loop,
+                                    ask_now=ask_now and interactive, intro=intro, deadline=job.deadline or "")
+
+
+async def rebuild(app_id: int, reporter, *, bot, chat_id: int, loop: asyncio.AbstractEventLoop,
+                  keep_entries: Optional[list[str]] = None, ask_now: bool = False) -> JobOutcome:
+    """Write the resume for a job in your tracker again, from the job details already saved (no page visit):
+    keeping an entry you asked for, or after asking about the tools the job wants."""
+    app = get_application(app_id)
+    if app is None:
+        await reporter.fail("❌ I can't find that job in your tracker any more.")
+        return JobOutcome(ok=False, error="not found")
+    if profile_is_sample():
+        await reporter.fail("📄 Your saved experience is still the sample profile, so I can't write a real resume yet.")
+        return JobOutcome(ok=False, error="sample profile")
+    events.emit("analyst", events.DONE, f"Using the saved details of {app['job_title']} at {app['company']}",
+                company=app["company"], role=app["job_title"], rebuild=True)
+    sheet_row = await asyncio.to_thread(find_row_by_url, app["job_link"]) if app.get("job_link") else None
+    fields = {k: app.get(k) or "" for k in ("company", "job_title", "location", "job_description", "job_requirements", "job_link")}
+    return await _write_and_deliver(fields, app_id, sheet_row, reporter, bot=bot, chat_id=chat_id, loop=loop,
+                                    ask_now=ask_now, keep_entries=keep_entries or [], deadline=app.get("deadline") or "")
+
+
+async def _write_and_deliver(fields: dict, db_id: int, sheet_row: Optional[int], reporter, *, bot, chat_id: int,
+                             loop: asyncio.AbstractEventLoop, ask_now: bool, keep_entries: Optional[list[str]] = None,
+                             intro: str = "", deadline: str = "") -> JobOutcome:
+    async def fail(text: str) -> JobOutcome:
+        await reporter.fail(text)
+        return JobOutcome(ok=False, error=text, app_id=db_id)
+
     # 5. Archivist, Scribe and Critic do the tailoring, off the event loop so live updates keep flowing.
     try:
-        ask = SkillQuestioner(bot, chat_id, loop) if interactive and config.ASK_ABOUT_MISSING_SKILLS else None
-        result = await asyncio.to_thread(run_pipeline, ProcessRequest(
-            company=job.company, job_title=job.job_title, location=job.location,
-            job_description=job.job_description, job_requirements=job.job_requirements, job_link=job_url,
-        ), ask)
+        ask = SkillQuestioner(bot, chat_id, loop) if ask_now and config.ASK_ABOUT_MISSING_SKILLS else None
+        result = await asyncio.to_thread(run_pipeline, ProcessRequest(**fields, keep_entries=keep_entries or []), ask)
     except Exception as err:
         logger.error("Resume pipeline error: %s", err)
         reason = err   # PipelineError carries plain-language text
@@ -188,24 +275,34 @@ async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio
 
     # 6. Publisher files it
     events.emit("publisher", events.PROGRESS, "Uploading PDF to Google Drive")
-    filename = f"{job.company}_{job.job_title}.pdf".replace(" ", "_")
+    filename = f"{fields['company']}_{fields['job_title']}.pdf".replace(" ", "_").replace("/", "-")
     drive_link = await asyncio.to_thread(upload_to_drive, pdf_path, filename)
     events.emit("publisher", events.PROGRESS,
                 "Uploaded to Drive" if drive_link else "Drive not configured, kept local copy",
                 drive_link=drive_link or "")
-    db_update_application(db_id, status="Ready", score=result.score, resume_status=result.resume_status,
-                          pdf_path=pdf_path, drive_link=drive_link or "", comment=result.comment)
+    current = (get_application(db_id) or {}).get("status")
+    status = current if current in USER_STATUSES else "Ready"   # rebuilding never undoes "Applied" or "Interview"
+    gaps = [] if ask_now else list(result.gaps)
+    db_update_application(db_id, status=status, score=result.score, resume_status=result.resume_status,
+                          pdf_path=pdf_path, drive_link=drive_link or "", comment=result.comment,
+                          facts_used=result.facts_used, details=result.summary, gaps=gaps)
     if sheet_row:
         await asyncio.to_thread(update_application_status, row_num=sheet_row, resume_link=drive_link or "",
-                                resume_status=result.resume_status, comment=f"Match {result.score:.0f}%. {result.comment}")
+                                resume_status=result.resume_status, status=status, deadline=deadline,
+                                comment=f"Match {result.score:.0f}%, shows {len(result.covered)} of "
+                                        f"{len(result.covered) + len(result.missing)} requirements. {result.comment}")
     events.emit("publisher", events.DONE,
                 "Resume filed and tracker updated" if sheet_row else "Saved to local tracker",
                 sheet_row=sheet_row or None, drive_link=drive_link or "", db_id=db_id, pdf=os.path.basename(pdf_path))
 
-    outcome = JobOutcome(ok=True, company=job.company, role=job.job_title, score=result.score, status=result.resume_status,
-                         pdf_path=pdf_path, filename=filename, drive_link=drive_link or "", sheet_row=sheet_row,
-                         comment=result.comment, fit_note=result.fit_note, github_note=result.github_note)
+    outcome = JobOutcome(ok=True, company=fields["company"], role=fields["job_title"], score=result.score,
+                         status=result.resume_status, pdf_path=pdf_path, filename=filename, drive_link=drive_link or "",
+                         sheet_row=sheet_row, comment=result.comment, fit_note=result.fit_note,
+                         github_note=result.github_note, app_id=db_id, coverage=result.coverage,
+                         covered=result.covered, missing=result.missing, gaps=gaps, summary=result.summary,
+                         deadline=deadline)
     await reporter.finished(outcome)
-    # 7. Deliver the PDF
-    await reporter.deliver(outcome, build_caption(outcome, intro))
+    # 7. Deliver the PDF, with the tracker buttons under it
+    from bot.tracker import delivery_keyboard
+    await reporter.deliver(outcome, build_caption(outcome, intro), delivery_keyboard(outcome))
     return outcome

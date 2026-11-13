@@ -27,7 +27,11 @@ BULLET RULES:
 - Prefer facts whose tech_tags overlap with the job's core_tech_stack, hard_requirements,
   and ats_keywords, but every selected bullet still needs a real supporting fact.
 - Cover every entry_id that has at least one available fact - do not skip an entire
-  entry unless it truly has zero relevant facts.
+  entry unless it truly has zero relevant facts. Every job or internship entry (not
+  projects) MUST keep at least one bullet: a missing job looks like a gap to a recruiter.
+- Do not add any tool, number, name or result that the fact's own text and tags do not
+  contain, even if the job asks for it. A code check compares every bullet with its fact
+  and rejects additions.
 - If revision notes are provided from a previous critique, address them directly.
 
 COURSE SELECTION RULES (selected_courses):

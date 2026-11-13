@@ -32,23 +32,35 @@ def _slugify(*parts: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "", joined.replace(" ", "_"))[:60]
 
 
-def _coverage(job, candidate_facts) -> tuple[list[str], list[str]]:
-    """Which job requirements are backed by at least one selected fact (by tech tag)."""
-    fact_tags = {t.lower() for f in candidate_facts for t in f.fact.tech_tags}
-    seen: set[str] = set()
-    covered: list[str] = []
-    missing: list[str] = []
-    for term in job.core_tech_stack + job.hard_requirements:
-        key = term.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        # match on whole tag or a tag contained in a longer requirement phrase
-        if key in fact_tags or any(tag in key for tag in fact_tags if len(tag) > 2):
-            covered.append(term)
-        else:
-            missing.append(term)
-    return covered, missing
+def _skill_items(skeleton) -> list[str]:
+    return [i for items in skeleton.skills.values() for i in items]
+
+
+def _coverage(job, candidate_facts, skeleton=None) -> tuple[list[str], list[str]]:
+    """Which job requirements the selected bullets (or your skills list) show, matched by tool name and its other names."""
+    from service.matching import coverage_of_facts
+    return coverage_of_facts(job, [f.fact for f in candidate_facts], _skill_items(skeleton) if skeleton else [])
+
+
+def _summary(job, facts, candidate_facts, resume, skeleton, fit_dropped: list[str], covered, missing) -> dict:
+    """What went onto the resume and what didn't, in plain words, for "What changed"."""
+    by_id = {f.id: f for f in facts}
+    names = {e.id: f"{e.title} at {e.company}" for e in skeleton.experience_entries}
+    names.update({p.id: p.name for p in skeleton.project_entries})
+    picked: dict[str, list[dict]] = {}
+    for b in resume.bullets:
+        src = by_id.get(b.fact_id)
+        picked.setdefault(b.entry_id, []).append({"text": b.text, "reworded": bool(src and src.text.strip() != b.text.strip())})
+    used = set(picked)
+    left_out = [{"id": eid, "name": name} for eid, name in names.items() if eid not in used and any(f.entry_id == eid for f in facts)]
+    leadership_out = [d.split(": ", 1)[1] for d in fit_dropped if d.startswith("leadership: ")]
+    return {
+        "picked": [{"id": eid, "name": names.get(eid, eid), "bullets": bl} for eid, bl in picked.items()],
+        "left_out": left_out, "leadership_out": leadership_out,
+        "bullets": len(resume.bullets), "facts": len(facts), "considered": len(candidate_facts),
+        "reworded": sum(1 for bl in picked.values() for b in bl if b["reworded"]),
+        "covered": covered, "missing": missing, "role": job.role, "company": job.company,
+    }
 
 
 def _skills_to_ask_about(job, missing: list[str]) -> list[str]:
@@ -111,8 +123,9 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
 
     skeleton = load_skeleton()
     events.emit("archivist", events.START, f"Searching {len(facts)} verified facts")
-    candidate_facts = retrieve_relevant_facts(job, facts)
-    matched, missing = _coverage(job, candidate_facts)
+    keep = [e for e in request.keep_entries if e]
+    candidate_facts = retrieve_relevant_facts(job, facts, skeleton=skeleton, keep_entries=keep)
+    matched, missing = _coverage(job, candidate_facts, skeleton)
 
     # Tools the job wants that the user has no saved experience for: first look for proof in their public GitHub repos
     # (found tools are added with no question), then ask the user about what is still missing instead of guessing.
@@ -122,7 +135,8 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         candidate_facts, matched, missing, found_ids = _apply_answers(github.answers, candidate_facts, matched, missing)
         new_fact_ids |= found_ids
         skeleton = load_skeleton()
-    gaps = _skills_to_ask_about(job, missing) if ask_skills else []
+    open_gaps = _skills_to_ask_about(job, missing)   # also offered after delivery ("add these and rebuild")
+    gaps = open_gaps if ask_skills else []
     if gaps:
         events.emit("archivist", events.ASK, f"Asking you about {', '.join(gaps)}", skills=gaps)
         try:
@@ -130,7 +144,8 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         except Exception as e:  # a failed question must never end the run: carry on without the answers
             logger.warning("Asking about missing skills failed: %s", e)
             answers = []
-        candidate_facts, matched, missing, new_fact_ids = _apply_answers(answers, candidate_facts, matched, missing)
+        candidate_facts, matched, missing, asked_ids = _apply_answers(answers, candidate_facts, matched, missing)
+        new_fact_ids |= asked_ids
         if any(a.has for a in answers):
             skeleton = load_skeleton()  # a confirmed tool may have been added to the skills list
 
@@ -164,7 +179,7 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
     events.emit("critic", events.HANDOFF, f"Approved draft, score {loop_result.feedback.score:.0f}", to="publisher")
     events.emit("publisher", events.START, "Rendering LaTeX and compiling a 1-page PDF")
     try:
-        fit = fit_one_page(job, candidate_facts, loop_result.resume, skeleton, filename_base)
+        fit = fit_one_page(job, candidate_facts, loop_result.resume, skeleton, filename_base, keep_entries=keep)
         pdf_path = fit.pdf_path
     except TexCompileError as e:
         events.emit("publisher", events.FAIL, "PDF compile failed after self-repair attempts")
@@ -176,11 +191,24 @@ def run_pipeline(request: ProcessRequest, ask_skills: Optional[SkillAsker] = Non
         )
 
     events.emit("publisher", events.PROGRESS, "PDF compiled", pdf=os.path.basename(pdf_path))
+    from service.matching import coverage_of_resume, coverage_percent
+    from service.agentic.critic import AI_WEIGHT
+    from service.agentic.loop import _quality_label
+    final_resume = fit.resume or loop_result.resume
+    final_sk = fit.skeleton or skeleton
+    covered, missing_now = coverage_of_resume(job, final_resume, final_sk)   # after trimming: what the PDF really shows
+    coverage = coverage_percent(covered, missing_now)
+    fb = loop_result.feedback
+    score = round(AI_WEIGHT * fb.ai_score + (1 - AI_WEIGHT) * coverage, 1) if fb.ai_score else fb.score
+    gaps_left = [g for g in open_gaps if g.lower() not in {m.lower() for m in matched}]
     return ProcessResponse(
-        resume_status=loop_result.status,
-        score=loop_result.feedback.score,
+        resume_status=_quality_label(score),
+        score=score,
         pdf_path=pdf_path,
-        comment=loop_result.feedback.revision_notes,
+        comment=fb.revision_notes,
         fit_note=fit.note,
         github_note=("Added from your GitHub: " + ", ".join(github.added)) if github.added else "",
+        ai_score=fb.ai_score, coverage=round(coverage, 1), covered=covered, missing=missing_now,
+        gaps=gaps_left, facts_used=[b.fact_id for b in final_resume.bullets],
+        summary=_summary(job, facts, candidate_facts, final_resume, final_sk, fit.dropped, covered, missing_now),
     )

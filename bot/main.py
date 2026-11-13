@@ -46,7 +46,7 @@ async def post_init(application) -> None:
     commands = [
         BotCommand("profile", "See and edit everything on your resume"),
         BotCommand("importresume", "Fill it in from your current resume (PDF or Word)"),
-        BotCommand("history", "Jobs you've applied to"),
+        BotCommand("applied", "Your applications: applied, interviews, offers"),
         BotCommand("resume", "Download your general resume (PDF)"),
         BotCommand("help", "Everything I can do"),
         BotCommand("cancel", "Stop the current step"),
@@ -66,6 +66,8 @@ async def post_init(application) -> None:
     logger.info("Daily job check: %s", when or "off")
     from bot import tidy
     tidy.schedule(application)
+    from bot import tracker
+    tracker.schedule(application)
 
 
 def create_bot_app():
@@ -85,6 +87,10 @@ def create_bot_app():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("history", history_command))
+    app.add_handler(CommandHandler("applied", history_command))
+    # The tracker's buttons (under each resume, in /applied and on reminders)
+    from bot.tracker import tracker_callback
+    app.add_handler(CallbackQueryHandler(tracker_callback, pattern=r"^jb:"))
     app.add_handler(CommandHandler("cancel", cancel_command))
     app.add_handler(CommandHandler("resume", master_resume_command))
 

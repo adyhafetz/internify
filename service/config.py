@@ -30,6 +30,7 @@ MAX_GENERATOR_ITERATIONS = int(os.getenv("MAX_GENERATOR_ITERATIONS", "3"))
 MAX_TEX_FIX_RETRIES = int(os.getenv("MAX_TEX_FIX_RETRIES", "2"))
 TECTONIC_TIMEOUT_SECONDS = int(os.getenv("TECTONIC_TIMEOUT_SECONDS", "600"))
 TOP_K_FACTS = int(os.getenv("TOP_K_FACTS", "10"))
+MIN_FACTS_PER_JOB = int(os.getenv("MIN_FACTS_PER_JOB", "2"))   # every job or internship keeps at least this many bullets
 
 FACT_STORE_PATH = os.getenv("FACT_STORE_PATH", "output/data/facts.json")
 SKELETON_PATH = os.getenv("SKELETON_PATH", "output/data/resume_skeleton.json")

@@ -8,6 +8,8 @@ tmp = tempfile.mkdtemp()
 for name in ("facts.json", "resume_skeleton.json"):
     shutil.copy(os.path.join("service/fact_store", name), os.path.join(tmp, name))
 
+from service.models import ResumeSkeleton as _RS, ResumeHeader as _RH
+_SK = _RS(header=_RH(name='T', phone='', email='t@x.y', linkedin_url='', linkedin_display='', github_url='', github_display=''))
 from service import config as service_config
 service_config.FACT_STORE_PATH = os.path.join(tmp, "facts.json")
 service_config.SKELETON_PATH = os.path.join(tmp, "resume_skeleton.json")
@@ -157,14 +159,14 @@ JOB = JobPosting(company="Acme", role="Intern", core_tech_stack=["Python", "Kube
 seen = {}
 main_mod.extract_job_posting = lambda raw: JOB
 main_mod.load_facts = lambda: [OLD]
-main_mod.load_skeleton = lambda: seen.setdefault("reloaded", []).append(1) or object()
-main_mod.retrieve_relevant_facts = lambda job, facts: [FactBulletWithScore(fact=OLD, similarity=0.8, keyword_boost=0.1)]
+main_mod.load_skeleton = lambda: seen.setdefault("reloaded", []).append(1) or _SK
+main_mod.retrieve_relevant_facts = lambda job, facts, **kw: [FactBulletWithScore(fact=OLD, similarity=0.8, keyword_boost=0.1)]
 loop_mod.generate_resume = lambda **kw: (seen.__setitem__("facts", [f.fact.id for f in kw["candidate_facts"]]) or
                                          GeneratedResume(bullets=[ResumeBullet(fact_id="f1", entry_id="e1", text="x")]))
 loop_mod.critique = lambda **kw: CriticFeedback(score=90.0, keyword_coverage_notes="", unsupported_claims=[], overflow_risk=False, revision_notes="")
 pdf = os.path.join(tmp, "x.pdf"); open(pdf, "w").write("x")
 from service.latex.fit import FitResult
-main_mod.fit_one_page = lambda job, facts, resume, skeleton, base: FitResult(pdf, 1)
+main_mod.fit_one_page = lambda job, facts, resume, skeleton, base, **kw: FitResult(pdf, 1)
 asked = []
 def asker(skills):
     asked.append(list(skills))

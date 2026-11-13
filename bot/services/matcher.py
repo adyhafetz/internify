@@ -15,7 +15,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-from bot.services import ai, db
+from datetime import date
+
+from bot.services import ai, db, watchlist
 from bot.services.discovery import Candidate
 from bot.services.scraper import scrape_job_url
 from service import config as service_config
@@ -37,6 +39,7 @@ class Scored:
     covered: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
     why: str = ""
+    rejected: str = ""        # why your filters ruled it out after reading it, "" if they didn't
 
 
 @dataclass
@@ -108,15 +111,38 @@ async def _read(cand: Candidate) -> Optional[str]:
     return page.text if page else None
 
 
-def _analyse(raw_text: str) -> tuple[str, str, list[str], list[str]]:
-    """Blocking. (role, company, covered, missing): which of the job's tools and requirements your bullets cover."""
+def _analyse(raw_text: str):
+    """Blocking. (job, covered, missing): which of the job's tools and requirements your bullets (or skills list) cover,
+    matched the same way as when the resume is written."""
+    from bot.extraction import focus_text
     from service.extraction.extractor import extract_job_posting
-    from service.fact_store.store import load_facts
+    from service.fact_store.store import load_facts, load_skeleton
     from service.pipeline import _coverage
     from service.retrieval.retriever import retrieve_relevant_facts
-    job = extract_job_posting(raw_text)
-    covered, missing = _coverage(job, retrieve_relevant_facts(job, load_facts()))
-    return job.role, job.company, covered, missing
+    job = extract_job_posting(focus_text(raw_text, 12000))
+    sk = load_skeleton()
+    covered, missing = _coverage(job, retrieve_relevant_facts(job, load_facts(), skeleton=sk), sk)
+    return job, covered, missing
+
+
+def _rejects(job, prefs, cand: Candidate) -> str:
+    """Why your filters rule this job out once it has been read, or "" if it passes."""
+    if prefs is None:
+        return ""
+    if prefs.interns_only and job.is_internship is False and not watchlist.is_intern_title(cand.title):
+        return "not an internship"
+    if job.location and not watchlist.place_ok(job.location, prefs):
+        return f"in {job.location}"
+    if job.deadline:
+        try:
+            if date.fromisoformat(job.deadline[:10]) < date.today():
+                return f"closed on {job.deadline[:10]}"
+        except ValueError:
+            pass
+    twin = db.find_similar(job.company or cand.company, job.role or cand.title, exclude_link=cand.url)
+    if twin is not None:
+        return "you already have a resume for this job"
+    return ""
 
 
 def _why(covered: list[str], missing: list[str]) -> str:
@@ -124,8 +150,8 @@ def _why(covered: list[str], missing: list[str]) -> str:
     return text + (f" Missing: {', '.join(missing[:2])}." if missing else "")
 
 
-async def match(cands: list[Candidate], max_keep: int, min_fit: float) -> MatchResult:
-    """Score the candidates and keep the best ``max_keep`` that clear ``min_fit``."""
+async def match(cands: list[Candidate], max_keep: int, min_fit: float, prefs=None) -> MatchResult:
+    """Score the candidates and keep the best ``max_keep`` that clear ``min_fit`` and pass your filters."""
     if not cands:
         return MatchResult([], 0, 0, None)
     taste = await asyncio.to_thread(taste_texts)
@@ -140,20 +166,25 @@ async def match(cands: list[Candidate], max_keep: int, min_fit: float) -> MatchR
             text = await _read(item.cand)
             if not text:
                 continue
-            role, company, covered, missing = await asyncio.to_thread(_analyse, text)
+            job, covered, missing = await asyncio.to_thread(_analyse, text)
         except Exception as err:   # an unreadable or odd posting is skipped, never fatal
             logger.info("Matcher skipped %s: %s", item.cand.url, err)
             continue
+        role, company = job.role, job.company
         total = len(covered) + len(missing)
         coverage = len(covered) / total if total else 0.5
         norm = min(1.0, max(0.0, (item.title_sim - 0.15) / 0.45))
         item.fit = COVERAGE_WEIGHT * coverage + TITLE_WEIGHT * norm
         item.role, item.company = role or item.cand.title, company or item.cand.company
         item.covered, item.missing, item.why = covered, missing, _why(covered, missing)
+        item.rejected = _rejects(job, prefs, item.cand)
+        if item.rejected:
+            item.why = f"Skipped: {item.rejected}."
         scored.append(item)
 
     scored.sort(key=lambda x: x.fit, reverse=True)
-    kept = [x for x in scored if x.fit >= min_fit][:max_keep]
+    kept = [x for x in scored if x.fit >= min_fit and not x.rejected][:max_keep]
     for item in kept:   # a plain-language sentence for each pick (the template reason stays if the AI is off)
         item.why = await ai.explain_match(item.role, item.company, item.covered, item.missing, item.why)
-    return MatchResult(kept, len(cands), len(shortlist), scored[0].fit if scored else None, scored)
+    passing = [x for x in scored if not x.rejected]
+    return MatchResult(kept, len(cands), len(shortlist), passing[0].fit if passing else None, scored)

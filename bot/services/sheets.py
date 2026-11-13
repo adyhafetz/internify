@@ -116,8 +116,12 @@ def update_application_status(
     resume_link: str = "",
     resume_status: str = "",
     comment: str = "",
+    status: str = "",
+    applied_date: str = "",
+    deadline: str = "",
 ) -> None:
-    """Updates the status and resume link for an existing row."""
+    """Updates the status and resume link for an existing row. Columns your sheet doesn't have are skipped
+    (add "Applied Date" or "Deadline" headers to row 1 to get those too)."""
     ws = _get_worksheet()
     if not ws or row_num <= 1:
         return
@@ -130,6 +134,9 @@ def update_application_status(
             ws.update_cell(row_num, header_map["Resume Status"], resume_status)
         if "Comment" in header_map and comment:
             ws.update_cell(row_num, header_map["Comment"], comment)
+        for header, value in (("Status", status), ("Applied Date", applied_date), ("Deadline", deadline)):
+            if header in header_map and value:
+                ws.update_cell(row_num, header_map[header], value)
     except Exception as e:
         logger.error("Failed to update row %d in Google Sheet: %s", row_num, e)
 

@@ -1,17 +1,20 @@
-"""The Discoverer: finds job links on the sources you watch.
+"""The Discoverer: finds new jobs for the daily check.
 
-  * Greenhouse and Lever boards are read through their public job-listing APIs: titles, links, locations and the full
-    description, with no scraping.
-  * Any other career page is read (ScrapingAnt if you have a key, a normal visit, or a page-rendering service) and the
-    job links are picked out of it. Those candidates carry only a title, so the Matcher reads the best of them later.
-
-Sources are visited one at a time, politely. A source that fails never stops the others."""
+  * Company boards on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their public job-listing
+    APIs: titles, links, locations (and usually the description), with no scraping.
+  * A career page is read (ScrapingAnt if you have a key, a normal visit, or a page-rendering service). If it turns out
+    to be powered by one of those hiring systems, the page is switched to the API for good; otherwise the job links
+    are picked out of it (by AI if available, plain rules if not).
+  * The web search (on by default) looks for postings that match what you look for, so the companies you watch grow
+    by themselves instead of being a fixed list (see websearch.py).
+Your filters (internships only, places) are applied here, before anything is read in full, so big boards don't crowd
+out the few jobs that fit. Sources are visited one at a time, politely. A source that fails never stops the others."""
 from __future__ import annotations
 
 import html as htmllib
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional
 from urllib.parse import urldefrag, urljoin, urlparse
 
@@ -20,12 +23,12 @@ from bs4 import BeautifulSoup
 
 from bot import config
 from bot.services import ai, scraper
-from bot.services.watchlist import Source, mark_checked
+from bot.services.watchlist import BOARD_KINDS, Prefs, Source, classify, mark_checked, place_ok, retarget, title_ok
 from service import events
 
 logger = logging.getLogger(__name__)
 
-MAX_PER_SOURCE = 60
+MAX_PER_SOURCE = 60   # kept per source, after your filters
 ROLE_WORDS = ("engineer", "developer", "intern", "analyst", "scientist", "designer", "manager", "associate", "graduate",
               "researcher", "specialist", "consultant", "administrator", "architect", "programmer", "technician", "trainee")
 JOB_PATH = re.compile(r"/(jobs?|careers?|positions?|openings?|vacanc\w*|postings?|roles?|apply|opportunit\w*)(/|$|\?|-)|gh_jid=|/j/|/o/", re.I)
@@ -49,6 +52,7 @@ class SourceResult:
     ok: bool
     found: int = 0
     reason: str = ""
+    skipped: int = 0          # left out by your filters
 
 
 def _text_of(markup: str) -> str:
@@ -92,6 +96,73 @@ async def _lever(src: Source) -> list[Candidate]:
                       location=(p.get("categories") or {}).get("location", "") or "",
                       snippet=((p.get("descriptionPlain") or "") + " " + (p.get("additionalPlain") or "")).strip()[:3000], source=src.label)
             for p in data if p.get("text") and p.get("hostedUrl")]
+
+
+async def _ashby(src: Source) -> list[Candidate]:
+    async with scraper._client(25.0) as client:
+        data = (await _get(client, f"https://api.ashbyhq.com/posting-api/job-board/{src.ident}")).json()
+    out = []
+    for j in data.get("jobs", []):
+        if not j.get("title") or not j.get("jobUrl") or j.get("isListed") is False:
+            continue
+        loc = j.get("location") or ""
+        if j.get("isRemote"):
+            loc = f"{loc}, Remote".strip(", ")
+        extra = " ".join(x.get("location", "") for x in (j.get("secondaryLocations") or []) if isinstance(x, dict))
+        out.append(Candidate(title=j["title"].strip(), company=src.label, url=j["jobUrl"], location=f"{loc} {extra}".strip(),
+                             snippet=(j.get("employmentType", "") + " " + (j.get("descriptionPlain") or "")).strip()[:3000],
+                             source=src.label))
+    return out
+
+
+async def _smartrecruiters(src: Source) -> list[Candidate]:
+    async with scraper._client(25.0) as client:
+        data = (await _get(client, f"https://api.smartrecruiters.com/v1/companies/{src.ident}/postings", params={"limit": 100})).json()
+    out = []
+    for p in data.get("content", []):
+        if not p.get("name") or not p.get("id"):
+            continue
+        loc = p.get("location") or {}
+        where = loc.get("fullLocation") or ", ".join(x for x in (loc.get("city"), loc.get("country")) if x)
+        if loc.get("remote"):
+            where = f"{where}, Remote".strip(", ")
+        kind = " ".join(((p.get(k) or {}).get("label") or "") for k in ("typeOfEmployment", "experienceLevel"))
+        out.append(Candidate(title=p["name"].strip(), company=src.label, url=f"https://jobs.smartrecruiters.com/{src.ident}/{p['id']}",
+                             location=where, snippet=kind.strip(), source=src.label))
+    return out
+
+
+async def _workable(src: Source) -> list[Candidate]:
+    async with scraper._client(25.0) as client:
+        data = (await _get(client, f"https://apply.workable.com/api/v1/widget/accounts/{src.ident}", params={"details": "true"})).json()
+    out = []
+    for j in data.get("jobs", []):
+        url = j.get("url") or j.get("application_url") or (f"https://apply.workable.com/{src.ident}/j/{j['shortcode']}" if j.get("shortcode") else "")
+        if not j.get("title") or not url:
+            continue
+        where = ", ".join(x for x in (j.get("city"), j.get("state"), j.get("country")) if x)
+        if j.get("telecommuting"):
+            where = f"{where}, Remote".strip(", ")
+        out.append(Candidate(title=j["title"].strip(), company=data.get("name") or src.label, url=url, location=where,
+                             snippet=(str(j.get("employment_type") or "") + " " + _text_of(j.get("description", ""))).strip()[:3000],
+                             source=src.label))
+    return out
+
+
+_BOARD_LINK = re.compile(r"https?://(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io/[^\s\"'<>)]+|"
+                         r"https?://jobs(?:\.eu)?\.lever\.co/[^\s\"'<>)]+|https?://jobs\.ashbyhq\.com/[^\s\"'<>)]+|"
+                         r"https?://apply\.workable\.com/[^\s\"'<>)]+|https?://(?:careers|jobs)\.smartrecruiters\.com/[^\s\"'<>)]+")
+
+
+def detect_board(text: str) -> Optional[tuple[str, str]]:
+    """(kind, board name) if a career page is really a board on a hiring system we can read through its API
+    (it links to or embeds it), else None. The board linked most often wins."""
+    counts: dict[tuple[str, str], int] = {}
+    for m in _BOARD_LINK.finditer(htmllib.unescape(text or "")):
+        kind, ident, _ = classify(m.group(0).rstrip(".,;"))
+        if kind in BOARD_KINDS and ident:
+            counts[(kind, ident)] = counts.get((kind, ident), 0) + 1
+    return max(counts, key=counts.get) if counts else None
 
 
 # ---------------------------------------------------------------- any other career page
@@ -151,6 +222,17 @@ def extract_job_links(text: str, base_url: str) -> list[tuple[str, str]]:
 
 async def _page(src: Source) -> list[Candidate]:
     text = await _listing(src.url)
+    board = detect_board(text)
+    if board is not None:   # the page is powered by a hiring system with an API: use that (and remember it)
+        kind, ident = board
+        try:
+            found = await _READERS[kind](replace(src, kind=kind, ident=ident))
+            retarget(src.id, kind, ident)
+            events.emit("discoverer", events.PROGRESS, f"{src.label} uses {kind.title()}: reading its job list directly",
+                        label=src.label, board=kind)
+            return found
+        except Exception as err:
+            logger.info("Board %s/%s behind %s didn't answer (%s); reading the page instead", kind, ident, src.url, err)
     links = None
     if ai.enabled():
         events.emit("discoverer", events.PROGRESS, f"Reading {src.label} with AI", ai_read=src.label)
@@ -160,23 +242,53 @@ async def _page(src: Source) -> list[Candidate]:
     return [Candidate(title=t, company=src.label, url=u, source=src.label) for t, u in links]
 
 
-_READERS = {"greenhouse": _greenhouse, "lever": _lever, "page": _page}
+_READERS = {"greenhouse": _greenhouse, "lever": _lever, "ashby": _ashby, "smartrecruiters": _smartrecruiters,
+            "workable": _workable, "page": _page}
 
 
-async def discover(sources: list[Source]) -> tuple[list[Candidate], list[SourceResult]]:
-    """Visit every source. Returns (all candidates, one result per source). Progress goes out as Discoverer events."""
+def _wanted(c: Candidate, prefs: Optional[Prefs]) -> bool:
+    """Your filters, on what is known before the posting is read: the title, and the location if the board gave one."""
+    if prefs is None:
+        return True
+    return title_ok(c.title, prefs, c.snippet)[0] and place_ok(c.location, prefs)
+
+
+async def _search_web(prefs: Prefs, seen_urls: set[str]) -> tuple[list[Candidate], Optional[SourceResult]]:
+    from bot.services import websearch
+    events.emit("discoverer", events.PROGRESS, "Searching the web for matching postings", status="trying", label="Web search")
+    try:
+        postings, queries = await websearch.find_postings(prefs)
+    except Exception as err:
+        logger.info("Web search failed: %s", err)
+        return [], SourceResult("Web search", False, 0, "the search engines didn't answer")
+    if not queries:
+        return [], None
+    found = [Candidate(title=t, company=co, url=u, source="Web search") for t, co, u in postings]
+    kept = [c for c in found if c.url not in seen_urls and _wanted(c, prefs)]
+    seen_urls.update(c.url for c in kept)
+    events.emit("discoverer", events.PROGRESS, f"Web search: {len(kept)} jobs", status="ok", label="Web search",
+                found=len(kept), queries=queries)
+    if not postings:
+        return [], SourceResult("Web search", False, 0, "no results today")
+    return kept, SourceResult("Web search", True, len(kept), skipped=len(found) - len(kept))
+
+
+async def discover(sources: list[Source], prefs: Optional[Prefs] = None) -> tuple[list[Candidate], list[SourceResult]]:
+    """Visit every source (and search the web if that is on). Returns (all candidates that pass your filters, one
+    result per source). Progress goes out as Discoverer events."""
     candidates: list[Candidate] = []
     results: list[SourceResult] = []
     seen_urls: set[str] = set()
     for src in sources:
         events.emit("discoverer", events.PROGRESS, f"Checking {src.label}", status="trying", label=src.label)
         try:
-            found = (await _READERS[src.kind](src))[:MAX_PER_SOURCE]
-            fresh = [c for c in found if c.url and c.url not in seen_urls]
+            found = await _READERS[src.kind](src)
+            wanted = [c for c in found if c.url and c.url not in seen_urls and _wanted(c, prefs)]
+            fresh = wanted[:MAX_PER_SOURCE]
             seen_urls.update(c.url for c in fresh)
             candidates += fresh
-            results.append(SourceResult(src.label, True, len(fresh)))
-            mark_checked(src.id, f"ok: {len(fresh)} jobs")
+            results.append(SourceResult(src.label, True, len(fresh), skipped=len(found) - len(wanted)))
+            mark_checked(src.id, f"ok: {len(fresh)} jobs" + (f" ({len(found) - len(wanted)} filtered out)" if len(found) > len(wanted) else ""))
             events.emit("discoverer", events.PROGRESS, f"{src.label}: {len(fresh)} jobs", status="ok", label=src.label, found=len(fresh))
         except Exception as err:   # one bad source must never stop the scan
             reason = _reason(err)
@@ -184,4 +296,9 @@ async def discover(sources: list[Source]) -> tuple[list[Candidate], list[SourceR
             results.append(SourceResult(src.label, False, 0, reason))
             mark_checked(src.id, f"failed: {reason}")
             events.emit("discoverer", events.PROGRESS, f"{src.label} didn't answer", status="failed", label=src.label, reason=reason)
+    if prefs is not None and prefs.web_search:
+        found, result = await _search_web(prefs, seen_urls)
+        candidates += found
+        if result is not None:
+            results.append(result)
     return candidates, results

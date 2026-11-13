@@ -227,6 +227,16 @@ async def ask_for_job_text(bot, chat_id: int, loop: asyncio.AbstractEventLoop, m
     return text
 
 
+async def ask_choice(bot, chat_id: int, loop: asyncio.AbstractEventLoop, text: str,
+                     options: list[tuple[str, str]]) -> Optional[str]:
+    """One question with buttons, in turn with any other question in this chat. The tapped value, or None after the
+    time limit."""
+    questioner = SkillQuestioner(bot, chat_id, loop)
+    lock = _locks.setdefault(chat_id, asyncio.Lock())
+    async with lock:
+        return await questioner._choose(text, options)
+
+
 # ----- Telegram handlers (registered in bot/main.py) -----
 async def ask_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """A button on one of the Archivist's questions was tapped."""
