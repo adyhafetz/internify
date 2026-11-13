@@ -46,7 +46,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
-- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_setup.py` (the setup page), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_setup.py` (the setup page), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_github.py` (GitHub evidence), `python scripts/test_curator.py` (tidy-up), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - **It asks when it's unsure.** If a job wants a tool you have no saved experience for (say Kubernetes), the Archivist asks you in Telegram: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) for this resume and every later one. Say no, and the resume won't claim it. No reply within 2 minutes means skip. Turn it off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
 - Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
@@ -60,7 +60,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 |---|---|
 | Scout | Plain web requests, plus a small AI check that the page is really one job posting (not a login or cookie page) and, as a last resort, whether another site's page is the same job |
 | Analyst | `EXTRACTOR_MODEL` reads the posting |
-| Archivist | Embeddings find your matching experience; missing skills are worked out in code |
+| Archivist | Embeddings find your matching experience; missing skills are worked out in code. Before asking you about a missing tool it checks your public GitHub repos (`GITHUB_USERNAME`): a tool used there is added to your skills together with one grounded bullet point (under the matching project, or a new project made from that repo), with no question. If no bullet point can be written, nothing is added and you are asked as usual |
 | Scribe | `GENERATOR_MODEL` writes the lines |
 | Critic | `CRITIC_MODEL` scores it, and plain code blocks any claim not in your saved facts |
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
@@ -68,6 +68,13 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
 
 Every small helper falls back to plain rules if its model call fails.
+
+## 🧹 Tidy up (the Curator)
+
+`/profile` → **🧹 Tidy up**, every Sunday, and after each resume import, the Curator checks your saved experience.
+- **Fixed automatically** (with a backup): the same skill listed twice or under two spellings ("React" and "React.js"), tag spellings, and a bullet point saved twice.
+- **From your GitHub** (with `GITHUB_USERNAME` set): tools your public repos use that your skills don't list are added automatically, each with one bullet point that shows it; a repo that isn't one of your projects yet becomes one. Repos changed in the last two years only, never forks or your profile repo.
+- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't, near-duplicate bullet points, tighter wording for long or weak bullet points, and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
 
 ## ☀️ The Daily Job Check (finds jobs for you)
 

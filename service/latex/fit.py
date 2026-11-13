@@ -109,7 +109,12 @@ def _fact_tokens(text: str) -> set[str]:
 def adds_new_facts(original: str, shortened: str) -> bool:
     """True if the shorter text mentions a number, tool or name that the original did not. Words may be dropped or
     swapped for plain ones, but nothing may be added."""
-    return bool(_fact_tokens(shortened) - _fact_tokens(original))
+    known: set[str] = set()
+    for tok in _FACT_TOKEN.findall(original):
+        low = tok.lower().rstrip(".,")
+        known.add(low)
+        known.update(p for p in re.split(r"[-/_]", low) if p)    # "weather-cli" also counts as "weather" and "cli"
+    return bool(_fact_tokens(shortened) - known)
 
 
 def _shorten_with_ai(items: dict[str, str], limit: int) -> dict[str, str]:

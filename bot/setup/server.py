@@ -199,7 +199,7 @@ def get_state():
             "has": {k: bool(cur.get(k)) for k in SECRETS | {"TELEGRAM_ALLOWED_USER_IDS", "GOOGLE_CLIENT_ID", "GOOGLE_SHEET_ID", "GOOGLE_DRIVE_FOLDER_ID"}},
             "allowed_user_ids": cur.get("TELEGRAM_ALLOWED_USER_IDS", ""),
             "scan_time": cur.get("SCAN_TIME", "") or "08:00", "scan_timezone": cur.get("SCAN_TIMEZONE", ""),
-            "contact_email": cur.get("CONTACT_EMAIL", ""), "public_url": cur.get("PUBLIC_URL", ""),
+            "contact_email": cur.get("CONTACT_EMAIL", ""), "public_url": cur.get("PUBLIC_URL", ""), "github_username": cur.get("GITHUB_USERNAME", ""),
             "models": {k: cur.get(k, "") for k in ("EXTRACTOR_MODEL", "CRITIC_MODEL", "GENERATOR_MODEL", "EMBEDDING_MODEL")}}
 
 
@@ -287,6 +287,7 @@ class Settings(BaseModel):
     contact_email: str = ""
     dashboard_key: str = ""
     public_url: str = ""
+    github_username: str = ""
     google: dict[str, str] = {}
 
 
@@ -337,6 +338,11 @@ def save(s: Settings):
     for k, v in s.google.items():   # values typed by hand win
         if k in allowed and v.strip():
             values[k] = v.strip()
+    if s.github_username.strip():
+        gh = s.github_username.strip().lstrip("@").rstrip("/").rsplit("/", 1)[-1]
+        if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})", gh):
+            return _fail("That doesn't look like a GitHub username (letters, numbers and dashes only).")
+        values["GITHUB_USERNAME"] = gh
     if s.public_url.strip():
         url = s.public_url.strip().rstrip("/")
         if not re.fullmatch(r"https://[\w.-]+(:\d+)?", url):

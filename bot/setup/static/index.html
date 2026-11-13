@@ -95,6 +95,9 @@ details ol{margin:10px 0 4px;padding-left:20px}details li{margin:5px 0}a{color:v
   <h2>Daily job check</h2><p class="muted">Every day Internify looks at the job pages you choose and writes resumes for the best matches.</p>
   <div class="row"><div><label for="stime">Time</label><input id="stime" type="time" value="08:00"></div><div><label for="stz">Your timezone</label><input id="stz" list="tzs"></div></div>
   <datalist id="tzs"><option>Asia/Kuala_Lumpur</option><option>Asia/Singapore</option><option>Asia/Jakarta</option><option>Asia/Bangkok</option><option>Asia/Manila</option><option>Asia/Kolkata</option><option>Asia/Tokyo</option><option>Australia/Sydney</option><option>Europe/London</option><option>Europe/Berlin</option><option>America/New_York</option><option>America/Chicago</option><option>America/Los_Angeles</option><option>UTC</option></datalist>
+  <h2>Your GitHub</h2>
+  <p class="muted">When a job wants a tool you haven't saved, Internify first looks for it in your public repos and adds it for you.</p>
+  <label for="ghu">GitHub username (optional)</label><input id="ghu" autocomplete="off" placeholder="for example adyhafetz">
   <h2>Reading blocked job pages</h2>
   <details class="how"><summary>What is ScrapingAnt and how do I get a key?</summary><ol><li>It helps Internify read job sites that block normal visits. Without it Internify still works, you just paste the job text a bit more often.</li><li>Sign up free at <a href="https://scrapingant.com" target="_blank" rel="noopener">scrapingant.com</a>, then copy the <b>API token</b> from your dashboard.</li></ol></details>
   <div class="row"><input id="sa" type="password" autocomplete="off" placeholder="ScrapingAnt token (optional)"><button class="fit" id="satest">Check</button></div>
@@ -226,7 +229,7 @@ function review() {
   const rows = [["AI", S.provider === "gemini" ? "Google Gemini (free)" : "OpenAI"], ["AI key", mask($("#aikey").value) || "kept from before"],
     ["Telegram bot", S.bot ? "@" + S.bot : (S.has.TELEGRAM_BOT_TOKEN ? "kept from before" : "")],
     ["Only you can use it", $("#uid").value.trim() ? "yes (ID " + $("#uid").value.trim() + ")" : ($("#anyone").checked ? "no, anyone can" : (S.hasIds ? "yes (kept from before)" : "missing"))],
-    ["Daily job check", $("#stime").value + " " + $("#stz").value], ["ScrapingAnt", $("#sa").value.trim() ? "added" : "not used"],
+    ["Daily job check", $("#stime").value + " " + $("#stz").value], ["ScrapingAnt", $("#sa").value.trim() ? "added" : "not used"], ["GitHub", $("#ghu").value.trim() || "not used"],
     ["Google Drive and Sheets", S.gCreated ? "connected, folder and sheet created" : (S.gConnected ? "connected (no sheet created yet)" : (Object.keys(g).length ? "values added by hand" : "not now"))],
     ["Dashboard key", $("#dkey").value.trim() ? "set" : "none (fine on your own computer)"]];
   $("#sum").innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join(""); $("#savemsg").textContent = "";
@@ -235,7 +238,7 @@ $("#go").onclick = async () => {
   $("#go").disabled = true; $("#savemsg").textContent = "";
   const google = {}; $$("[data-g]").forEach(i => { if (i.value.trim()) google[i.dataset.g] = i.value.trim(); });
   const r = await post("/api/save", { provider: S.provider, ai_key: $("#aikey").value, models: { EXTRACTOR_MODEL: $("#m_ex").value, CRITIC_MODEL: $("#m_cr").value, GENERATOR_MODEL: $("#m_ge").value, EMBEDDING_MODEL: $("#m_em").value },
-    telegram_token: $("#tg").value, user_id: $("#uid").value, anyone_can_use: $("#anyone").checked, scrapingant_key: $("#sa").value, scan_time: $("#stime").value, scan_timezone: $("#stz").value, contact_email: $("#mail").value, public_url: $("#purl").value, dashboard_key: $("#dkey").value, google });
+    telegram_token: $("#tg").value, user_id: $("#uid").value, anyone_can_use: $("#anyone").checked, scrapingant_key: $("#sa").value, scan_time: $("#stime").value, scan_timezone: $("#stz").value, contact_email: $("#mail").value, public_url: $("#purl").value, github_username: $("#ghu").value, dashboard_key: $("#dkey").value, google });
   if (!r.ok) { $("#go").disabled = false; $("#savemsg").textContent = r.message; return; }
   await post("/api/finish");
   $("#d1").innerHTML = S.launcher ? "Internify is starting now. Leave the window you ran the setup in open until it says it is running." : "Start it: run <code>docker compose up -d --build</code> (or <code>python -m bot.main</code> if you do not use Docker).";
@@ -245,7 +248,7 @@ $("#go").onclick = async () => {
   $("#stz").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   try {
     const st = await (await fetch("/api/state")).json(); S.has = st.has; S.launcher = st.launcher; S.hasIds = !!st.has.TELEGRAM_ALLOWED_USER_IDS;
-    if (st.provider === "gemini") chooseProvider("gemini"); if (st.scan_time) $("#stime").value = st.scan_time; if (st.scan_timezone) $("#stz").value = st.scan_timezone; if (st.contact_email) $("#mail").value = st.contact_email; if (st.public_url) $("#purl").value = st.public_url;
+    if (st.provider === "gemini") chooseProvider("gemini"); if (st.scan_time) $("#stime").value = st.scan_time; if (st.scan_timezone) $("#stz").value = st.scan_timezone; if (st.contact_email) $("#mail").value = st.contact_email; if (st.public_url) $("#purl").value = st.public_url; if (st.github_username) $("#ghu").value = st.github_username;
     const m = st.models || {}; $("#m_ex").value = m.EXTRACTOR_MODEL || ""; $("#m_cr").value = m.CRITIC_MODEL || ""; $("#m_ge").value = m.GENERATOR_MODEL || ""; $("#m_em").value = m.EMBEDDING_MODEL || "";
     if (st.has.OPENAI_API_KEY || st.has.GEMINI_API_KEY || st.has.TELEGRAM_BOT_TOKEN) $("#s0 .lead").textContent += " You already have some settings saved; anything you leave blank is kept.";
   } catch (e) {}
