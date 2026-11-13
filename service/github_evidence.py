@@ -328,13 +328,13 @@ def add_tool_with_bullet(tool: str, idx: dict, username: str) -> Optional[Added]
 
 def missing_from_profile(idx: dict, username: str, skills: dict[str, list[str]], limit: int) -> list[str]:
     """Tools used in your usable repos that your skills list doesn't have, the most widely used first."""
-    have = {tools_catalog.key(i) for items in skills.values() for i in items}
+    items = [i for v in skills.values() for i in v]
     count: dict[str, int] = {}
     for repo in idx.get("repos", {}).values():
         if not _usable(repo, username):
             continue
         for tool in repo.get("tools", {}):
-            if tools_catalog.key(tool) not in have:
+            if not tools_catalog.covered_by(tool, items):
                 count[tool] = count.get(tool, 0) + 1
     return sorted(count, key=lambda t: (-count[t], t))[:limit]
 
@@ -376,7 +376,7 @@ def _llm_refresh(system: str, user: str) -> dict[str, str]:
     return {i.key: i.text.strip() for i in r.items}
 
 
-def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 4) -> list[dict]:
+def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 20) -> list[dict]:
     """For each saved project that has a repo: tools the repo uses that its tech stack line doesn't show, and bullet points
     rewritten to say more precisely what the repo shows. Returned as plain suggestions for the Curator (nothing is saved).
     A rewrite may only use facts from the old bullet point or the repo."""
@@ -407,10 +407,11 @@ def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 4) ->
         source = f"{p['name']} {repo['name']} {repo.get('description', '')} {repo.get('readme', '')} {' '.join(repo.get('tools', {}))}"
         try:
             new = _llm_refresh(
-                "You update resume bullet points for a software project so they match what its repository actually shows. "
-                "Only change a bullet if the repository text lets you make it more specific or more accurate; otherwise leave it "
-                "out of your answer. Each rewrite: one sentence, past-tense verb first, under 190 characters. Use ONLY facts in "
-                "the old bullet or the repository text: never invent numbers, users or results.",
+                "You review EVERY resume bullet point of a software project against its repository. Rewrite a bullet when it "
+                "can be clearer, stronger or more accurate: a strong past-tense verb first, the main technologies named as the "
+                "repository shows them, the result or purpose stated, one sentence under 190 characters. Leave out of your "
+                "answer any bullet that is already good. Use ONLY facts in that bullet or the repository text: never invent "
+                "numbers, users or results.",
                 f"Project: {p['name']}\nRepository: {repo['name']} - {repo.get('description', '')}\nTools found: "
                 f"{', '.join(repo.get('tools', {}))}\nREADME:\n{repo.get('readme', '')[:3000]}\n\nCurrent bullet points:\n"
                 + "\n".join(f"{k}: {v}" for k, v in mine.items()))

@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 WEAK_OPENERS = ("responsible for", "helped", "worked on", "assisted", "was involved", "involved in", "tasked with", "participated in")
 LONG_BULLET = 220
-MAX_REWRITES = 8
+MAX_REWRITES = 30
 
 
 @dataclass
@@ -110,9 +110,12 @@ def _safe_fixes(sk: dict, facts: list[dict]) -> tuple[list[str], list[str]]:
 
 # ---------------------------------------------------------------- suggestions
 
-def _suggestions(sk: dict, facts: list[dict], rewrite) -> list[Suggestion]:
+def _suggestions(sk: dict, facts: list[dict], rewrite, already_covered=None, review_ids: Optional[set] = None) -> list[Suggestion]:
+    """``already_covered(tools, skills) -> set`` (AI) catches tools listed under a broader name the catalog can't see.
+    ``review_ids``: bullet points to review for wording even if they aren't long or weak (every project bullet point
+    that has no repo to compare against)."""
     out: list[Suggestion] = []
-    have = {tools_catalog.key(i): (cat, i) for cat, items in sk.get("skills", {}).items() for i in items}
+    skill_items = [i for items in sk.get("skills", {}).values() for i in items]
     for cat, items in sk.get("skills", {}).items():
         for item in items:
             if tools_catalog.is_soft_skill(item):
@@ -125,8 +128,14 @@ def _suggestions(sk: dict, facts: list[dict], rewrite) -> list[Suggestion]:
     for f in facts:
         for t in f.get("tech_tags", []):
             proper = tools_catalog.canonical(t)
-            if proper and tools_catalog.key(proper) not in have and tools_catalog.mentions(proper, f["text"]):
+            if proper and not tools_catalog.covered_by(proper, skill_items) and tools_catalog.mentions(proper, f["text"]):
                 missing.setdefault(proper, f["text"])
+    if missing and already_covered:
+        try:
+            for tool in already_covered(list(missing), sk.get("skills", {})) or set():
+                missing.pop(tool, None)
+        except Exception as err:
+            logger.info("Skill coverage check skipped: %s", err)
     for tool, example in missing.items():
         out.append(Suggestion(_sid("add", tool), "add_skill", f"Add “{tool}” to your skills (your bullet points mention it)",
                               {"item": tool, "category": tools_catalog.category(tool) or tools_catalog.DEV}))
@@ -147,8 +156,9 @@ def _suggestions(sk: dict, facts: list[dict], rewrite) -> list[Suggestion]:
                     out.append(Suggestion(_sid("dup", drop["id"]), "drop_duplicate",
                                           f"Remove a near-duplicate bullet point: “{drop['text'][:90]}” (you also have “{keep['text'][:60]}…”)",
                                           {"fact_id": drop["id"]}))
+    review = review_ids or set()
     flagged = {f["id"]: f["text"] for f in facts if f["id"] not in dup_ids and
-               (len(f["text"]) > LONG_BULLET or f["text"].lower().startswith(WEAK_OPENERS))}
+               (f["id"] in review or len(f["text"]) > LONG_BULLET or f["text"].lower().startswith(WEAK_OPENERS))}
     if flagged and rewrite:
         from service.latex.fit import adds_new_facts
         items = dict(list(flagged.items())[:MAX_REWRITES])
@@ -158,6 +168,27 @@ def _suggestions(sk: dict, facts: list[dict], rewrite) -> list[Suggestion]:
                 continue
             out.append(Suggestion(_sid("rw", fid, new), "rewrite", f"Reword:\n“{old}”\n→ “{new}”", {"fact_id": fid, "old": old, "new": new}))
     return out
+
+
+def _covered_with_ai(tools: list[str], skills: dict[str, list[str]]) -> set[str]:
+    """Blocking. Which of these tools the skills list already covers, perhaps under a broader name ("LLM APIs" covers
+    "OpenAI API"). Fails open: on an error nothing is treated as covered."""
+    from pydantic import BaseModel
+    from service.clients import instructor_client
+
+    class _Out(BaseModel):
+        already_covered: list[str]
+    try:
+        r: _Out = instructor_client.chat.completions.create(
+            model=config.EXTRACTOR_MODEL, response_model=_Out,
+            messages=[{"role": "system", "content": "Given a resume's skills list and some tools, return the tools that the skills "
+                       "list already covers, even under a broader or differently written name. Only return names from the tool list."},
+                      {"role": "user", "content": "Skills:\n" + "\n".join(f"{c}: {', '.join(i)}" for c, i in skills.items())
+                       + "\n\nTools:\n" + "\n".join(tools)}])
+        return {t for t in r.already_covered if t in tools}
+    except Exception as err:
+        logger.info("Coverage check skipped: %s", err)
+        return set()
 
 
 def _rewrite_with_ai(items: dict[str, str]) -> dict[str, str]:
@@ -175,9 +206,10 @@ def _rewrite_with_ai(items: dict[str, str]) -> dict[str, str]:
         r: _Out = instructor_client.chat.completions.create(
             model=config.GENERATOR_MODEL, response_model=_Out,
             messages=[{"role": "system", "content": (
-                "Improve each resume bullet point: start with a strong past-tense action verb (no 'Responsible for', 'Helped', "
-                "'Worked on'), keep the result or number first where there is one, and keep it under 200 characters. Use only "
-                "facts already in that bullet: never add a number, technology, name or claim. Return every key.")},
+                "Review each resume bullet point. Rewrite it only if it can be clearer or stronger: a strong past-tense action "
+                "verb first (no 'Responsible for', 'Helped', 'Worked on'), the result or number early where there is one, one "
+                "sentence under 200 characters. Use only facts already in that bullet: never add a number, technology, name or "
+                "claim. Leave out of your answer any bullet that is already good.")},
                 {"role": "user", "content": "\n".join(f"{k}: {v}" for k, v in items.items())}])
         return {i.key: i.text.strip() for i in r.items if i.key in items}
     except Exception as err:
@@ -187,7 +219,7 @@ def _rewrite_with_ai(items: dict[str, str]) -> dict[str, str]:
 
 # ---------------------------------------------------------------- running and applying
 
-def tidy(rewrite=_rewrite_with_ai, github: bool = True) -> TidyReport:
+def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered_with_ai) -> TidyReport:
     """Make the safe fixes now (with a backup first), add tools from your GitHub repos that your profile is missing
     (each with one bullet point), and return suggestions for the rest, including updates from your repos."""
     from service import github_evidence
@@ -211,10 +243,21 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True) -> TidyReport:
         except Exception as err:
             logger.warning("GitHub sync skipped: %s", err)
         sk, facts = _load_skeleton_raw(), _load_facts_raw()
-    report.suggestions = _suggestions(sk, facts, rewrite)
+    # every project bullet point is reviewed: against its repo when there is one (below), otherwise for wording here
+    repo_projects: set[str] = set()
+    if use_github:
+        idx = github_evidence.load_index()
+        repo_names = [r["name"] for r in idx.get("repos", {}).values()]
+        repo_projects = {p["id"] for p in sk.get("project_entries", []) if any(github_evidence.names_match(n, p["name"]) for n in repo_names)}
+    review = {f["id"] for f in facts if f.get("section") == "project" and f["entry_id"] not in repo_projects}
+    report.suggestions = _suggestions(sk, facts, rewrite, already_covered, review)
     if use_github:
         try:
-            for u in github_evidence.project_updates(sk, facts):
+            ups = github_evidence.project_updates(sk, facts)
+            from_repo = {u["fact_id"] for u in ups if u.get("fact_id")}
+            # a bullet point reworded from its repo replaces a plain rewording of the same bullet point
+            report.suggestions = [x for x in report.suggestions if not (x.kind == "rewrite" and x.data.get("fact_id") in from_repo)]
+            for u in ups:
                 key = u.get("fact_id") or u["entry_id"]
                 data = {k: u[k] for k in ("fact_id", "entry_id", "old", "new") if k in u}
                 report.suggestions.append(Suggestion(_sid(u["kind"], key, u["new"]), u["kind"], u["text"], data))

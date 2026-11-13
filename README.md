@@ -74,7 +74,7 @@ Every small helper falls back to plain rules if its model call fails.
 `/profile` → **🧹 Tidy up**, every Sunday, and after each resume import, the Curator checks your saved experience.
 - **Fixed automatically** (with a backup): the same skill listed twice or under two spellings ("React" and "React.js"), tag spellings, and a bullet point saved twice.
 - **From your GitHub** (with `GITHUB_USERNAME` set): tools your public repos use that your skills don't list are added automatically, each with one bullet point that shows it; a repo that isn't one of your projects yet becomes one. Repos changed in the last two years only, never forks or your profile repo.
-- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't, near-duplicate bullet points, tighter wording for long or weak bullet points, and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
+- **Suggested, for you to ✅ or ✕:** things in your skills that aren't technical skills ("Teamwork"), a skill in the wrong category, tools your bullet points mention that your skills don't (a tool listed inside a broader skill such as "LLM APIs (OpenAI, Gemini)" counts, and the AI settles unclear cases), near-duplicate bullet points, tighter wording for long or weak bullet points and for **every** project bullet point (each one is reviewed), and, from your repos, a project's tech stack line and bullet points updated to match what the repo shows. A rewrite may only use facts from the old bullet point or the repo.
 
 ## ☀️ The Daily Job Check (finds jobs for you)
 

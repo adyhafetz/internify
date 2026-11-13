@@ -34,7 +34,7 @@ def fake_rewrite(items):
     if "f6" in items: out["f6"] = "Shipped 12 features with the team"          # adds a number: must be refused
     return out
 
-r = curator.tidy(rewrite=fake_rewrite, github=False)
+r = curator.tidy(rewrite=fake_rewrite, github=False, already_covered=lambda t, s: set())
 s = _load_skeleton_raw()["skills"]
 assert s["Languages"] == ["Python", "Docker", "JavaScript"] and s["Frameworks & Libraries"] == ["React.js", "Teamwork"] and s["Databases"] == ["PostgreSQL"], s
 fs = _load_facts_raw()
@@ -61,7 +61,7 @@ assert "Redis" in s["Databases"] and "FastAPI" in s["Frameworks & Libraries"]
 fs = {f["id"]: f for f in _load_facts_raw()}
 assert fs["f5"]["text"] == GOOD and len([i for i in ("f3", "f4") if i in fs]) == 1
 assert "no longer" in curator.apply(rw[0]) or "edited since" in curator.apply(rw[0]), "a stale suggestion is refused politely"
-r2 = curator.tidy(rewrite=lambda items: {}, github=False)
+r2 = curator.tidy(rewrite=lambda items: {}, github=False, already_covered=lambda t, s: set())
 assert not r2.fixed and r2.backup is None, "a tidy profile is left alone, no backup"
 print("C ok: suggestions apply one by one; stale ones are refused; a second run finds nothing to fix")
 
@@ -74,7 +74,7 @@ class Q:
     async def edit_message_text(self, text, **kw): self.edits.append(text)
 json.dump(facts, open(config.FACT_STORE_PATH, "w"))
 _orig_tidy = curator.tidy
-curator.tidy = lambda: _orig_tidy(rewrite=fake_rewrite, github=False)
+curator.tidy = lambda: _orig_tidy(rewrite=fake_rewrite, github=False, already_covered=lambda t, s: set())
 q = Q()
 text, markup = asyncio.run(tidy.handle(q, "ty", []))
 assert q.edits and "Checking" in q.edits[0] and "Fixed automatically" in text and "Suggestions" in text
@@ -97,11 +97,36 @@ proj = _load_skeleton_raw()["project_entries"][0]
 GE.sync_from_github = lambda: [GE.Added("Go", "weather-cli", "Weather Cli", True)]
 GE.project_updates = lambda sk, facts: [{"kind": "update_stack", "entry_id": proj["id"], "old": proj["tech_stack"], "new": proj["tech_stack"] + ", Go",
                                          "text": "update stack"}]
-rg = _orig_tidy(rewrite=lambda items: {})
+rg = _orig_tidy(rewrite=lambda items: {}, already_covered=lambda t, s: set())
 assert "Added from GitHub: Go (bullet point in Weather Cli, a new project from your repo)" in rg.fixed and rg.backup
 st = next(x for x in rg.suggestions if x.kind == "update_stack")
 assert curator.apply(st).startswith("Updated the tech stack") and _load_skeleton_raw()["project_entries"][0]["tech_stack"].endswith(", Go")
 assert "changed since" in curator.apply(st), "applying a stale stack update is refused"
 config.GITHUB_USERNAME = ""
 print("G ok: with GitHub on, tools from repos are added (and reported) and tech stack updates are suggested")
+# H: a tool already listed inside a broader skill is not suggested again; the AI catches what the catalog can't
+from service import tools_catalog as TC
+assert TC.covered_by("OpenAI API", ["LLM APIs (OpenAI, Anthropic, Gemini)"]) and not TC.mentions("Go", "Google Cloud") and TC.mentions("Go", "Go, Rust")
+sk2 = _load_skeleton_raw(); sk2["skills"]["AI/ML"] = ["LLM APIs (OpenAI, Anthropic, Gemini)"]; sk2["skills"]["Frameworks & Libraries"] = ["Python web frameworks"]
+from service.profile_data import _save_skeleton_raw
+_save_skeleton_raw(sk2)
+fx = _load_facts_raw()
+fx.append({"id": "g1", "entry_id": E, "section": "experience", "text": "Called the OpenAI API from FastAPI services", "tech_tags": ["OpenAI API", "FastAPI"]})
+json.dump(fx, open(config.FACT_STORE_PATH, "w"))
+asked = []
+def covered(tools, skills): asked.append(tools); return {"FastAPI"} if "FastAPI" in tools else set()
+rh = _orig_tidy(rewrite=lambda items: {}, github=False, already_covered=covered)
+adds = {x.data["item"] for x in rh.suggestions if x.kind == "add_skill"}
+assert "OpenAI API" not in adds, "OpenAI is already inside 'LLM APIs (OpenAI, ...)'"
+assert "FastAPI" not in adds and asked and "OpenAI API" not in asked[0], "the AI is only asked about what the catalog couldn't settle"
+print("H ok: skills inside a broader item (LLM APIs (OpenAI, ...)) count; the AI settles the rest")
+
+# R: every project bullet point is reviewed, not only long or weak ones
+P = _load_skeleton_raw()["project_entries"][0]["id"]
+fx = _load_facts_raw(); fx.append({"id": "pp1", "entry_id": P, "section": "project", "text": "Made an app", "tech_tags": []})
+json.dump(fx, open(config.FACT_STORE_PATH, "w"))
+seen_ids = []
+rr = _orig_tidy(rewrite=lambda items: (seen_ids.extend(items), {"pp1": "Built an app"})[1], github=False, already_covered=lambda t, s: set())
+assert "pp1" in seen_ids and any(x.kind == "rewrite" and x.data["fact_id"] == "pp1" for x in rr.suggestions)
+print("R ok: every project bullet point is reviewed for wording")
 print("\nALL CURATOR TESTS PASSED")
