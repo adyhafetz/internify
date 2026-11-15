@@ -37,6 +37,8 @@ done. It is written so that anyone (including a future contributor) can pick up 
 | Payments | **Manual first:** users pay directly (e.g. DuitNow / bank transfer), the maintainer activates them in `/admin`. A payment gateway comes later |
 | Free tier | **Small free tier** in the Cloud: 3 resumes a month, no daily check; the tidy-up and GitHub check are included |
 | Paid plan | **RM9.90 a month for 30 resumes**, daily job check included (can change before launch) |
+| Unlimited plan | Assigned only by the maintainer in `/admin` (the maintainer, the friend, anyone chosen): no monthly allowance |
+| Tracker sheet layout | **One layout, matching the template** (`Internify — Application Tracker`): Company, Job Title, Location, Job Description, Job Requirements, Job Link, Resume Link, Resume Status, Comment, Status, with the Status drop-down. Used by the setup page, Connect Google and "fresh sheet" |
 | Data retention (Cloud) | Data of an inactive user (plan ended, no activity) is **deleted after 6 months**, with a Telegram warning a week before |
 | Sources in self-hosted copies | LinkedIn, JobStreet and Hiredly are **on by default**; the README explains what they do and how to switch them off |
 | Interface | **Telegram only.** The web holds the marketing pages, each user's live dashboard and the Connect Google step, opened from links the bot sends |
@@ -185,8 +187,21 @@ Estimated effort: **1 to 2 weeks**. Each item is its own pull request.
   mode). With only a low-risk permission this should not need Google's verification, so no domain is needed.
   *To confirm in the Google Cloud console before we rely on it (see open questions).*
 - Existing users: one re-connect (the setup page's Google step) to get a login with the new permission.
+- **Sheets copied by hand from the template** (the maintainer's sheet is one) are not files "the bot created", so the
+  narrow permission alone can't open them. The re-connect page therefore shows **Google's file picker**: the user
+  picks their tracker sheet and Drive folder once, and from then on the bot may use exactly those files.
+- Safety: if the bot can't open the sheet or folder after the change, it says so plainly, keeps everything, and
+  offers to go back to the broader permission (a setting, `GOOGLE_FULL_ACCESS=true`). It never switches silently.
 
 **Done when**: a self-hosted copy stays connected for more than 7 days without a domain.
+
+### A2b. One sheet layout, matching the template
+
+- One definition in code (`bot/services/sheet_layout.py`): column names and order (as the template, Status last),
+  the sheet name, the Status drop-down, a frozen bold header and column widths.
+- The setup page (`bot/setup/google_setup.py`, today it puts Status 7th and names the sheet "Internify tracker"),
+  Connect Google (B5) and "fresh sheet" all create sheets from it.
+- The bot keeps finding columns by name, so older sheets with another order keep working.
 
 ### A3. Google becomes optional: Excel export
 
@@ -264,6 +279,9 @@ Estimated effort: **2 to 4 weeks**.
 - `/profile` → 🔗 Connect Google → link to `/connect/google?t=<one-time code>` → Google sign-in → back to
   `/connect/google/callback` → the bot creates the **Internify** folder and the tracker Sheet **in the user's own
   Drive** and saves their login (encrypted with a key from the server's `.env`).
+- **Already have a sheet?** The same page shows Google's file picker so the user can choose their existing tracker
+  sheet and Drive folder instead (this is how the maintainer and the friend keep their current sheets when they move
+  in). Otherwise "fresh sheet": a new sheet from the template layout, with their tracker rows and statuses copied in.
 - Disconnect at any time (`/profile` or the user's Google account settings). Files stay theirs.
 - The Sheet stays in charge of statuses, per user, as today.
 
@@ -287,9 +305,10 @@ Estimated effort: **2 to 4 weeks**.
 
 1. **Manual payments first:** `/plan` shows how to pay (DuitNow / bank transfer details) and a reference code; the
    maintainer marks the user paid in `/admin`, which sets the plan and its end date. Reminders before a plan ends.
-2. **Move the existing copies in:** export from `~/internify` and `~/internify-sofea` (A4), import into the Cloud
-   as the first two users, connect Google again, then retire the `internify-sofea` folder, its tunnel and its
-   sub-domain.
+2. **Move the existing copies in:** back up both folders, export from `~/internify` and `~/internify-sofea` (A4),
+   import into the Cloud as the first two users on the **Unlimited** plan, connect Google and **pick the existing
+   sheet and folder** (B5), check everything, and only then retire the `internify-sofea` folder, its tunnel and its
+   sub-domain. The old copies keep running until that check is done.
 3. **Marketing pages and launch:** home page, pricing, FAQ, demo video; launch at Malaysian university CS clubs.
 4. **Later:** a payment gateway (ToyyibPay, Billplz or Stripe Malaysia) to automate sign-up and renewals.
 
@@ -340,7 +359,9 @@ These still need an answer before or during the phase they belong to.
 3. **Maintainer contact and payment details** shown in `/plan` and on the pricing page.
 4. **Brand:** keep the name "Internify" and `internify.adyhafetz.dev`, or plan a move to a new domain before the
    public launch?
-5. **Allowance top-ups:** when a paid user uses all 30 resumes, can they buy more that month, or wait?
+5. **Template extras:** does the template have formulas, colours or other formatting the bot should copy when it
+   creates a sheet? (Only its text can be read from here.)
+6. **Allowance top-ups:** when a paid user uses all 30 resumes, can they buy more that month, or wait?
 
 ### Answered
 - Paid plan: RM9.90 / month, 30 resumes, daily check included.
