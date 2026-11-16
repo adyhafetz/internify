@@ -88,6 +88,10 @@ async def resume_document_handler(update: Update, context: ContextTypes.DEFAULT_
     msg = update.effective_message
     doc = msg.document
     name = doc.file_name or "resume"
+    if name.lower().endswith(".zip"):   # an Internify data file (📦 My data), not a resume
+        from bot.handlers.datafile import data_zip_handler
+        await data_zip_handler(update, context)
+        return
     if doc.file_size and doc.file_size > MAX_FILE_BYTES:
         await msg.reply_text("That file is bigger than 5 MB. A resume should be much smaller. Check you sent the right file.")
         return

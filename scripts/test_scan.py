@@ -154,6 +154,7 @@ scanner.profile_is_sample = lambda: False
 class JQ:
     def __init__(self): self.calls = []
     def run_daily(self, cb, time, name): self.calls.append((cb, time, name))
+    def run_once(self, cb, when, name): pass
 app = types.SimpleNamespace(job_queue=JQ()); config.SCAN_ENABLED, config.SCAN_TIME, config.SCAN_TIMEZONE = True, "07:30", "Asia/Kuala_Lumpur"
 assert "07:30" in scanner.schedule(app) and app.job_queue.calls[0][1].hour == 7 and app.job_queue.calls[0][2] == "daily-scan"
 config.SCAN_TIME = "nope"; assert scanner.schedule(types.SimpleNamespace(job_queue=JQ())) is None

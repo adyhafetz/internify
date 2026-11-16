@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import logging
 import os
 import time
 from typing import Optional
@@ -13,6 +14,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from bot import config
 from bot.services import watchlist
 from service import config as sc
+
+logger = logging.getLogger(__name__)
 
 
 def _h(t: object) -> str:
@@ -103,6 +106,44 @@ def _test_ai() -> str:
 def _test_google() -> list[str]:
     from bot.services.google_check import check_google_setup
     return check_google_setup()
+
+
+def _plain(text: str) -> str:
+    return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+
+async def startup_check(application) -> None:
+    """A little after the bot starts: if the AI key is missing or rejected, or a model name isn't available to it, say so
+    once in Telegram in plain words (and in the log), instead of every resume failing later. Quiet when all is well."""
+    import hashlib
+    problem = ""
+    if not sc.OPENAI_API_KEY:
+        problem = "The AI key is missing. Run the setup page again and paste it in step 1."
+    else:
+        try:
+            result = await asyncio.wait_for(asyncio.to_thread(_test_ai), timeout=40)
+        except Exception as err:
+            logger.info("Startup AI check skipped: %s", err)
+            return
+        if result.startswith("✕"):
+            problem = _plain(result[1:].strip())
+            if "couldn't reach" in problem:
+                return   # no network right now: not the key's fault, and it will be seen when a resume is made
+        elif "aren't available" in result:
+            problem = "The AI key works, but " + _plain(result.split("but", 1)[1].strip()) + \
+                      ". Pick other model names in the setup page (step 1, Models)."
+    if not problem:
+        return
+    logger.warning("Startup check: %s", problem)
+    chat_id = watchlist.owner_chat_id()
+    digest = hashlib.sha1(problem.encode()).hexdigest()[:12]
+    if chat_id is None or watchlist.get_setting("startup_warned", "") == digest:
+        return   # no chat yet, or this exact problem was already reported
+    watchlist.set_setting("startup_warned", digest)
+    try:
+        await application.bot.send_message(chat_id, "⚠️ " + problem)
+    except Exception as err:
+        logger.info("Couldn't send the startup warning: %s", err)
 
 
 async def test(application=None):

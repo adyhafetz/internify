@@ -85,6 +85,7 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
             events.emit_run("failed", error=f"The scan stopped: {err}")
             await bot.send_message(chat_id, f"⚠️ The daily job check stopped.\nReason: {err}")
             return summary
+        watchlist.set_setting("scan_last_at", str(time.time()))   # for the catch-up after a computer that was off
         events.emit_run("finished", scan=True, found=summary.found, shortlisted=summary.kept, tailored=summary.tailored,
                         failed=summary.failed, note=summary.note)
         watchlist.set_setting("scan_last", time.strftime("%a %d %b %H:%M") + " · " + (summary.note[:80] if summary.note else
@@ -256,4 +257,34 @@ def schedule(application) -> Optional[str]:
         logger.warning("SCAN_TIME/SCAN_TIMEZONE not understood (%s); the daily scan is off", err)
         return None
     application.job_queue.run_daily(daily_scan, time=when, name="daily-scan")
+    application.job_queue.run_once(catch_up_scan, when=90, name="scan-catch-up")   # a computer that was off at SCAN_TIME
     return f"every day at {config.SCAN_TIME} ({config.SCAN_TIMEZONE})"
+
+
+def missed_today(now_ts: float, last_ts: Optional[float], hh: int, mm: int, tz: str) -> bool:
+    """Was today's scheduled check missed (the bot was not running at SCAN_TIME)? True if today's time has passed and the
+    last check ran before it. Never true for a copy that has not run a check yet (the first one runs on schedule)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    if not last_ts:
+        return False
+    now = datetime.fromtimestamp(now_ts, ZoneInfo(tz))
+    due = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return now >= due and last_ts < due.timestamp()
+
+
+async def catch_up_scan(context) -> None:
+    """Shortly after the bot starts: if today's check was missed because the computer was off, run it now."""
+    if watchlist.scan_paused() or not config.SCAN_ENABLED:
+        return
+    chat_id = watchlist.owner_chat_id()
+    last = watchlist.get_setting("scan_last_at", "")
+    try:
+        hh, mm = (int(x) for x in config.SCAN_TIME.split(":"))
+        missed = missed_today(time.time(), float(last) if last else None, hh, mm, config.SCAN_TIMEZONE)
+    except Exception:
+        return
+    if chat_id is None or not missed:
+        return
+    logger.info("Today's daily check was missed (the bot wasn't running at %s); running it now", config.SCAN_TIME)
+    await run_scan(context.bot, chat_id, trigger="catch-up")

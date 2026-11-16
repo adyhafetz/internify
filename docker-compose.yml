@@ -1,5 +1,9 @@
 services:
   telegram-bot:
+    # A prebuilt image (Intel/AMD and ARM) is used when it can be downloaded: `docker compose pull && docker compose up -d`.
+    # `docker compose up -d --build` builds it on this computer instead. The code in ./service and ./bot below is what runs,
+    # so `git pull` and a restart update the bot without a rebuild; the image carries the tools (Python packages, LaTeX).
+    image: ${INTERNIFY_IMAGE:-ghcr.io/adyhafetz/internify:latest}
     build: .
     env_file: .env
     environment:

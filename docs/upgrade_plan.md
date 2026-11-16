@@ -214,19 +214,19 @@ built: it needs a browser sign-in flow with an API key, so a hand-made sheet sta
   Connect Google (B5) and "fresh sheet" all create sheets from it.
 - The bot keeps finding columns by name, so older sheets with another order keep working.
 
-### A3. Google becomes optional: Excel export
+### A3. Google becomes optional: Excel export (built)
 
 - `/applied` → **📊 Send as Excel**: the tracker as an `.xlsx` file in Telegram (same columns as the Sheet).
 - The README says plainly: Google is an optional extra; the tracker works without it.
 
-### A4. Export / Import my data
+### A4. Export / Import my data (built)
 
 - `/profile` → **📦 My data** → *Export*: one `.zip` with the profile (facts, skeleton), the tracker, settings and
   the GitHub index. *Import*: restores from that file (with a backup first).
 - A `schema_version` field in the saved files so later changes can upgrade old data safely.
 - This is also how the existing copies move into the Cloud (C-phase migration).
 
-### A5. Easier self-hosting
+### A5. Easier self-hosting (built, image not yet published)
 
 - Publish a **prebuilt image** for x86 and ARM on GitHub's container registry (built by GitHub Actions on each
   release), and switch `docker-compose.yml` to `image:` with `build:` as a fallback.
@@ -234,6 +234,12 @@ built: it needs a browser sign-in flow with an API key, so a hand-made sheet sta
 - A documented **laptop mode** (Docker Desktop on Windows / macOS): the daily check runs when the laptop is on and
   catches up after start-up if it missed a day.
 - Startup checks: a wrong key, an unknown model name or a missing Telegram token gives one clear message.
+
+**Status:** the Dockerfile (Tectonic for Intel/AMD or ARM), `docker-compose.yml` (prebuilt image first, build as the
+fallback), `.github/workflows/image.yml` (publishes both architectures on a `v*` tag), `docs/laptop_mode.md`, the catch-up
+run for a missed daily check and the plain startup warning are in. **Still to do by the maintainer:** push a `v1.0.0` tag
+(or run the workflow by hand), then set the package to **Public** on GitHub. The image has not been built or published
+from here (no Docker or GitHub Packages access), so the first build is the real test.
 
 ---
 

@@ -140,6 +140,8 @@ def list_screen(flt: str = "o", page: int = 0) -> tuple[str, InlineKeyboardMarku
         rows.append(nav)
     rows.append([_btn(("• " if k == flt else "") + name, "L", k, 0) for k, (name, _) in FILTERS.items()][:2])
     rows.append([_btn(("• " if k == flt else "") + name, "L", k, 0) for k, (name, _) in FILTERS.items()][2:])
+    if total or db.status_counts():
+        rows.append([_btn("📊 Send as Excel", "X")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -309,6 +311,18 @@ async def tracker_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await sync()
             text, kb = list_screen(args[0] if args else "o", int(args[1]) if len(args) > 1 else 0)
             await query.edit_message_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
+            return
+        if act == "X":
+            await query.answer("📊 Building your Excel file…")
+            await sync()
+            from bot.services import export_xlsx
+            apps, _ = await asyncio.to_thread(db.list_applications, None, 100000, 0)
+            if not apps:
+                await query.message.reply_text("Nothing tracked yet, so there's nothing to export. Send me a job link to start.")
+                return
+            data = await asyncio.to_thread(export_xlsx.build, apps)
+            await context.bot.send_document(query.message.chat_id, document=data, filename=export_xlsx.filename(),
+                                            caption=f"📊 {len(apps)} application{'s' if len(apps) != 1 else ''}. Same columns as your Google Sheet, so you can paste it there.")
             return
         app_id = int(args[0])
         if act == "v":

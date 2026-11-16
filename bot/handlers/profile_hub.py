@@ -76,7 +76,7 @@ def list_screen(notice: str = "") -> Screen:
     if my_links():
         rows.append([_btn("🔗 My links", "lk")])
     rows.append([_btn("🧹 Tidy up", "ty"), _btn("⚙️ Status", "st")])
-    rows.append([_btn("➕ Add something", "n")])
+    rows.append([_btn("📦 My data", "dm"), _btn("➕ Add something", "n")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -206,6 +206,19 @@ def watchlist_screen(notice: str = "") -> Screen:
     rows.append([_btn("⏳ Checking now…" if is_running() else "▶ Check now", "wn"),
                  _btn("▶ Resume daily check" if watchlist.scan_paused() else "⏸ Pause daily check", "wp")])
     rows.append([_btn("⬅ Back to profile", "l")])
+    return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+
+def data_screen(notice: str = "") -> Screen:
+    """Export and import all your data as one file."""
+    lines = [notice, ""] if notice else []
+    lines += ["📦 <b>My data</b>", "",
+              "Keep a copy of everything, or move it to another copy of Internify: your saved experience, your tracker, the job "
+              "pages you watch and your job-search settings, in one .zip file.", "",
+              "<b>Not in it:</b> API keys, Telegram and Google logins, and resume PDFs (their Drive links are in the tracker).", "",
+              "<b>To import</b>, send me the .zip file here in the chat. I show you what is in it first, and nothing changes until you confirm. "
+              "Importing replaces what you have now, after saving a safety copy."]
+    rows = [[_btn("⬇️ Export my data", "dx")], [_btn("⬅ Back to profile", "l")]]
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -416,6 +429,14 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
     if action in ("ty", "tv", "ta", "tx", "tA", "tX", "tz", "tZ", "tg"):
         from bot import tidy
         return await tidy.handle(query, action, args)
+    if action == "dm":
+        return data_screen()
+    if action == "dx":
+        from bot import data_export
+        data = await asyncio.to_thread(data_export.export_bytes)
+        await query.message.reply_document(document=data, filename=data_export.filename(),
+                                           caption="📦 All your Internify data. Keep it somewhere safe: it holds your whole career history.")
+        return data_screen(notice="✅ Sent. To import it somewhere else, send that file to the other copy's bot.")
     if action == "wf":
         return prefs_screen()
     if action == "wfi":

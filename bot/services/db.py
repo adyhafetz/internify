@@ -385,3 +385,41 @@ def get_application_by_link(url: str) -> Optional[dict]:
     with _get_connection() as conn:
         r = conn.execute("SELECT * FROM applications WHERE LOWER(TRIM(job_link)) = ?", (url.strip().lower(),)).fetchone()
         return _row(r) if r else None
+
+
+# ---------------------------------------------------------------- moving your data (export / import)
+
+def export_tracker() -> dict:
+    """Everything in the tracker part of the database as plain lists: your applications, the job pages you watch and the
+    jobs already seen. (Settings are handled by the caller, which knows which ones are safe to move.)"""
+    with _get_connection() as conn:
+        return {name: [dict(r) for r in conn.execute(f"SELECT * FROM {name}").fetchall()]
+                for name in ("applications", "watch_sources", "seen_jobs")}
+
+
+def replace_tracker(data: dict) -> dict[str, int]:
+    """Replace the applications, watched pages and seen jobs with these rows, all or nothing. Columns this database
+    doesn't have are ignored, and a row that isn't a dict is skipped. Returns how many rows went in."""
+    counts: dict[str, int] = {}
+    with _get_connection() as conn:
+        conn.execute("BEGIN")
+        try:
+            for name in ("applications", "watch_sources", "seen_jobs"):
+                cols = [r[1] for r in conn.execute(f"PRAGMA table_info({name})").fetchall()]
+                conn.execute(f"DELETE FROM {name}")
+                n = 0
+                for row in data.get(name, []):
+                    if not isinstance(row, dict):
+                        continue
+                    use = [c for c in cols if c in row and row[c] is not None]
+                    if not use:
+                        continue
+                    conn.execute(f"INSERT OR REPLACE INTO {name} ({', '.join(use)}) VALUES ({', '.join('?' for _ in use)})",
+                                 [row[c] if isinstance(row[c], (int, float, str)) else json.dumps(row[c]) for c in use])
+                    n += 1
+                counts[name] = n
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return counts
