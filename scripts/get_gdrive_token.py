@@ -13,10 +13,12 @@ import os
 import sys
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
-]
+# The limited permission (only files Internify itself created) by default. A tracker sheet you copied by hand needs the full
+# one: run this with GOOGLE_ACCESS=full and set GOOGLE_ACCESS=full in .env too.
+if os.getenv("GOOGLE_ACCESS", "app").strip().lower() == "full":
+    SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"]
+else:
+    SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 
 def main():

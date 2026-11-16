@@ -49,7 +49,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 - Light by default (the brand's light canvas); the sun/moon button switches to the brand's dark mode.
 - Every run is saved to `output/traces/<run_id>.json`. Replay one with `http://localhost:8080/live?replay=<run_id>` (add `&speed=2` to go faster).
 - Branding (logo, colours, Inter font) lives in `bot/dashboard/static/assets/`. Inter is bundled under the SIL Open Font License.
-- Offline checks (no keys needed; they also run automatically on every pull request, see `.github/workflows/tests.yml`): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_quality.py` (requirement matching, grounding, the score, retrieval), `python scripts/test_tracker.py` (statuses, reminders, repeat jobs, rebuilding), `python scripts/test_setup.py` (the setup page), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_github.py` (GitHub evidence), `python scripts/test_curator.py` (tidy-up), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
+- Offline checks (no keys needed; they also run automatically on every pull request, see `.github/workflows/tests.yml`): `python scripts/test_events.py` (agent events and wording), `python scripts/test_handler.py` (the Telegram flow with fake services), `python scripts/test_scout.py` (Scout's routes for blocked pages), `python scripts/test_import.py` (resume import), `python scripts/test_browser.py` (browsing and editing by tapping), `python scripts/test_ask.py` (the Archivist's questions), `python scripts/test_scan.py` (the daily job check), `python scripts/test_sources.py` (keyword search on LinkedIn, JobStreet, Hiredly and the web), `python scripts/test_ai.py` (the AI helpers with a fake model), `python scripts/test_quality.py` (requirement matching, grounding, the score, retrieval), `python scripts/test_tracker.py` (statuses, reminders, repeat jobs, rebuilding), `python scripts/test_setup.py` (the setup page), `python scripts/test_google.py` (the sheet layout, the limited Google permission and moving an old sheet), `python scripts/test_export.py` (Excel export and Export / Import my data), `python scripts/test_selfhost.py` (the catch-up after a computer that was off, the startup warning, the Docker files), `python scripts/test_latex.py` (the resume template), `python scripts/test_fit.py` (fitting one page), `python scripts/test_github.py` (GitHub evidence), `python scripts/test_curator.py` (tidy-up), `python scripts/test_telegram_safe.py` (no message can fail on special characters), `python scripts/test_dashboard_access.py` (who can open what) and `python scripts/test_concurrency.py` (answers are received while a job runs).
 - **The resume comes first, questions after.** If a job wants a tool you have no saved experience for (say Kubernetes), you still get the resume right away, with a **🧩 I know Kubernetes: rebuild** button under it. Tap it and the Archivist asks: *do you have real experience with it?* Say yes, pick where you used it and describe it in a sentence, and it's saved as a new bullet point (and a skill) and the resume is rebuilt with it. Say no, and the resume won't claim it. Turn the button off with `ASK_ABOUT_MISSING_SKILLS=false`.
 - **It finds another way in.** If a job page is blocked or empty, the Scout tries other routes and shows each attempt (and why it failed): the job data built into the page, a page-rendering service, a saved copy from the web archive, then the same posting on another site (accepted only if its text matches the job). If every route fails, it asks you to paste the job description. Telegram tells you when a copy, not the original page, was used. These routes send the (public) job link to those services; turn them off with `SCOUT_FALLBACKS=false`.
 - Disable the dashboard with `DASHBOARD_ENABLED=false`; change the port with `DASHBOARD_PORT`.
@@ -67,7 +67,7 @@ While the bot runs, open **http://localhost:8080/live** (also reachable as `/das
 | Scribe | `GENERATOR_MODEL` writes the lines |
 | Critic | Sees the whole page (education, courses, skills, leadership too, so it never asks for what is already there). Code compares every line with its fact (a new tool, number or name sends it back for a rewrite, and anything still added is put back to your own words before the PDF is built) and counts which of the job's requirements the resume shows; `CRITIC_MODEL` gives its opinion and rewrite notes. The score you see is half each |
 | Publisher | Code (a model only repairs LaTeX if the PDF fails to compile) |
-| Discoverer | Boards on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their APIs; the web search is plain code; for any other career page a model lists the real openings (invented links are dropped) |
+| Discoverer | Your keywords are searched on LinkedIn, JobStreet, Hiredly and the open web (plain code; on the open web a model picks the single job postings out of the results); boards on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their APIs; for any other career page a model lists the real openings (invented links are dropped) |
 | Matcher | Embeddings and the extractor score each job; a model writes the one-sentence reason |
 | Curator | Code does the safe fixes; a model reviews every bullet point (reword or remove, checked by code that nothing is added), drafts GitHub bullet points, and settles whether a tool is already covered by a broader skill |
 
@@ -91,17 +91,20 @@ Every small helper falls back to plain rules if its model call fails.
 
 Once a day the bot looks for jobs on its own, so you don't have to hunt:
 
-1. **Discoverer** finds new postings in three ways:
-   - **Company job boards** on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their public job-listing APIs (clean data, no scraping). These are found for you: from the jobs you sent, from the web search, and from career pages (a career page that is really one of these boards is switched to its API automatically).
-   - **The web search** (on by default, no key needed) searches for the roles and places you look for on the hiring systems companies post on, and adds each company it finds to your job pages (marked "found by search"). So the list of companies grows by itself; remove any with ✕ and it isn't added back.
-   - **Any other page** you add (a career page, or a job board such as JobStreet from 🇲🇾 Popular in Malaysia) is read through ScrapingAnt (if you set a key) or a plain visit, and the job links are picked out.
+1. **Discoverer** finds new postings from your **keywords** (no list of sites to maintain):
+   - **LinkedIn, JobStreet and Hiredly** are searched with your keywords, limited to Malaysia (and to internships if you ask for that). Malaysian universities call a compulsory internship *latihan industri*, so one Malay search is added for internships.
+   - **The open web** (Bing, then DuckDuckGo, no key needed): any page, including company career sites; a model picks the single job postings out of the results.
+   - **Company job boards** on Greenhouse, Lever, Ashby, SmartRecruiters and Workable are read through their public job-listing APIs. These are found for you: from the jobs you sent, from a search of those hiring systems, and from career pages (a career page that is really one of these boards is switched to its API automatically). Remove any with ✕ and it isn't added back.
+   - **Pages you add yourself** (a career page, or any job board) are still read, as an extra.
+
+   LinkedIn, JobStreet and Hiredly offer no official way to search, so Internify uses the same public searches their websites use (no login, a few requests a day, with pauses). They can change or block this at any time, and automated access is a grey area in their terms, so **each one can be switched off** in 🎯 What I look for, and ⚙️ Status shows how each one is doing. A source that fails three times in a row rests for a day, and one failing never stops the others. A LinkedIn posting link is read through LinkedIn's public job page, which also makes LinkedIn links you send yourself work.
 2. **Your filters** come next, before anything is read in full: **internships only** (on by default), and your **places** (default Malaysia and Remote). After reading, jobs that have closed, are in another place, or are the same job as one you already have a resume for (even through another link) are skipped too.
 3. **Matcher** compares each remaining posting with your experience and with the jobs you sent lately, and keeps the best few (default 3) that clear a minimum match. Only the most promising 6 to 8 titles are read in full each day; the rest **wait in line** for the next check (for up to 14 days) instead of being dismissed by their title alone.
 4. Each kept job goes through the same Scout → Analyst → Archivist → Scribe → Critic → Publisher team, and you get the PDFs in Telegram with a one-line reason ("Matches Python, FastAPI. Missing: Kubernetes."), then a short summary.
 
 A check **never asks you questions** (you may be asleep): a job that needs a tool you haven't saved experience for gets the 🧩 button under its resume.
 
-Manage it in `/profile` → **🔭 Job pages I check**: **🎯 What I look for** (roles, places, internships only, web search on or off; with no roles set, the roles on your resume are used), every page with its link and what happened on the last visit, **➕ Add a link** or **🇲🇾 Popular in Malaysia**, remove one with its **✕**, **Check now**, or pause and resume. **🔗 My links** (also in `/profile`) opens your dashboard, tracker sheet and Drive folder with one tap; the dashboard button needs `PUBLIC_URL` (your website address) in `.env`. Settings (the setup page sets the time and timezone; the others go in `.env`):
+Manage it in `/profile` → **🔭 Job search**: **🎯 What I look for** (keywords, places, internships only, and a switch for each source; with no keywords set, the roles on your resume are used), every page with its link and what happened on the last visit, **➕ Add a link** or **🇲🇾 Popular in Malaysia**, remove one with its **✕**, **Check now**, or pause and resume. **🔗 My links** (also in `/profile`) opens your dashboard, tracker sheet and Drive folder with one tap; the dashboard button needs `PUBLIC_URL` (your website address) in `.env`. Settings (the setup page sets the time and timezone; the others go in `.env`):
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -111,7 +114,13 @@ Manage it in `/profile` → **🔭 Job pages I check**: **🎯 What I look for**
 | `SCAN_MAX_TAILORED` | `3` | Most resumes written per scan |
 | `SCAN_MIN_FIT` | `0.5` | Minimum fit (0 to 1) to be kept |
 
-The web search reads Bing's (then DuckDuckGo's) public results pages; a day when they don't answer just means no extra jobs. ⚙️ Status shows how the last web search went, so you can tell if your server is being blocked. The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+⚙️ Status shows how each source did on its last search ("LinkedIn: ok, 26 jobs", "JobStreet: no results (the site may have changed, or is blocking this server)"), so you can tell if your server is being blocked. The check sends results to the chat you last talked to the bot from, so send it any message once. It needs the `tzdata` package (already in `requirements.txt`; rebuild with `docker compose up --build`).
+
+## 📦 My data (export and import)
+
+`/profile` → **📦 My data** → **⬇️ Export my data** sends one `.zip` with your saved experience, your tracker (applications, the job pages you watch, jobs already seen) and your job-search settings. It never contains API keys, Telegram or Google logins, your chat, or resume PDFs (their Drive links are in the tracker). To move to another copy of Internify (or keep a backup), send that `.zip` to the other copy's bot: it shows what is inside and, only after you confirm, **replaces** what that copy has, after saving a safety copy in `output/exports/` and backing up the profile. A file from a newer version, a damaged file or anything that isn't an Internify data file is refused with a plain reason.
+
+If the AI key is missing or rejected, or a model name isn't available to it, the bot tells you once in Telegram when it starts, instead of every resume failing later.
 
 ## 📊 Tracking your applications
 
@@ -203,7 +212,7 @@ Afterwards, `/profile` lets you fix anything by tapping and add new entries. The
 
 ### 5. Let it find jobs for you (optional)
 
-Open `/profile` → **🔭 Job pages I check**. Tap **🇲🇾 Popular in Malaysia** to add well-known job pages, or **➕ Add a link** for any career page or job board (Greenhouse and Lever boards work best). Tap **Check now** to try it and watch it on the dashboard. After that it runs every day at `SCAN_TIME`. Details: [The Daily Job Check](#️-the-daily-job-check-finds-jobs-for-you).
+Open `/profile` → **🔭 Job search** → **🎯 What I look for** and enter the jobs you want (keywords such as `software engineer intern`). Pages are optional: **🇲🇾 Popular in Malaysia** adds well-known ones, **➕ Add a link** any career page or job board. Tap **Check now** to try it and watch it on the dashboard. After that it runs every day at `SCAN_TIME`. Details: [The Daily Job Check](#️-the-daily-job-check-finds-jobs-for-you).
 
 ### 6. Put the dashboard on your own subdomain (optional)
 
@@ -218,7 +227,8 @@ Home page, privacy policy, terms and the private dashboard on `https://internify
 - It communicates *outbound* to Telegram's secure API.
 - It runs seamlessly on your **local computer (Windows, macOS, Linux)** behind home Wi-Fi or NAT.
 - No public IP address, domain name, or open ports required.
-- If your computer goes to sleep, the bot pauses. When your computer wakes up, it resumes and catches up on any messages automatically.
+- If your computer goes to sleep, the bot pauses. When your computer wakes up, it resumes and catches up on any messages automatically, and **runs the daily job check if it was missed** while the computer was off. Step by step: [`docs/laptop_mode.md`](docs/laptop_mode.md).
+- A **ready-made image** (Intel/AMD and ARM: Apple Silicon Macs, Raspberry Pis, Oracle's free ARM servers) is published, so `docker compose pull && docker compose up -d` is enough; `docker compose up -d --build` builds it on your computer instead.
 
 ### Running 24/7 on a VPS (Optional)
 If you prefer the bot to run 24/7 in the cloud while your laptop is closed, deploy to any cheap \$3–\$5/month Linux VPS (Hetzner, DigitalOcean, Tencent Lighthouse, AWS EC2, etc.):
@@ -268,7 +278,7 @@ The slash menu shows these six:
 |---|---|
 | `/profile` | **See and edit everything on your resume.** Contact details, education, jobs, projects, leadership and skills as buttons. Tap an entry to see its numbered bullet points, then tap ✏️ to edit, 🗑 to delete (it asks first) or ➕ to add a line. **➕ Add something** adds a whole job, project, leadership role or degree: you describe it in your own words and the AI turns it into bullet points. Skills are grouped by category: tap one to add (comma-separated) or remove. |
 | `/importresume` | Fill in everything from your current resume. Send a PDF, Word or text file (or just send the file), check the preview, then choose Replace or Add. |
-| `/applied` | Your applications by status, with buttons: applied, in review, interviewing, offer, rejected, withdrawn, rebuild, what changed (`/history` still works). |
+| `/applied` | Your applications by status, with buttons: applied, in review, interviewing, offer, rejected, withdrawn, rebuild, what changed (`/history` still works). **📊 Send as Excel** sends the whole tracker as an `.xlsx` file with the Google Sheet's columns, so the tracker works without Google. |
 | `/resume` | Download your general resume (PDF), not tailored to any job. |
 | `/help` | Everything the bot can do. |
 | `/cancel` | Stop the current step, for example a question the bot is waiting for you to answer. |
@@ -302,7 +312,7 @@ By default, Internify saves applications in **SQLite** (`output/internify.db`) a
 If you want automated cloud backups to Google Drive and Google Sheets:
 
 ### The easy way: the setup page
-Run `./setup.sh` (or `setup.bat`) and open step 4, **Google Drive and Sheets**. Follow its short guide to create a Google project and a **Desktop app** client, paste the Client ID and secret, press **Connect Google**, then **Create my folder and sheet**. It creates a Drive folder "Internify resumes" and a spreadsheet "Internify tracker" (with the columns below and a Status drop-down) and writes everything into `.env`.
+Run `./setup.sh` (or `setup.bat`) and open step 4, **Google Drive and Sheets**. Follow its short guide to create a Google project and a **Desktop app** client, paste the Client ID and secret, press **Connect Google**, then **Create my folder and sheet**. It creates a Drive folder "Internify resumes" and a spreadsheet "Internify — Application Tracker" (the template's columns, a Status drop-down, a frozen header) and writes everything into `.env`. It signs in with the **limited permission** (`drive.file`, saved as `GOOGLE_ACCESS=app`): Internify can open only the folder and sheet it created, nothing else in your Drive. **Already set up with Google before?** Nothing changes until you want it to: your copy keeps its full-access login. To move, run setup again, open the Google step, sign in and press **Create my folder and sheet** with the box ticked to move your old rows (the old sheet is only read). If you use a sheet you copied by hand, keep `GOOGLE_ACCESS=full`.
 
 Important: in the Google consent screen press **Publish app** (otherwise Google cancels the connection after 7 days). Google then shows an "unverified app" warning when you sign in; for your own app press **Advanced → Go to Internify**. Details: [`docs/domain_setup.md`](docs/domain_setup.md), part 3.
 
@@ -329,7 +339,7 @@ We also provide a pre-formatted tracker with automated formulas and dropdown men
 
 ### 2. Google OAuth Credentials Setup
 1. Obtain an OAuth 2.0 Client ID & Secret from [Google Cloud Console](https://console.cloud.google.com/) (Enable **Google Drive API** and **Google Sheets API**).
-2. Authenticate once with `python scripts/get_gdrive_token.py` to obtain your refresh token. Full steps, including moving the Google consent screen from Testing to Production so the token does not expire after 7 days: [`docs/domain_setup.md`](docs/domain_setup.md).
+2. Authenticate once with `python scripts/get_gdrive_token.py` to obtain your refresh token (run it with `GOOGLE_ACCESS=full` if your tracker sheet is one you copied by hand, and put `GOOGLE_ACCESS=full` in `.env` too). Full steps, including moving the Google consent screen from Testing to Production so the token does not expire after 7 days: [`docs/domain_setup.md`](docs/domain_setup.md).
 3. Add the generated credentials to `.env`:
    ```env
    GOOGLE_CLIENT_ID=...

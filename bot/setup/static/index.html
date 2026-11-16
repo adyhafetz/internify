@@ -119,12 +119,13 @@ details ol{margin:10px 0 4px;padding-left:20px}details li{margin:5px 0}a{color:v
   <details class="how"><summary>How do I set this up? (about 10 minutes)</summary><ol>
     <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console</a> and create a project called <b>Internify</b>.</li>
     <li>Open <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener">Google Drive API</a> and <a href="https://console.cloud.google.com/apis/library/sheets.googleapis.com" target="_blank" rel="noopener">Google Sheets API</a> and press <b>Enable</b> on each.</li>
-    <li>Open the <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">consent screen (Google Auth Platform)</a> → <b>Get started</b>. App name <b>Internify</b>, your email, audience <b>External</b>. Under <b>Data access</b> add the scopes <code>…/auth/drive</code> and <code>…/auth/spreadsheets</code>.</li>
-    <li><b>Important:</b> under <b>Audience</b> press <b>Publish app</b>. If you leave it in Testing, Google cancels the connection after 7 days. Google will later show an "unverified app" warning when you sign in. That is normal for your own app: press <b>Advanced → Go to Internify</b>.</li>
+    <li>Open the <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">consent screen (Google Auth Platform)</a> → <b>Get started</b>. App name <b>Internify</b>, your email, audience <b>External</b>. Under <b>Data access</b> add just one scope: <code>…/auth/drive.file</code> (“See, edit, create and delete only the specific Google Drive files you use with this app”). Internify then can only open the folder and sheet it creates itself, nothing else in your Drive.</li>
+    <li><b>Important:</b> under <b>Audience</b> press <b>Publish app</b>. If you leave it in Testing, Google cancels the connection after 7 days. Google may show an "unverified app" warning when you sign in. That is normal for your own app: press <b>Advanced → Go to Internify</b>.</li>
     <li>Open <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a> → <b>Create client</b> → type <b>Desktop app</b> → Create. Copy the <b>Client ID</b> and <b>Client secret</b> and paste them below.</li></ol>
     <p class="muted">More detail: <a href="https://github.com/adyhafetz/internify/blob/main/docs/domain_setup.md" target="_blank" rel="noopener">docs/domain_setup.md</a>, part 3.</p></details>
   <label for="gid">Client ID</label><input id="gid" data-g="GOOGLE_CLIENT_ID" autocomplete="off" placeholder="1234…apps.googleusercontent.com">
   <label for="gsec">Client secret</label><input id="gsec" data-g="GOOGLE_CLIENT_SECRET" type="password" autocomplete="off" placeholder="GOCSPX-…">
+  <label id="gcopyrow" class="check" style="display:none;margin-top:12px"><input type="checkbox" id="gcopy" checked> <span>Move my old tracker's rows into the new sheet. <small>You set up Google before with full access. The new sheet follows the template and keeps all your rows and statuses; the old sheet is only read, never changed, and its resume links keep working.</small></span></label>
   <div class="row" style="margin-top:14px"><button class="fit" id="gconn">Connect Google</button><button class="fit" id="gmake" disabled>Create my folder and sheet</button></div>
   <div class="msg" id="gmsg"></div>
   <details><summary>I already have these (refresh token, sheet ID, folder ID)</summary>
@@ -215,12 +216,13 @@ $("#gconn").onclick = async () => {
   clearInterval(gpoll);
   gpoll = setInterval(async () => {
     const st = await (await fetch("/api/google/status")).json();
+    $("#gcopyrow").style.display = st.existing_sheet ? "" : "none";
     if (st.connected) { clearInterval(gpoll); S.gConnected = true; $("#gmake").disabled = false; say($("#gmsg"), { ok: true, message: "Connected to Google. Now press “Create my folder and sheet”." }); }
   }, 2000);
 };
 $("#gmake").onclick = async () => {
   $("#gmake").disabled = true; $("#gmsg").className = "msg"; $("#gmsg").textContent = "Creating…";
-  const r = await post("/api/google/create"); $("#gmake").disabled = false; say($("#gmsg"), r);
+  const r = await post("/api/google/create", { copy_rows: !!($("#gcopyrow").style.display !== "none" && $("#gcopy").checked) }); $("#gmake").disabled = false; say($("#gmsg"), r);
   if (r.ok) { S.gCreated = true; $("#gmsg").innerHTML += ` <a href="${r.folder_url}" target="_blank" rel="noopener">Open the folder</a> · <a href="${r.sheet_url}" target="_blank" rel="noopener">Open the sheet</a>`; }
 };
 function mask(v) { return v ? (v.length > 10 ? v.slice(0, 4) + "…" + v.slice(-3) : "•••") : ""; }

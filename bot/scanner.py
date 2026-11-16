@@ -34,6 +34,7 @@ class ScanSummary:
     failed: int = 0
     duplicates: int = 0
     searched: bool = False
+    search_report: str = ""    # e.g. "LinkedIn 12, JobStreet 8, Hiredly didn't answer"
     waiting: int = 0           # from earlier checks, still in line to be read
     left_waiting: int = 0      # not read this time, kept in line for the next check
     filtered: int = 0          # left out by your filters (not an internship, another place, closed, already done)
@@ -84,6 +85,7 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
             events.emit_run("failed", error=f"The scan stopped: {err}")
             await bot.send_message(chat_id, f"⚠️ The daily job check stopped.\nReason: {err}")
             return summary
+        watchlist.set_setting("scan_last_at", str(time.time()))   # for the catch-up after a computer that was off
         events.emit_run("finished", scan=True, found=summary.found, shortlisted=summary.kept, tailored=summary.tailored,
                         failed=summary.failed, note=summary.note)
         watchlist.set_setting("scan_last", time.strftime("%a %d %b %H:%M") + " · " + (summary.note[:80] if summary.note else
@@ -101,6 +103,8 @@ def _digest(s: ScanSummary) -> str:
              f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''}"
              + (" and searched the web" if s.searched else "") + f", and found {s.found} new job{'s' if s.found != 1 else ''} that fit your filters",
              f"• {s.kept} matched well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
+    if s.search_report:
+        lines.append(f"• Searched your keywords: {s.search_report}")
     if s.left_waiting:
         lines.append(f"• {s.left_waiting} more waiting in line: I read the most promising first, the rest get their turn next time")
     if s.filtered:
@@ -122,10 +126,11 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     sources = watchlist.list_sources()
     prefs = watchlist.get_prefs()
     s.sources = len(sources)
-    if not sources and not prefs.web_search:
+    from bot.services.sources import enabled as search_sources
+    if not sources and not prefs.web_search and not search_sources():
         events.emit("discoverer", events.FAIL, "No job pages yet", why="No job pages yet. Add one in /profile.")
-        s.note = ("I have nowhere to look yet. Open /profile, tap Job pages I check, and add a career page or a job-board link, "
-                  "or switch on the web search there.")
+        s.note = ("I have nowhere to look yet. Open /profile, tap Job search, and add a career page or a job-board link, "
+                  "or switch on a search source (LinkedIn, JobStreet…) in 🎯 What I look for.")
         return
 
     # 1. Discoverer: find links (your filters are applied here, before anything is read in full)
@@ -133,7 +138,9 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
                 sources=len(sources))
     candidates, results = await discover(sources, prefs)
     s.filtered = sum(r.skipped for r in results)
-    s.searched = any(r.label == "Web search" for r in results)
+    s.searched = any(r.kind == "search" for r in results)
+    s.search_report = ", ".join(f"{r.label} {r.found}" if r.ok else f"{r.label} {r.reason or 'didn' + chr(39) + 't answer'}"
+                                for r in results if r.kind == "search")
     answered = [r for r in results if r.ok]
     if not answered:
         events.emit("discoverer", events.FAIL, "No job page answered", why="None of your job pages answered")
@@ -142,10 +149,13 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     # New jobs, plus the ones from earlier checks that are still waiting in line to be read in full
     await asyncio.to_thread(watchlist.expire_waiting)
     fresh = []
+    from bot.services.db import application_links
+    from bot.services.sources.base import normalize_url
+    tracked = {normalize_url(u).lower() for u in await asyncio.to_thread(application_links)}   # one spelling per job
     for c in candidates:
         if watchlist.seen(c.url):
             continue
-        if is_duplicate_url(c.url):   # you already applied to this one
+        if is_duplicate_url(c.url) or normalize_url(c.url).lower() in tracked:   # you already applied to this one
             watchlist.mark_seen(c.url, c.title, c.company, "applied")
             continue
         if watchlist.known(c.url):
@@ -247,4 +257,34 @@ def schedule(application) -> Optional[str]:
         logger.warning("SCAN_TIME/SCAN_TIMEZONE not understood (%s); the daily scan is off", err)
         return None
     application.job_queue.run_daily(daily_scan, time=when, name="daily-scan")
+    application.job_queue.run_once(catch_up_scan, when=90, name="scan-catch-up")   # a computer that was off at SCAN_TIME
     return f"every day at {config.SCAN_TIME} ({config.SCAN_TIMEZONE})"
+
+
+def missed_today(now_ts: float, last_ts: Optional[float], hh: int, mm: int, tz: str) -> bool:
+    """Was today's scheduled check missed (the bot was not running at SCAN_TIME)? True if today's time has passed and the
+    last check ran before it. Never true for a copy that has not run a check yet (the first one runs on schedule)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    if not last_ts:
+        return False
+    now = datetime.fromtimestamp(now_ts, ZoneInfo(tz))
+    due = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return now >= due and last_ts < due.timestamp()
+
+
+async def catch_up_scan(context) -> None:
+    """Shortly after the bot starts: if today's check was missed because the computer was off, run it now."""
+    if watchlist.scan_paused() or not config.SCAN_ENABLED:
+        return
+    chat_id = watchlist.owner_chat_id()
+    last = watchlist.get_setting("scan_last_at", "")
+    try:
+        hh, mm = (int(x) for x in config.SCAN_TIME.split(":"))
+        missed = missed_today(time.time(), float(last) if last else None, hh, mm, config.SCAN_TIMEZONE)
+    except Exception:
+        return
+    if chat_id is None or not missed:
+        return
+    logger.info("Today's daily check was missed (the bot wasn't running at %s); running it now", config.SCAN_TIME)
+    await run_scan(context.bot, chat_id, trigger="catch-up")

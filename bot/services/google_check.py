@@ -18,6 +18,10 @@ def _hint(err: Exception) -> str:
     if "invalid_grant" in low or "expired or revoked" in low:
         return ("the Google login has expired or was revoked. If your Google Cloud consent screen is in "
                 "'Testing' mode, tokens expire after 7 days: create a new refresh token (scripts/get_gdrive_token.py)")
+    if ("404" in low or "not found" in low or "403" in low or "permission" in low) and config.GOOGLE_ACCESS == "app":
+        return ("this Google login is the limited kind (GOOGLE_ACCESS=app), which can only open files Internify created. "
+                "If this sheet or folder was made by hand, open the setup page's Google step and press “Move to a new tracker sheet”, "
+                "or set GOOGLE_ACCESS=full in .env to go back to the full permission")
     if "404" in low or "not found" in low:
         return "Google couldn't find it. Check the ID, and that this Google account can open it"
     if "403" in low or "permission" in low:

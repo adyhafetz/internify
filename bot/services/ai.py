@@ -113,6 +113,29 @@ async def find_jobs_on_page(page_text: str, base_url: str) -> Optional[list[tupl
     return out
 
 
+class _PickedPostings(BaseModel):
+    numbers: list[int] = Field(default_factory=list, description="The numbers of the results that are ONE specific job posting")
+
+
+async def pick_postings(results: list[tuple[str, str]], keyword: str, place: str) -> Optional[list[int]]:
+    """The positions (0-based) of the search results that are single job postings for the wanted role, or None if the
+    AI is unavailable (the caller then uses plain rules)."""
+    if not enabled() or not results:
+        return None
+    listing = "\n".join(f"{i + 1}. {title} | {url}" for i, (title, url) in enumerate(results))
+    try:
+        r: _PickedPostings = await _run(
+            service_config.DISCOVERER_MODEL, _PickedPostings,
+            "These are web search results. Pick the ones that are ONE specific job posting or internship (a page where "
+            f"someone can apply) for the role '{keyword}' in {place}. Skip company home pages, lists of many jobs, "
+            "articles, advice pages, forums and social media posts. Answer with their numbers only.",
+            listing)
+    except Exception as err:
+        logger.info("AI result picking skipped: %s", err)
+        return None
+    return sorted({n - 1 for n in r.numbers if 1 <= n <= len(results)})
+
+
 # ---------------------------------------------------------------- Matcher: say why in one sentence
 
 class _Why(BaseModel):

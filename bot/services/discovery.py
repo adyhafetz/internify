@@ -21,8 +21,8 @@ from urllib.parse import urldefrag, urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
-from bot import config
-from bot.services import ai, scraper
+from bot.services import ai, scraper, sources as keyword_sources
+from bot.services.sources.base import Candidate, SourceError, normalize_url, read_listing
 from bot.services.watchlist import BOARD_KINDS, Prefs, Source, classify, mark_checked, place_ok, retarget, title_ok
 from service import events
 
@@ -37,22 +37,13 @@ NAV_WORDS = ("home", "about", "contact", "log in", "login", "sign in", "sign up"
 
 
 @dataclass
-class Candidate:
-    title: str
-    company: str
-    url: str
-    location: str = ""
-    snippet: str = ""   # the description when the source provides it (Greenhouse, Lever); empty for plain pages
-    source: str = ""
-
-
-@dataclass
 class SourceResult:
     label: str
     ok: bool
     found: int = 0
     reason: str = ""
     skipped: int = 0          # left out by your filters
+    kind: str = "page"        # "page" for a page you watch, "search" for a keyword search
 
 
 def _text_of(markup: str) -> str:
@@ -66,6 +57,8 @@ def _reason(err: Exception) -> str:
         return scraper._status_reason(err.response.status_code)
     if isinstance(err, httpx.HTTPError):
         return "couldn't connect to it"
+    if isinstance(err, SourceError):
+        return str(err)
     if isinstance(err, (ValueError, KeyError, TypeError)):
         return "it answered in a way I couldn't read"
     return "something went wrong with it"
@@ -169,26 +162,7 @@ def detect_board(text: str) -> Optional[tuple[str, str]]:
 
 async def _listing(url: str) -> str:
     """The text (markdown or HTML) of a listing page, by the first route that works."""
-    last: Optional[Exception] = None
-    if config.SCRAPINGANT_API_KEY:
-        try:
-            async with scraper._client(45.0) as client:
-                return (await _get(client, "https://api.scrapingant.com/v2/markdown", params={"url": url},
-                                   headers={"x-api-key": config.SCRAPINGANT_API_KEY})).text
-        except Exception as err:
-            last = err
-    try:
-        async with scraper._client(30.0) as client:
-            return (await _get(client, url)).text
-    except Exception as err:
-        last = err
-    if config.SCOUT_FALLBACKS:
-        try:
-            async with scraper._client(45.0) as client:
-                return (await _get(client, f"https://r.jina.ai/{url}", headers={"Accept": "text/plain"})).text
-        except Exception as err:
-            last = err
-    raise last or RuntimeError("no route worked")
+    return await read_listing(url)
 
 
 def extract_job_links(text: str, base_url: str) -> list[tuple[str, str]]:
@@ -255,25 +229,25 @@ def _wanted(c: Candidate, prefs: Optional[Prefs]) -> bool:
 
 async def _search_web(prefs: Prefs, seen_urls: set[str]) -> tuple[list[Candidate], Optional[SourceResult]]:
     from bot.services import websearch
-    events.emit("discoverer", events.PROGRESS, "Searching the web for matching postings", status="trying", label="Web search")
+    events.emit("discoverer", events.PROGRESS, "Searching the web for matching postings", status="trying", label="Company boards search")
     try:
         postings, queries = await websearch.find_postings(prefs)
     except Exception as err:
         logger.info("Web search failed: %s", err)
         _remember_search("failed: the search engines didn't answer")
-        return [], SourceResult("Web search", False, 0, "the search engines didn't answer")
+        return [], SourceResult("Company boards search", False, 0, "the search engines didn't answer", kind="search")
     if not queries:
         return [], None
     found = [Candidate(title=t, company=co, url=u, source="Web search") for t, co, u in postings]
     kept = [c for c in found if c.url not in seen_urls and _wanted(c, prefs)]
     seen_urls.update(c.url for c in kept)
-    events.emit("discoverer", events.PROGRESS, f"Web search: {len(kept)} jobs", status="ok", label="Web search",
+    events.emit("discoverer", events.PROGRESS, f"Company boards search: {len(kept)} jobs", status="ok", label="Company boards search",
                 found=len(kept), queries=queries)
     if not postings:
         _remember_search("no results: the search engines may be blocking this server")
-        return [], SourceResult("Web search", False, 0, "no results today")
+        return [], SourceResult("Company boards search", False, 0, "no results today", kind="search")
     _remember_search(f"ok: {len(postings)} postings, {len(kept)} new that fit your filters")
-    return kept, SourceResult("Web search", True, len(kept), skipped=len(found) - len(kept))
+    return kept, SourceResult("Company boards search", True, len(kept), skipped=len(found) - len(kept), kind="search")
 
 
 def _remember_search(text: str) -> None:
@@ -286,9 +260,45 @@ def _remember_search(text: str) -> None:
         pass
 
 
+def _repeat(c: Candidate, kept: list[Candidate]) -> bool:
+    """The same job already found through another source (same company and title)."""
+    from bot.services.db import same_job
+    return bool(c.company) and any(k.company and same_job(c.company, c.title, k.company, k.title) for k in kept)
+
+
+async def _search_keywords(prefs: Prefs, seen_urls: set[str], so_far: list[Candidate]) -> tuple[list[Candidate], list[SourceResult]]:
+    """Search your keywords on every source that is switched on, then apply your filters to what came back."""
+    names = ", ".join(s.name for s in keyword_sources.enabled())
+    if not names:
+        return [], []
+    events.emit("discoverer", events.PROGRESS, f"Searching your keywords on {names}", status="trying", label="Keyword search",
+                keywords=keyword_sources.keywords(prefs))
+    found, reports = await keyword_sources.search_all(prefs)
+    kept: list[Candidate] = []
+    results: list[SourceResult] = []
+    for rep in reports:
+        mine = [c for c in found if c.source == rep.name]
+        wanted = []
+        for c in mine:
+            url = normalize_url(c.url)
+            if not url or url in seen_urls or not _wanted(c, prefs) or _repeat(c, so_far + kept + wanted):
+                continue
+            c.url = url
+            wanted.append(c)
+        fresh = wanted[:MAX_PER_SOURCE]
+        seen_urls.update(c.url for c in fresh)
+        kept += fresh
+        results.append(SourceResult(rep.name, rep.ok, len(fresh), rep.reason, skipped=len(mine) - len(wanted), kind="search"))
+        events.emit("discoverer", events.PROGRESS,
+                    f"{rep.name}: {len(fresh)} jobs" if rep.ok else f"{rep.name} didn't answer",
+                    status="ok" if rep.ok else "failed", label=rep.name, found=len(fresh), reason=rep.reason)
+    return kept, results
+
+
 async def discover(sources: list[Source], prefs: Optional[Prefs] = None) -> tuple[list[Candidate], list[SourceResult]]:
-    """Visit every source (and search the web if that is on). Returns (all candidates that pass your filters, one
-    result per source). Progress goes out as Discoverer events."""
+    """Visit every page you watch, search your keywords on every switched-on source, and (if on) search the hiring
+    systems. Returns (all candidates that pass your filters, one result per source). Progress goes out as Discoverer
+    events."""
     candidates: list[Candidate] = []
     results: list[SourceResult] = []
     seen_urls: set[str] = set()
@@ -296,9 +306,9 @@ async def discover(sources: list[Source], prefs: Optional[Prefs] = None) -> tupl
         events.emit("discoverer", events.PROGRESS, f"Checking {src.label}", status="trying", label=src.label)
         try:
             found = await _READERS[src.kind](src)
-            wanted = [c for c in found if c.url and c.url not in seen_urls and _wanted(c, prefs)]
+            wanted = [c for c in found if c.url and normalize_url(c.url) not in seen_urls and _wanted(c, prefs)]
             fresh = wanted[:MAX_PER_SOURCE]
-            seen_urls.update(c.url for c in fresh)
+            seen_urls.update(normalize_url(c.url) for c in fresh)
             candidates += fresh
             results.append(SourceResult(src.label, True, len(fresh), skipped=len(found) - len(wanted)))
             mark_checked(src.id, f"ok: {len(fresh)} jobs" + (f" ({len(found) - len(wanted)} filtered out)" if len(found) > len(wanted) else ""))
@@ -309,6 +319,10 @@ async def discover(sources: list[Source], prefs: Optional[Prefs] = None) -> tupl
             results.append(SourceResult(src.label, False, 0, reason))
             mark_checked(src.id, f"failed: {reason}")
             events.emit("discoverer", events.PROGRESS, f"{src.label} didn't answer", status="failed", label=src.label, reason=reason)
+    if prefs is not None:
+        found, searched = await _search_keywords(prefs, seen_urls, candidates)
+        candidates += found
+        results += searched
     if prefs is not None and prefs.web_search:
         found, result = await _search_web(prefs, seen_urls)
         candidates += found

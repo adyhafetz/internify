@@ -14,6 +14,7 @@ from service import events
 
 db.init_db()
 watchlist.set_setting("scan_web_search", "0")    # the web search and the filters have their own tests below
+for _k in ("linkedin", "jobstreet", "hiredly", "openweb"): watchlist.set_setting(f"src_{_k}", "0")   # keyword sources: test_sources.py
 watchlist.set_setting("scan_interns_only", "0")
 
 # ---- W: watchlist
@@ -153,6 +154,7 @@ scanner.profile_is_sample = lambda: False
 class JQ:
     def __init__(self): self.calls = []
     def run_daily(self, cb, time, name): self.calls.append((cb, time, name))
+    def run_once(self, cb, when, name): pass
 app = types.SimpleNamespace(job_queue=JQ()); config.SCAN_ENABLED, config.SCAN_TIME, config.SCAN_TIMEZONE = True, "07:30", "Asia/Kuala_Lumpur"
 assert "07:30" in scanner.schedule(app) and app.job_queue.calls[0][1].hour == 7 and app.job_queue.calls[0][2] == "daily-scan"
 config.SCAN_TIME = "nope"; assert scanner.schedule(types.SimpleNamespace(job_queue=JQ())) is None
@@ -205,7 +207,7 @@ assert "Senior Engineer" not in titles and "Data Intern" not in titles, "filtere
 assert {"Software Engineer Intern", "IT Intern", "Marketing Intern"} <= titles
 assert {"Backend Intern", "Platform Intern at Pied Piper"} & titles and "Hooli careers" not in titles and "Some blog" not in titles, titles
 assert searched and "site%3Ajobs.lever.co" in searched[0] and "backend+intern" in searched[0].lower()
-ws = next(r for r in results if r.label == "Web search"); assert ws.ok and ws.found == 2
+ws = next(r for r in results if r.label == "Company boards search"); assert ws.ok and ws.found == 2
 boards = {x.url: x for x in watchlist.list_sources()}
 assert boards["https://jobs.lever.co/hooli"].auto == watchlist.AUTO_SEARCH and "https://boards.greenhouse.io/piedpiper" in boards, boards
 assert sum(r.skipped for r in results) >= 2

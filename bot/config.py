@@ -26,6 +26,10 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN", "").strip()
 GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
+# "app": the login can only open files Internify created itself (the setup page's folder and sheet). "full": all Drive and
+# Sheets files. A new Google sign-in from the setup page saves "app". A copy set up earlier has no value here and keeps "full",
+# so nothing stops working until you choose to move.
+GOOGLE_ACCESS = os.getenv("GOOGLE_ACCESS", "full").strip().lower()
 
 
 # Live dashboard (served from the bot process; shows the agents working in real time)

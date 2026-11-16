@@ -70,6 +70,8 @@ async def post_init(application) -> None:
     tracker.schedule(application)
     import asyncio
     asyncio.get_running_loop().create_task(tracker.sync(force=True))   # follow your Google Sheet's statuses from the start
+    from bot import status
+    asyncio.get_running_loop().create_task(status.startup_check(application))   # a plain warning if the AI key is wrong
 
 
 def create_bot_app():
@@ -104,6 +106,8 @@ def create_bot_app():
     app.add_handler(CommandHandler("importresume", importresume_command))
     app.add_handler(MessageHandler(filters.Document.ALL, resume_document_handler, block=False))
     app.add_handler(CallbackQueryHandler(import_callback, pattern=r"^imp:"))
+    from bot.handlers.datafile import data_import_callback
+    app.add_handler(CallbackQueryHandler(data_import_callback, pattern=r"^dim:"))
 
     # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
     app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
