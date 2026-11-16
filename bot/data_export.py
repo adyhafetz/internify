@@ -18,7 +18,7 @@ import zipfile
 from dataclasses import dataclass, field
 
 from bot.services import db, watchlist
-from service import config, github_evidence, importer, outcomes
+from service import github_evidence, importer, outcomes, users
 from service.models import FactBullet, ResumeSkeleton
 
 SCHEMA_VERSION = 1
@@ -59,10 +59,10 @@ def _read_json(path: str, default):
 
 def export_bytes() -> bytes:
     """Everything above, as the bytes of a .zip file."""
-    importer.ensure_data_file(config.FACT_STORE_PATH, "facts.json")
-    importer.ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")
-    facts = _read_json(config.FACT_STORE_PATH, [])
-    skeleton = _read_json(config.SKELETON_PATH, {})
+    importer.ensure_data_file(users.facts_path(), "facts.json")
+    importer.ensure_data_file(users.skeleton_path(), "resume_skeleton.json")
+    facts = _read_json(users.facts_path(), [])
+    skeleton = _read_json(users.skeleton_path(), {})
     tracker = db.export_tracker()
     tracker["settings"] = {k: watchlist.get_setting(k, "") for k in SETTING_KEYS if watchlist.get_setting(k, "") != ""}
     manifest = {"app": APP, "schema_version": SCHEMA_VERSION, "exported_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -73,7 +73,7 @@ def export_bytes() -> bytes:
         z.writestr("manifest.json", json.dumps(manifest, indent=1))
         z.writestr("data/facts.json", json.dumps(facts, indent=1, ensure_ascii=False))
         z.writestr("data/resume_skeleton.json", json.dumps(skeleton, indent=1, ensure_ascii=False))
-        for member, path in (("data/github_index.json", github_evidence._index_path()), ("data/outcomes.json", outcomes.PATH)):
+        for member, path in (("data/github_index.json", github_evidence._index_path()), ("data/outcomes.json", outcomes.path())):
             if os.path.exists(path):
                 z.writestr(member, open(path, encoding="utf-8").read())
         z.writestr("tracker.json", json.dumps(tracker, indent=1, ensure_ascii=False, default=str))
@@ -153,8 +153,7 @@ def inspect(data: bytes) -> tuple[Preview, dict]:
 
 def safety_copy() -> str:
     """Save the current data as a zip in output/exports/ (only the newest few are kept) and return its path."""
-    folder = os.path.join(os.path.dirname(config.FACT_STORE_PATH) or ".", "..", "exports")
-    folder = os.path.normpath(folder)
+    folder = users.exports_dir()
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"before-import-{time.strftime('%Y%m%d-%H%M%S')}.zip")
     with open(path, "wb") as f:
@@ -181,16 +180,16 @@ def restore(content: dict) -> dict:
     Returns what was done. A safety copy and a profile backup are made first."""
     safety = safety_copy()
     backup = importer.backup_current("before importing a data file")
-    _write_json(config.FACT_STORE_PATH, content["facts"])
-    _write_json(config.SKELETON_PATH, content["skeleton"])
+    _write_json(users.facts_path(), content["facts"])
+    _write_json(users.skeleton_path(), content["skeleton"])
     try:   # the saved bullet points changed: their search index is rebuilt the next time it is needed
-        os.remove(config.EMBEDDING_CACHE_PATH)
+        os.remove(users.embedding_cache_path())
     except OSError:
         pass
     if isinstance(content.get("github_index"), dict):
         _write_json(github_evidence._index_path(), content["github_index"])
     if isinstance(content.get("outcomes"), dict):
-        _write_json(outcomes.PATH, content["outcomes"])
+        _write_json(outcomes.path(), content["outcomes"])
     counts = db.replace_tracker(content["tracker"])
     for key in SETTING_KEYS:
         if key in content["settings"]:

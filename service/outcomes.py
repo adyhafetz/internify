@@ -8,16 +8,20 @@ import json
 import os
 import threading
 
-from service import config
+from service import users
 
-PATH = os.getenv("OUTCOMES_PATH", os.path.join(os.path.dirname(config.FACT_STORE_PATH) or ".", "outcomes.json"))
 STEP, CAP = 0.03, 0.09
 _lock = threading.Lock()
 
 
+def path() -> str:
+    """The acting user's outcomes file."""
+    return users.outcomes_path()
+
+
 def _load() -> dict:
     try:
-        with open(PATH, encoding="utf-8") as f:
+        with open(path(), encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
@@ -25,11 +29,11 @@ def _load() -> dict:
 
 
 def _save(data: dict) -> None:
-    os.makedirs(os.path.dirname(PATH) or ".", exist_ok=True)
-    tmp = PATH + ".tmp"
+    os.makedirs(os.path.dirname(path()) or ".", exist_ok=True)
+    tmp = path() + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1)
-    os.replace(tmp, PATH)
+    os.replace(tmp, path())
 
 
 def record(app_key: str, fact_ids: list[str], good: bool) -> None:

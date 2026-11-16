@@ -18,11 +18,11 @@ from bot.services.db import is_duplicate_url
 from bot.services.discovery import discover
 from bot.services.matcher import match
 from service.importer import profile_is_sample
-from service import events
+from service import events, users
 
 logger = logging.getLogger(__name__)
 
-_running = False   # one scan at a time
+_running: set[str] = set()   # the users whose scan is running now: one scan at a time for each
 
 
 @dataclass
@@ -70,10 +70,10 @@ class ScanReporter:
 
 async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[ScanSummary]:
     """Returns None if a scan is already running."""
-    global _running
-    if _running:
+    me = users.current()
+    if me in _running:
         return None
-    _running = True
+    _running.add(me)
     loop = asyncio.get_running_loop()
     summary = ScanSummary()
     try:
@@ -93,7 +93,7 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
         await bot.send_message(chat_id, _digest(summary), parse_mode="HTML")
         return summary
     finally:
-        _running = False
+        _running.discard(me)
 
 
 def _digest(s: ScanSummary) -> str:
@@ -222,14 +222,14 @@ def _h(text: object) -> str:
 
 def start_scan_now(application, chat_id: int) -> bool:
     """Start a scan in the background (the "Scan now" button). False if one is already running."""
-    if _running:
+    if users.current() in _running:
         return False
     application.create_task(run_scan(application.bot, chat_id, trigger="manual"))
     return True
 
 
 def is_running() -> bool:
-    return _running
+    return users.current() in _running
 
 
 async def daily_scan(context) -> None:

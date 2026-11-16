@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import os
 import sys
 from telegram import Update, BotCommand
 from telegram.ext import (
@@ -75,6 +76,11 @@ async def post_init(application) -> None:
 
 
 def create_bot_app():
+    from service import users
+    if users.cloud() and os.getenv("INTERNIFY_CLOUD_PREVIEW") != "1":
+        # The data is kept apart per user, but sign-up, plans and limits are not built yet: refuse rather than half work.
+        logger.error("MODE=cloud is not ready yet (sign-up and limits are still to come). Remove MODE from .env to run as before.")
+        sys.exit(1)
     if not config.TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN is not set in environment or .env file!")
         sys.exit(1)

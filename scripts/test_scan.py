@@ -140,8 +140,8 @@ print("S ok: no sources / all failed / shortlisted+tailored / nothing new")
 
 # one at a time
 async def twice():
-    scanner._running = True
-    r = await scanner.run_scan(Bot(), 1); scanner._running = False; return r
+    scanner._running.add("owner")
+    r = await scanner.run_scan(Bot(), 1); scanner._running.discard("owner"); return r
 assert asyncio.run(twice()) is None
 print("S ok: one scan at a time")
 

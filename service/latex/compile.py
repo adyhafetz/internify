@@ -5,7 +5,7 @@ import subprocess
 
 from jinja2 import Environment, FileSystemLoader
 
-from service import config, events
+from service import config, events, users
 from service.clients import openai_client
 from service.models import GeneratedResume, ResumeSkeleton
 
@@ -227,10 +227,12 @@ def compile_tex(
     resume: GeneratedResume,
     skeleton: ResumeSkeleton,
     filename_base: str,
-    output_dir: str = config.OUTPUT_DIR,
+    output_dir: str | None = None,
     max_retries: int = config.MAX_TEX_FIX_RETRIES,
 ) -> str:
-    """Renders, compiles, and self-heals a resume PDF. Returns the PDF path."""
+    """Renders, compiles, and self-heals a resume PDF. Returns the PDF path. The files go in the acting user's own
+    folder unless ``output_dir`` says otherwise."""
+    output_dir = output_dir or users.output_dir()
     os.makedirs(output_dir, exist_ok=True)
     tex_source = render_tex(resume, skeleton)
     tex_path = os.path.join(output_dir, f"{filename_base}.tex")

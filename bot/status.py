@@ -13,7 +13,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot import config
 from bot.services import watchlist
-from service import config as sc
+from service import config as sc, users
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +36,16 @@ def _next_run(application, name: str) -> Optional[str]:
 
 
 def _github_line() -> str:
-    if not sc.GITHUB_USERNAME:
+    username = users.github_username()
+    if not username:
         return "off (no GitHub username set)"
     from service import github_evidence
     idx = github_evidence.load_index()
-    if idx.get("username") != sc.GITHUB_USERNAME or not idx.get("checked"):
-        return f"{_h(sc.GITHUB_USERNAME)}, repos not read yet"
+    if idx.get("username") != username or not idx.get("checked"):
+        return f"{_h(username)}, repos not read yet"
     hours = (time.time() - idx["checked"]) / 3600
     age = f"{int(hours * 60)} min" if hours < 1 else f"{int(hours)} h" if hours < 48 else f"{int(hours / 24)} days"
-    return f"{_h(sc.GITHUB_USERNAME)}, {len(idx.get('repos', {}))} repos, read {age} ago"
+    return f"{_h(username)}, {len(idx.get('repos', {}))} repos, read {age} ago"
 
 
 def _looking_for() -> str:

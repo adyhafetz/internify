@@ -24,7 +24,7 @@ from telegram.ext import ContextTypes
 
 from bot.handlers.common import restricted
 from bot.services import db, watchlist
-from service import events, outcomes
+from service import events, outcomes, users
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +225,7 @@ def _status_toast(app: dict) -> str:
 # ---------------------------------------------------------------- your Google Sheet decides
 
 _WORDS = {s.lower(): s for s in db.SHEET_STATUSES}
-_synced_at = 0.0
+_synced_at: dict[str, float] = {}   # user id -> when their Sheet was last read
 SYNC_EVERY = 60   # seconds: reading the Sheet again sooner than this is not worth the wait
 
 
@@ -234,15 +234,15 @@ def sync_from_sheet(force: bool = False) -> Optional[dict]:
     when the Sheet isn't connected or couldn't be read (the bot then keeps what it has).
     "New" in the Sheet means the resume is ready but not sent; a word that isn't one of the drop-down's is left alone
     (and reported) instead of guessed."""
-    global _synced_at
     import time
-    if not force and time.time() - _synced_at < SYNC_EVERY:
+    me = users.current()
+    if not force and time.time() - _synced_at.get(me, 0.0) < SYNC_EVERY:
         return {"changed": 0, "unknown": []}
     from bot.services.sheets import read_statuses
     sheet = read_statuses()
     if sheet is None:
         return None
-    _synced_at = time.time()
+    _synced_at[me] = time.time()
     changed, unknown = 0, set()
     for app in db.all_applications():
         word = sheet.get((app.get("job_link") or "").strip().lower())

@@ -26,7 +26,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
-from service import config, events, tools_catalog
+from service import config, events, tools_catalog, users
 from service.profile_data import SKILL_CATEGORIES, _evict_from_cache, _load_facts_raw, _load_skeleton_raw, _save_facts_raw, _save_skeleton_raw
 
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ def tidy(rewrite=_rewrite_with_ai, github: bool = True, already_covered=_covered
         _save_skeleton_raw(sk)
         _save_facts_raw(facts)
         _evict_from_cache(changed)
-    use_github = github and bool(config.GITHUB_USERNAME)
+    use_github = github and bool(users.github_username())
     if use_github:
         if report.backup is None:
             report.backup = backup_current("a tidy-up")

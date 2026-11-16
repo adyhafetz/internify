@@ -247,7 +247,13 @@ from here (no Docker or GitHub Packages access), so the first build is the real 
 
 Estimated effort: **2 to 4 weeks**.
 
-### B1. Per-user data
+### B1. Per-user data (built)
+
+**Status:** `service/users.py` (the acting user, validated ids, every per-user path), user-scoped database tables with a
+migration that keeps an old database's rows as the owner's, and per-user versions of the GitHub index, outcomes, backups,
+data export, run traces, chat id, scan lock and Sheet sync are in (`scripts/test_users.py`). `MODE=cloud` is **refused at
+start-up** until B2 and B3 exist. Still per copy, not per user, and left for later steps: the Google login and Sheet/Drive
+(B5), the dashboard and `/pdf/<file>` route (B4), the Telegram sign-up (B2).
 
 - A `users` table: `id` (random public code, e.g. `k3f9x2`), `telegram_id` (unique), `plan`, `status`
   (`active` / `paused` / `deleted`), `created_at`, `limits`, `google` (encrypted login), `github_username`.

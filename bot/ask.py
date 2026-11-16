@@ -21,7 +21,7 @@ from telegram import Update
 
 from bot import config
 from bot.extraction import extract_skills, extract_tech_tags
-from service import events
+from service import events, users
 from service.profile_data import (
     AddSkillsRequest,
     NewFactBullet,
@@ -94,10 +94,13 @@ class SkillQuestioner:
 
     def __call__(self, skills: list[str]) -> list[SkillAnswer]:
         run_id = events.current_run_id()
-        return asyncio.run_coroutine_threadsafe(self._ask_all(skills, run_id), self.loop).result()
+        # run_coroutine_threadsafe does not carry the acting user into the bot's loop: pass it on by hand
+        return asyncio.run_coroutine_threadsafe(self._ask_all(skills, run_id, users.current()), self.loop).result()
 
-    async def _ask_all(self, skills: list[str], run_id: Optional[str]) -> list[SkillAnswer]:
+    async def _ask_all(self, skills: list[str], run_id: Optional[str], user_id: Optional[str] = None) -> list[SkillAnswer]:
         events.use_run(run_id)
+        if user_id is not None:
+            users._current.set(user_id)   # this coroutine is a task of its own, so this stays within it
         lock = _locks.setdefault(self.chat_id, asyncio.Lock())
         answers: list[SkillAnswer] = []
         async with lock:

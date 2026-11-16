@@ -251,7 +251,8 @@ def start_run(url: str = "", run_id: Optional[str] = None, **data: Any) -> str:
     Extra data (for example mode="scan") travels with the "started" event."""
     rid = run_id or new_run_id()
     _current_run.set(rid)
-    emit_run("started", url=url, **data)
+    from service import users
+    emit_run("started", url=url, user=users.current(), **data)   # whose run it is (the dashboard shows people only their own)
     return rid
 
 
