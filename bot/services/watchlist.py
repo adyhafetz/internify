@@ -256,7 +256,7 @@ def owner_chat_id() -> Optional[int]:
 # ---------------------------------------------------------------- what you are looking for (the daily check's filters)
 
 INTERN_WORDS = ("intern", "internship", "industrial training", "industrial attachment", "trainee", "placement",
-                "co-op", "coop", "student", "latihan industri", "praktikal", "undergraduate")
+                "co-op", "coop", "student", "latihan industri", "praktikal", "pelatih", "undergraduate")
 PLACE_ALIASES = {
     "malaysia": ("malaysia", "kuala lumpur", "selangor", "penang", "pulau pinang", "johor", "cyberjaya", "petaling jaya",
                  "putrajaya", "shah alam", "subang", "melaka", "malacca", "ipoh", "perak", "kuching", "sarawak", "sabah",

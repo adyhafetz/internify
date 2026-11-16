@@ -72,7 +72,7 @@ def list_screen(notice: str = "") -> Screen:
     rows = [[_btn("👤 Contact details", "c")]]
     rows += [[_btn(_short(f"{ICON[e.kind]} {e.label} ({e.count})", 60), "o", e.kind, e.ref, 0)] for e in entries]
     rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
-    rows.append([_btn(f"🔭 Job pages I check ({len(watchlist.list_sources())})", "w")])
+    rows.append([_btn(f"🔭 Job search ({len(watchlist.list_sources())} pages)", "w")])
     if my_links():
         rows.append([_btn("🔗 My links", "lk")])
     rows.append([_btn("🧹 Tidy up", "ty"), _btn("⚙️ Status", "st")])
@@ -186,7 +186,7 @@ def watchlist_screen(notice: str = "") -> Screen:
     watchlist.sources_from_history()   # pick up job boards behind the jobs you've already sent
     sources = watchlist.list_sources()
     lines = [notice, ""] if notice else []
-    lines += ["🔭 <b>Job pages I check</b>",
+    lines += ["🔭 <b>Job search</b>",
               f"{_schedule_text()}, I look at these for new jobs, keep the best matches (up to {config.SCAN_MAX_TAILORED}) and write a resume for each.", ""]
     names = {"page": "career page"}
     if sources:
@@ -210,24 +210,32 @@ def watchlist_screen(notice: str = "") -> Screen:
 
 
 def prefs_screen(notice: str = "") -> Screen:
-    """What the daily check looks for: roles and places (also used by the web search), and two switches."""
+    """What the daily check looks for: keywords and places, and which places to search them on."""
+    from bot.services import sources as ks
     from bot.services.websearch import default_roles
     p = watchlist.get_prefs()
     lines = [notice, ""] if notice else []
     roles = _h(", ".join(p.roles)) if p.roles else _h(", ".join(default_roles())) + " <i>(from your resume)</i>"
     lines += ["🎯 <b>What I look for</b>", "",
-              f"• <b>Roles</b>: {roles}",
+              f"• <b>Keywords</b> (the jobs you want): {roles}",
               f"• <b>Places</b>: {_h(', '.join(p.places)) if p.places else 'anywhere'}",
-              f"• <b>Internships only</b>: {'yes' if p.interns_only else 'no, any level'}",
-              f"• <b>Search the web</b>: {'on' if p.web_search else 'off'}", "",
-              "<i>The web search looks for these roles on the hiring systems companies post on (Greenhouse, Lever, "
-              "Ashby, Workable, SmartRecruiters, Workday) and adds each company it finds to the pages I check. "
-              "Jobs that don't match your places, aren't internships, have closed, or that you already have a resume "
-              "for are skipped.</i>"]
-    rows = [[_btn("✏️ Roles", "wfr"), _btn("✏️ Places", "wfp")],
-            [_btn(("✅" if p.interns_only else "⬜") + " Internships only", "wfi"),
-             _btn(("✅" if p.web_search else "⬜") + " Search the web", "wfs")],
-            [_btn("⬅ Back", "w")]]
+              f"• <b>Internships only</b>: {'yes' if p.interns_only else 'no, any level'}", "",
+              "<b>Where I search for them</b>"]
+    for src in ks.ALL:
+        h = ks.health(src.key)
+        state = ("off" if not ks.is_on(src.key) else _h(h["status"]) if h.get("status") else "on, not run yet")
+        lines.append(f"• {_h(src.name)}: {state}")
+    lines.append(f"• Company boards (Greenhouse, Lever, …): {'on' if p.web_search else 'off'}")
+    lines += ["", "<i>Each day I search your keywords on these sites and on the pages you added, skip jobs that don't match "
+              "your places, aren't internships, have closed, or that you already have a resume for, and write resumes "
+              "for the best few. LinkedIn, JobStreet and Hiredly offer no official way to search, so I use the same "
+              "public searches their websites do; if one stops working, switch it off here.</i>"]
+    rows = [[_btn("✏️ Keywords", "wfr"), _btn("✏️ Places", "wfp")],
+            [_btn(("✅" if p.interns_only else "⬜") + " Internships only", "wfi")]]
+    rows += [[_btn(("✅ " if ks.is_on(a.key) else "⬜ ") + a.name, "wfx", a.key),
+              _btn(("✅ " if ks.is_on(b.key) else "⬜ ") + b.name, "wfx", b.key)] for a, b in zip(ks.ALL[::2], ks.ALL[1::2])]
+    rows.append([_btn(("✅" if p.web_search else "⬜") + " Company boards", "wfs")])
+    rows.append([_btn("⬅ Back", "w")])
     return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
@@ -415,9 +423,16 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return prefs_screen(notice="✅ Only internships from now on." if on else "✅ Any level from now on.")
     if action == "wfs":
         on = watchlist.toggle("scan_web_search")
-        return prefs_screen(notice="✅ The daily check also searches the web." if on else "✅ Web search is off: only your pages are checked.")
+        return prefs_screen(notice="✅ Company boards are searched too." if on else "✅ Company boards are no longer searched.")
+    if action == "wfx":
+        from bot.services import sources as ks
+        keys = {s.key: s.name for s in ks.ALL}
+        if not args or args[0] not in keys:
+            return prefs_screen()
+        on = ks.switch(args[0])
+        return prefs_screen(notice=f"✅ {keys[args[0]]} is on." if on else f"✅ {keys[args[0]]} is off.")
     if action == "wfr":
-        return _prompt(context, "✏️ <b>Which roles should I look for?</b>\n\nSend up to 5, separated by commas, for example:\n"
+        return _prompt(context, "✏️ <b>Which jobs should I look for?</b>\n\nSend up to 5 keywords, separated by commas, for example:\n"
                        "<code>software engineer intern, data analyst intern, backend intern</code>\nSend - to use the roles on your resume.",
                        ("wf",), action="prefs", key="scan_roles")
     if action == "wfp":
@@ -561,7 +576,7 @@ async def _apply_answer(msg, wait: dict, text: str) -> Screen:
         items = [] if text.strip() == "-" else watchlist.set_list(wait["key"], text)
         if not items:
             watchlist.set_setting(wait["key"], "")
-        what = "Roles" if wait["key"] == "scan_roles" else "Places"
+        what = "Keywords" if wait["key"] == "scan_roles" else "Places"
         return prefs_screen(notice=f"✅ {what} saved." if items else f"✅ {what} cleared.")
     if action == "source":
         try:

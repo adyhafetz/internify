@@ -49,9 +49,11 @@ def _looking_for() -> str:
     p = watchlist.get_prefs()
     roles = ", ".join(p.roles or default_roles())
     line = (f"  looking for: {_h(roles)} · {_h(', '.join(p.places) or 'anywhere')}"
-            f"{' · internships only' if p.interns_only else ''} · web search {'on' if p.web_search else 'off'}")
+            f"{' · internships only' if p.interns_only else ''} · company boards {'on' if p.web_search else 'off'}")
+    from bot.services import sources as ks
+    line += "".join(f"\n  {_h(t)}" for t in ks.status_lines())
     if p.web_search:
-        line += f"\n  last web search: {_h(watchlist.get_setting('search_last', 'not run yet'))}"
+        line += f"\n  Company boards search: {_h(watchlist.get_setting('search_last', 'not run yet'))}"
     return line
 
 

@@ -1,6 +1,7 @@
 """Scout: reads a job posting, and finds another way in when the page is blocked or empty.
 
-Routes, tried in order until one returns a real posting (each attempt is reported to Telegram and the dashboard):
+Routes, tried in order until one returns a real posting (each attempt is reported to Telegram and the dashboard).
+For a LinkedIn posting link, LinkedIn's public job page is tried first. Then:
   1. ScrapingAnt (only if a key is set)        2. a normal visit (+ job data built into the page)
   3. a page-rendering service (Jina Reader)    4. a saved copy from the web archive (Wayback Machine)
   5. the same posting on another site (web search, accepted only if its text matches the job)
@@ -44,7 +45,7 @@ STOPWORDS = {"job", "jobs", "career", "careers", "apply", "the", "and", "for", "
 @dataclass
 class Page:
     text: str
-    method: str            # scrapingant | direct | reader | archive | search | pasted
+    method: str            # linkedin | scrapingant | direct | reader | archive | search | pasted
     label: str             # plain-language name of the route, e.g. "a saved copy from the web archive"
     source_url: str        # where the text really came from
     via_fallback: bool     # True when it did not come from the page the user sent
@@ -191,6 +192,20 @@ async def _via_scrapingant(ctx: _Ctx) -> Page:
     return Page(text, "scrapingant", "a scraping service", ctx.url, False)
 
 
+async def _via_linkedin(ctx: _Ctx) -> Page:
+    """LinkedIn's public posting page (the one it shows to people who aren't signed in). The normal visit to a LinkedIn
+    link only gets a login wall, so this is tried first for those links."""
+    from bot.services.sources import linkedin
+    from bot.services.sources.base import SourceError
+    try:
+        text = await linkedin.job_page(ctx.url)
+    except SourceError as err:
+        raise _Miss(str(err))
+    if not text or len(text) < MIN_PAGE_CHARS:
+        raise _Miss("the posting page came back empty (it may have closed)")
+    return Page(text, "linkedin", "LinkedIn's public job page", ctx.url, False)
+
+
 async def _via_direct(ctx: _Ctx) -> Page:
     async with _client(30.0) as client:
         text, embedded, title = await _fetch(client, ctx.url)
@@ -293,8 +308,10 @@ async def _via_search(ctx: _Ctx) -> Page:
 Route = tuple[str, str, Callable[[_Ctx], Awaitable[Page]]]
 
 
-def _routes() -> list[Route]:
+def _routes(url: str = "") -> list[Route]:
     routes: list[Route] = []
+    if "linkedin.com" in urlparse(url).netloc and re.search(r"/jobs/view/|currentJobId=", url):
+        routes.append(("linkedin", "LinkedIn's public job page", _via_linkedin))
     if config.SCRAPINGANT_API_KEY:
         routes.append(("scrapingant", "a scraping service", _via_scrapingant))
     routes.append(("direct", "a normal visit", _via_direct))
@@ -308,7 +325,7 @@ def _routes() -> list[Route]:
 async def scrape_job_url(url: str) -> Optional[Page]:
     """Try each route until one returns the posting. Returns None if every route fails (the caller then asks the
     user to paste the text). Every attempt is reported with ``events`` so Telegram and the dashboard can show it."""
-    routes = _routes()
+    routes = _routes(url)
     ctx = _Ctx(url)
     started = time.monotonic()
     for i, (method, label, route) in enumerate(routes, start=1):

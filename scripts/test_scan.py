@@ -14,6 +14,7 @@ from service import events
 
 db.init_db()
 watchlist.set_setting("scan_web_search", "0")    # the web search and the filters have their own tests below
+for _k in ("linkedin", "jobstreet", "hiredly", "openweb"): watchlist.set_setting(f"src_{_k}", "0")   # keyword sources: test_sources.py
 watchlist.set_setting("scan_interns_only", "0")
 
 # ---- W: watchlist
@@ -205,7 +206,7 @@ assert "Senior Engineer" not in titles and "Data Intern" not in titles, "filtere
 assert {"Software Engineer Intern", "IT Intern", "Marketing Intern"} <= titles
 assert {"Backend Intern", "Platform Intern at Pied Piper"} & titles and "Hooli careers" not in titles and "Some blog" not in titles, titles
 assert searched and "site%3Ajobs.lever.co" in searched[0] and "backend+intern" in searched[0].lower()
-ws = next(r for r in results if r.label == "Web search"); assert ws.ok and ws.found == 2
+ws = next(r for r in results if r.label == "Company boards search"); assert ws.ok and ws.found == 2
 boards = {x.url: x for x in watchlist.list_sources()}
 assert boards["https://jobs.lever.co/hooli"].auto == watchlist.AUTO_SEARCH and "https://boards.greenhouse.io/piedpiper" in boards, boards
 assert sum(r.skipped for r in results) >= 2

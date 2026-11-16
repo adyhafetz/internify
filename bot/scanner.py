@@ -34,6 +34,7 @@ class ScanSummary:
     failed: int = 0
     duplicates: int = 0
     searched: bool = False
+    search_report: str = ""    # e.g. "LinkedIn 12, JobStreet 8, Hiredly didn't answer"
     waiting: int = 0           # from earlier checks, still in line to be read
     left_waiting: int = 0      # not read this time, kept in line for the next check
     filtered: int = 0          # left out by your filters (not an internship, another place, closed, already done)
@@ -101,6 +102,8 @@ def _digest(s: ScanSummary) -> str:
              f"• Looked at {s.sources} job page{'s' if s.sources != 1 else ''}"
              + (" and searched the web" if s.searched else "") + f", and found {s.found} new job{'s' if s.found != 1 else ''} that fit your filters",
              f"• {s.kept} matched well enough, {s.tailored} resume{'s' if s.tailored != 1 else ''} written"]
+    if s.search_report:
+        lines.append(f"• Searched your keywords: {s.search_report}")
     if s.left_waiting:
         lines.append(f"• {s.left_waiting} more waiting in line: I read the most promising first, the rest get their turn next time")
     if s.filtered:
@@ -122,10 +125,11 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     sources = watchlist.list_sources()
     prefs = watchlist.get_prefs()
     s.sources = len(sources)
-    if not sources and not prefs.web_search:
+    from bot.services.sources import enabled as search_sources
+    if not sources and not prefs.web_search and not search_sources():
         events.emit("discoverer", events.FAIL, "No job pages yet", why="No job pages yet. Add one in /profile.")
-        s.note = ("I have nowhere to look yet. Open /profile, tap Job pages I check, and add a career page or a job-board link, "
-                  "or switch on the web search there.")
+        s.note = ("I have nowhere to look yet. Open /profile, tap Job search, and add a career page or a job-board link, "
+                  "or switch on a search source (LinkedIn, JobStreet…) in 🎯 What I look for.")
         return
 
     # 1. Discoverer: find links (your filters are applied here, before anything is read in full)
@@ -133,7 +137,9 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
                 sources=len(sources))
     candidates, results = await discover(sources, prefs)
     s.filtered = sum(r.skipped for r in results)
-    s.searched = any(r.label == "Web search" for r in results)
+    s.searched = any(r.kind == "search" for r in results)
+    s.search_report = ", ".join(f"{r.label} {r.found}" if r.ok else f"{r.label} {r.reason or 'didn' + chr(39) + 't answer'}"
+                                for r in results if r.kind == "search")
     answered = [r for r in results if r.ok]
     if not answered:
         events.emit("discoverer", events.FAIL, "No job page answered", why="None of your job pages answered")
@@ -142,10 +148,13 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     # New jobs, plus the ones from earlier checks that are still waiting in line to be read in full
     await asyncio.to_thread(watchlist.expire_waiting)
     fresh = []
+    from bot.services.db import application_links
+    from bot.services.sources.base import normalize_url
+    tracked = {normalize_url(u).lower() for u in await asyncio.to_thread(application_links)}   # one spelling per job
     for c in candidates:
         if watchlist.seen(c.url):
             continue
-        if is_duplicate_url(c.url):   # you already applied to this one
+        if is_duplicate_url(c.url) or normalize_url(c.url).lower() in tracked:   # you already applied to this one
             watchlist.mark_seen(c.url, c.title, c.company, "applied")
             continue
         if watchlist.known(c.url):
