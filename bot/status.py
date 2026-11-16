@@ -48,6 +48,14 @@ def _github_line() -> str:
     return f"{_h(username)}, {len(idx.get('repos', {}))} repos, read {age} ago"
 
 
+def _plan_line() -> str:
+    from bot.services import plans
+    try:
+        return plans.short_summary()
+    except Exception:
+        return ""
+
+
 def _looking_for() -> str:
     from bot.services.websearch import default_roles
     p = watchlist.get_prefs()
@@ -70,6 +78,7 @@ def screen(application=None, notice: str = ""):
         "⚙️ <b>Status</b>",
         "",
         "<b>Set up</b>",
+        *([f"• Plan: {_h(plan_line)}"] if (plan_line := _plan_line()) else []),
         f"• AI: {provider}, key {'✓' if sc.OPENAI_API_KEY else '✕ missing'}",
         f"  writes with {_h(sc.GENERATOR_MODEL)}, checks with {_h(sc.CRITIC_MODEL)}, reads with {_h(sc.EXTRACTOR_MODEL)}",
         f"• Only you can use the bot: {'yes' if config.ALLOWED_USER_IDS else 'no (anyone who finds it can)'}",

@@ -12,6 +12,15 @@ _raw_admin = os.getenv("ADMIN_TELEGRAM_ID", "").strip()
 ADMIN_TELEGRAM_ID = int(_raw_admin) if _raw_admin.isdigit() else 0
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
 
+# Hosted mode: what each plan includes (resumes a month), the most resumes one daily check writes, a monthly ceiling on AI calls for the
+# whole server (0 = no ceiling), when to remind people their plan is ending, and what /plan tells people about how to pay.
+FREE_RESUMES = int(os.getenv("FREE_RESUMES", "3"))
+PAID_RESUMES = int(os.getenv("PAID_RESUMES", "30"))
+PAID_SCAN_MAX = int(os.getenv("PAID_SCAN_MAX", "3"))
+AI_MONTHLY_BUDGET_CALLS = int(os.getenv("AI_MONTHLY_BUDGET_CALLS", "0"))
+PLAN_REMINDER_DAYS = int(os.getenv("PLAN_REMINDER_DAYS", "3"))
+PAY_INSTRUCTIONS = os.getenv("PAY_INSTRUCTIONS", "").strip() or "To upgrade, message the person who runs this bot."
+
 # Optional comma-separated Telegram User IDs to restrict access
 _raw_allowed = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "").strip()
 ALLOWED_USER_IDS: set[int] = {

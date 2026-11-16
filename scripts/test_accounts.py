@@ -112,6 +112,7 @@ print("5 ok: typed answers are ignored from strangers and paused people")
 for t in (1001, 1002, 2001):
     with users.use(ids[t]): watchlist.set_setting("owner_chat_id", str(t))
 with users.use(ids[2001]): watchlist.set_setting("scan_paused", "1")
+for t in (1001, 1002, 2001): accounts.set_plan(ids[t], "paid", accounts.get(ids[t]).plan_until)      # the daily check is part of the paid plan (see test_plans.py)
 ran = []
 async def fake_run_scan(bot, chat_id, trigger="schedule"):
     ran.append((users.current(), chat_id, trigger))

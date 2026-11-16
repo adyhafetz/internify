@@ -109,6 +109,15 @@ _GLOBAL_SCHEMA = {
             last_active TIMESTAMP,
             deleted_at TIMESTAMP
         )""",
+    # What each person has used this month: resumes written, AI calls, paid scraping calls (hosted mode only)
+    "usage": """
+        CREATE TABLE IF NOT EXISTS usage (
+            user_id TEXT NOT NULL,
+            month TEXT NOT NULL,                       -- YYYY-MM
+            kind TEXT NOT NULL,                        -- resume | ai | scrape
+            n INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, month, kind)
+        )""",
 }
 
 

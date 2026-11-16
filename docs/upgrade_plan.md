@@ -280,7 +280,15 @@ Cloud mode is still refused at start-up (set `INTERNIFY_CLOUD_PREVIEW=1` to try 
 - New commands: `/plan` (your plan and usage this month), `/dashboard` (sends a sign-in link),
   `/deleteaccount` (asks twice, then deletes all your data and disconnects Google).
 
-### B3. Plans, allowance and limits
+### B3. Plans, allowance and limits (built)
+
+**Status:** `bot/services/plans.py` (free 3 / paid 30 with the daily check / unlimited; a lapsed paid plan counts as free),
+a `usage` table (resumes, AI calls, scraping calls, per person per month), a resume reserved before the work and given
+back if it fails, the daily check for paid people only (and never more than what is left this month), the server's monthly AI
+ceiling (`AI_MONTHLY_BUDGET_CALLS`), `/plan` and ⚙️ Status with usage, plan-ending reminders, and the maintainer's Telegram
+commands (`/admin`, `/users`, `/setplan`, `/pauseuser`, `/resumeuser`) are in (`scripts/test_plans.py`). The web `/admin` page
+comes with B4. Not built: buying extra resumes in a month (the maintainer can move someone to a bigger plan by hand).
+Cloud mode is still refused at start-up unless `INTERNIFY_CLOUD_PREVIEW=1`; B4 (dashboard and admin page) and B5 (Google) remain.
 
 | | Free | Paid (RM9.90 / month) |
 |---|---|---|

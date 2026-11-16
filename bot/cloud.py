@@ -117,11 +117,24 @@ def welcome_text(name: str, new: bool) -> str:
 
 
 def plan_text(acct: accounts.Account) -> str:
-    lines = ["💳 <b>Your plan</b>", "", f"• Plan: <b>{acct.plan.title()}</b>"]
-    if acct.plan_until:
-        lines.append(f"• Until: {acct.plan_until}")
+    """Plan, what has been used this month and how to upgrade. Runs as the person whose plan it is."""
+    from bot.services import plans
+    lim = plans.limits_for(acct)
+    used = plans.used("resume", acct.id)
+    plan_line = f"• Plan: <b>{lim.name}</b>" + (f", until {acct.plan_until}" if acct.plan_until and not lim.lapsed else "")
+    if lim.lapsed:
+        plan_line = f"• Plan: <b>Free</b> (your paid plan ended on {acct.plan_until})"
+    lines = ["💳 <b>Your plan</b>", "", plan_line]
+    lines.append(f"• Resumes this month: <b>{used} of {lim.resumes}</b>, starts again on {plans.next_reset().strftime('%d %b')}"
+                 if lim.resumes is not None else f"• Resumes this month: <b>{used}</b> (no limit)")
+    lines.append("• Daily job check: " + ("included" if lim.daily_check else "not included"))
+    ai, scrape = plans.used("ai", acct.id), plans.used("scrape", acct.id)
+    if ai or scrape:
+        lines.append(f"• Work done for you this month: {ai} AI calls" + (f", {scrape} page reads through a scraping service" if scrape else ""))
     if acct.created_at:
         lines.append(f"• Member since {acct.created_at[:10]}")
+    if lim.plan != plans.UNLIMITED:
+        lines += ["", f"<b>{'Renew' if lim.lapsed or lim.plan == plans.PAID else 'Upgrade'}</b>: {config.PAY_INSTRUCTIONS}"]
     return "\n".join(lines)
 
 
@@ -137,7 +150,35 @@ def _delete_keyboard(step: int) -> InlineKeyboardMarkup:
 
 async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     acct = await asyncio.to_thread(accounts.get, users.current())
-    await update.effective_message.reply_text(plan_text(acct), parse_mode="HTML")
+    await update.effective_message.reply_text(await asyncio.to_thread(plan_text, acct), parse_mode="HTML")
+
+
+@accounts.for_each_user
+async def daily_notices(context) -> None:
+    """Once a day, for each person: a reminder a few days before their paid plan ends, and one when it has ended. Each is sent once
+    per end date, so a renewal (a new end date) starts again."""
+    import datetime as dt
+    from bot.services import plans, watchlist
+    if not users.cloud():
+        return
+    acct = accounts.get(users.current())
+    if acct is None or acct.plan != plans.PAID or not acct.plan_until:
+        return
+    chat_id = watchlist.owner_chat_id()
+    if chat_id is None:
+        return
+    try:
+        days = (dt.date.fromisoformat(acct.plan_until) - dt.date.today()).days
+    except ValueError:
+        return
+    if days < 0 and watchlist.get_setting("plan_ended_told", "") != acct.plan_until:
+        watchlist.set_setting("plan_ended_told", acct.plan_until)
+        await context.bot.send_message(chat_id, f"📅 Your paid plan ended on {acct.plan_until}, so you're on the free plan now "
+                                       f"({config.FREE_RESUMES} resumes a month, no daily job check). Everything you saved is still here.\n\n{config.PAY_INSTRUCTIONS}")
+    elif 0 <= days <= config.PLAN_REMINDER_DAYS and watchlist.get_setting("plan_reminded", "") != acct.plan_until:
+        watchlist.set_setting("plan_reminded", acct.plan_until)
+        when = "today" if days == 0 else "tomorrow" if days == 1 else f"in {days} days"
+        await context.bot.send_message(chat_id, f"📅 Your paid plan ends {when} ({acct.plan_until}).\n\n{config.PAY_INSTRUCTIONS}")
 
 
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -180,7 +221,7 @@ async def account_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from bot.handlers import common
         common._remembered_chat.pop(uid, None)
         context.user_data.clear()
-        await query.edit_message_text(f"✅ Your account and all your data are deleted ({sum(removed.values())} tracker rows, your files and settings). "
+        await query.edit_message_text(f"✅ Your account and all your data are deleted ({sum(removed.values())} records, your files and settings). "
                                       "Thank you for trying Internify. Send /start any time to begin again.")
         return
     await query.edit_message_text("That button has expired.")

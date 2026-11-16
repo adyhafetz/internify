@@ -133,7 +133,30 @@ def build_caption(outcome: JobOutcome, intro: str = "") -> str:
 
 async def tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio.AbstractEventLoop,
                      interactive: bool, intro: str = "", ask_now: bool = False) -> JobOutcome:
-    """Run the whole flow for one link. ``reporter`` has: ``notice(text)``, ``fail(text)``, ``finished(outcome)``
+    """Write one resume for one link, within the person's plan. In the hosted version a resume is taken from this month's allowance
+    *before* any work starts (a person at the limit is told straight away, and nothing is half done) and given back if the work
+    fails, is stopped or turns out to be a job they already have. In single mode there are no limits."""
+    from bot.services import plans
+    decision = await asyncio.to_thread(plans.reserve_resume)
+    if not decision.ok:
+        if interactive:
+            await reporter.fail(decision.message)
+        return JobOutcome(ok=False, skipped=not interactive, error=decision.message)
+    try:
+        outcome = await _tailor_job(job_url, reporter, bot=bot, chat_id=chat_id, loop=loop, interactive=interactive,
+                                    intro=intro, ask_now=ask_now)
+    except BaseException:
+        if decision.reserved:
+            await asyncio.to_thread(plans.refund_resume)
+        raise
+    if decision.reserved and not outcome.ok:
+        await asyncio.to_thread(plans.refund_resume)
+    return outcome
+
+
+async def _tailor_job(job_url: str, reporter, *, bot, chat_id: int, loop: asyncio.AbstractEventLoop,
+                      interactive: bool, intro: str = "", ask_now: bool = False) -> JobOutcome:
+    """The flow itself, for one link. ``reporter`` has: ``notice(text)``, ``fail(text)``, ``finished(outcome)``
     and ``deliver(outcome, caption_html, keyboard)``. ``interactive`` lets the Scout ask you to paste a page it can't
     read and check with you before redoing a job you already have a resume for; the daily job check passes False
     because nobody is awake to answer. Missing tools are not asked about during the run (``ask_now`` turns that back

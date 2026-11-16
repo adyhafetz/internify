@@ -96,6 +96,11 @@ async def run_scan(bot, chat_id: int, trigger: str = "schedule") -> Optional[Sca
         _running.discard(me)
 
 
+def config_pay_text() -> str:
+    from bot import config as bot_config
+    return bot_config.PAY_INSTRUCTIONS
+
+
 def _digest(s: ScanSummary) -> str:
     if s.note:
         return f"☀️ <b>Daily job check</b>\n{s.note}"
@@ -119,6 +124,15 @@ def _digest(s: ScanSummary) -> str:
 async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
     if profile_is_sample():
         s.note = "I can't write resumes yet: your saved experience is still the sample profile. Send me your resume first (/importresume)."
+        return
+    from bot.services import plans
+    if not plans.allows_daily_check():          # hosted version, free plan
+        s.note = plans.daily_check_refusal()
+        return
+    budget = plans.scan_budget()                # hosted version: the plan's per-check maximum, and what is left this month
+    if budget == 0:
+        s.note = ("📭 You've used all of this month's resumes, so there's nothing for me to write today. "
+                  f"The count starts again on {plans.next_reset().strftime('%d %b')}.\n\n{config_pay_text()}")
         return
     from bot.tracker import sync
     await sync(force=True)   # your Google Sheet decides each job's status
@@ -171,7 +185,8 @@ async def _scan(bot, chat_id: int, loop, s: ScanSummary) -> None:
 
     # 2. Matcher: pick the best fits
     events.emit("matcher", events.START, f"Scoring {len(fresh)} jobs", total=len(fresh))
-    result = await match(fresh, config.SCAN_MAX_TAILORED, config.SCAN_MIN_FIT, prefs)
+    result = await match(fresh, config.SCAN_MAX_TAILORED if budget is None else min(config.SCAN_MAX_TAILORED, budget),
+                         config.SCAN_MIN_FIT, prefs)
     s.filtered += sum(1 for x in result.scored if x.rejected)
     s.kept = len(result.kept)
     events.emit("matcher", events.DONE, f"Kept {s.kept} of {len(fresh)}", kept=s.kept, total=len(fresh), top=result.top,
@@ -235,6 +250,9 @@ def is_running() -> bool:
 @accounts.for_each_user
 async def daily_scan(context) -> None:
     """The scheduled job (PTB job queue)."""
+    from bot.services import plans
+    if not plans.allows_daily_check():
+        return          # hosted version, free plan: no daily check (and no daily message about it)
     if watchlist.scan_paused():
         logger.info("Daily scan skipped: paused")
         return
@@ -277,7 +295,8 @@ def missed_today(now_ts: float, last_ts: Optional[float], hh: int, mm: int, tz: 
 @accounts.for_each_user
 async def catch_up_scan(context) -> None:
     """Shortly after the bot starts: if today's check was missed because the computer was off, run it now."""
-    if watchlist.scan_paused() or not config.SCAN_ENABLED:
+    from bot.services import plans
+    if watchlist.scan_paused() or not config.SCAN_ENABLED or not plans.allows_daily_check():
         return
     chat_id = watchlist.owner_chat_id()
     last = watchlist.get_setting("scan_last_at", "")

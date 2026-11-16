@@ -75,7 +75,19 @@ async def post_init(application) -> None:
     import asyncio
     asyncio.get_running_loop().create_task(tracker.sync_everyone())   # follow your Google Sheet's statuses from the start
     from bot import status
-    asyncio.get_running_loop().create_task(status.startup_check(application))   # a plain warning if the AI key is wrong
+    asyncio.get_running_loop().create_task(status.startup_check(application))
+    if users.cloud():   # hosted version: count what each person costs, and remind them before their plan ends
+        from bot import cloud
+        from bot.services import plans
+        plans.install()
+        if getattr(application, "job_queue", None) is not None:
+            from datetime import time as _t
+            from zoneinfo import ZoneInfo
+            try:
+                notice_time = _t(9, 30, tzinfo=ZoneInfo(config.SCAN_TIMEZONE))
+            except Exception:
+                notice_time = _t(9, 30)
+            application.job_queue.run_daily(cloud.daily_notices, time=notice_time, name="plan-notices")   # a plain warning if the AI key is wrong
 
 
 def create_bot_app():
@@ -112,6 +124,10 @@ def create_bot_app():
         app.add_handler(CommandHandler("plan", restricted(cloud.plan_command)))
         app.add_handler(CommandHandler("deleteaccount", restricted(cloud.delete_command)))
         app.add_handler(CallbackQueryHandler(restricted(cloud.account_callback), pattern=r"^acct:"))
+        from bot import admin   # the maintainer's own commands: they answer nobody else
+        for name, fn in (("admin", admin.admin_command), ("users", admin.users_command), ("setplan", admin.setplan_command),
+                         ("pauseuser", admin.pause_command), ("resumeuser", admin.resume_command)):
+            app.add_handler(CommandHandler(name, fn))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
     # Everything on your resume, by tapping: one command, no shortcuts.

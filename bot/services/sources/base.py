@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 from bot import config
 from bot.services import scraper
+from service import metering
 
 
 @dataclass
@@ -66,6 +67,7 @@ async def read_listing(url: str) -> str:
     a normal visit, or a page-rendering service."""
     last: Optional[Exception] = None
     if config.SCRAPINGANT_API_KEY:
+        metering.count("scrape")
         try:
             async with scraper._client(45.0) as client:
                 resp = await client.get("https://api.scrapingant.com/v2/markdown", params={"url": url},

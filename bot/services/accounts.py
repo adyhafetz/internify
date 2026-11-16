@@ -122,6 +122,7 @@ def delete_account(user_id: str) -> dict[str, int]:
     with db._get_connection() as conn:
         for table in _USER_TABLES:
             removed[table] = conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,)).rowcount
+        removed["usage"] = conn.execute("DELETE FROM usage WHERE user_id = ?", (user_id,)).rowcount
         conn.execute("UPDATE accounts SET status = 'deleted', telegram_id = NULL, name = '', note = '', plan_until = '', "
                      "deleted_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         conn.commit()
