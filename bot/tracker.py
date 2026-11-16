@@ -23,7 +23,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.handlers.common import restricted
-from bot.services import db, watchlist
+from bot.services import accounts, db, watchlist
 from service import events, outcomes, users
 
 logger = logging.getLogger(__name__)
@@ -264,6 +264,12 @@ def sync_from_sheet(force: bool = False) -> Optional[dict]:
     return {"changed": changed, "unknown": sorted(unknown)}
 
 
+@accounts.for_each_user
+async def sync_everyone() -> None:
+    """At start-up: follow every user's Google Sheet statuses (just the owner's, in single mode)."""
+    await sync(force=True)
+
+
 async def sync(force: bool = False) -> Optional[dict]:
     try:
         return await asyncio.to_thread(sync_from_sheet, force)
@@ -445,6 +451,7 @@ def weekly_text() -> str:
     return "\n".join(lines)
 
 
+@accounts.for_each_user
 async def daily_check(context) -> None:
     """Follow-ups that are due, deadlines coming up, and (on Sundays) the weekly summary."""
     chat_id = watchlist.owner_chat_id()

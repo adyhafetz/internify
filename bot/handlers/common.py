@@ -27,12 +27,16 @@ def _remember_chat(update: Update) -> None:
 
 
 def restricted(func):
-    """Decorator to ensure only authorized Telegram users can interact with the bot."""
+    """Decorator to ensure only authorized Telegram users can interact with the bot. In the hosted version (MODE=cloud) it
+    instead finds the person's account (created on /start) and runs the handler as them."""
     @functools.wraps(func)
     async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user = update.effective_user
         if not user:
             return None
+        if users.cloud():
+            from bot import cloud
+            return await cloud.run_as_account(update, context, func, args, kwargs)
         if config.ALLOWED_USER_IDS and user.id not in config.ALLOWED_USER_IDS:
             logger.warning("Unauthorized access attempt by user %s (ID: %d)", user.username, user.id)
             if update.effective_message:
@@ -48,6 +52,10 @@ def restricted(func):
 @restricted
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name if update.effective_user else "there"
+    if users.cloud():
+        from bot import cloud
+        await update.effective_message.reply_text(cloud.welcome_text(name, bool(context.user_data.pop("new_account", False))))
+        return
     await update.effective_message.reply_text(
         f"👋 Hi {name}! I'm Internify.\n\n"
         "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, "

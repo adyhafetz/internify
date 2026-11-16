@@ -265,7 +265,14 @@ start-up** until B2 and B3 exist. Still per copy, not per user, and left for lat
 - In `MODE=single`, the context is always the owner, and paths stay where they are today
   (`output/data/…`), so self-hosters need no migration.
 
-### B2. Sign-up in Telegram
+### B2. Sign-up in Telegram (built)
+
+**Status:** accounts (`bot/services/accounts.py`, a global `accounts` table), sign-up only on `/start`, access rules
+(unknown, paused, too fast) in `restricted`, scheduled jobs run once per active user, `/plan` (plan and status for now;
+usage comes with B3), `/deleteaccount` (asked twice, deletes only that person's rows and folder) and the maintainer-only
+server-key warning (`ADMIN_TELEGRAM_ID`) are in (`scripts/test_accounts.py`). The Google disconnect on delete comes with B5.
+Cloud mode is still refused at start-up (set `INTERNIFY_CLOUD_PREVIEW=1` to try it) until B3 adds limits. Not built: `/dashboard`
+(B4) and an admin screen (B4).
 
 - `/start` from an unknown Telegram user in Cloud mode: a short welcome, the free tier explained, and "send me your
   resume to begin" (the existing import flow).

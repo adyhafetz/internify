@@ -10,7 +10,7 @@ import time
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.services import watchlist
+from bot.services import accounts, watchlist
 from service import curator, github_evidence
 
 logger = logging.getLogger(__name__)
@@ -206,6 +206,7 @@ async def send_report(bot, chat_id: int, report: curator.TidyReport) -> None:
         await bot.send_message(chat_id, text, reply_markup=InlineKeyboardMarkup([[_btn("🧹 Review", "tv")]]))
 
 
+@accounts.for_each_user
 async def weekly(context) -> None:
     chat_id = watchlist.owner_chat_id()
     if chat_id is None:

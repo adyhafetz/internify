@@ -6,6 +6,12 @@ load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
+# Hosted mode (MODE=cloud) only: the maintainer's Telegram ID, who is told about problems with the server's AI key, and how many
+# messages or taps one person may make per minute.
+_raw_admin = os.getenv("ADMIN_TELEGRAM_ID", "").strip()
+ADMIN_TELEGRAM_ID = int(_raw_admin) if _raw_admin.isdigit() else 0
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
+
 # Optional comma-separated Telegram User IDs to restrict access
 _raw_allowed = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "").strip()
 ALLOWED_USER_IDS: set[int] = {

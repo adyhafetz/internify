@@ -94,10 +94,28 @@ _SCHEMA = {
 }
 
 
+# Tables about the users themselves (not rows that belong to one user, so they have no user_id and are never rebuilt)
+_GLOBAL_SCHEMA = {
+    "accounts": """
+        CREATE TABLE IF NOT EXISTS accounts (
+            id TEXT PRIMARY KEY,                       -- the random user id (users.valid)
+            telegram_id INTEGER UNIQUE,                -- NULL once the account is deleted, so the person can sign up again
+            name TEXT DEFAULT '',
+            plan TEXT NOT NULL DEFAULT 'free',
+            plan_until TEXT DEFAULT '',                -- YYYY-MM-DD, empty = no end date
+            status TEXT NOT NULL DEFAULT 'active',     -- active | paused | deleted
+            note TEXT DEFAULT '',                      -- the maintainer's own note (why paused, how they paid)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_active TIMESTAMP,
+            deleted_at TIMESTAMP
+        )""",
+}
+
+
 def init_db() -> None:
     """Initializes the SQLite schema if it does not already exist, and upgrades an older one in place (no rows are lost)."""
     with _get_connection() as conn:
-        for sql in _SCHEMA.values():
+        for sql in list(_SCHEMA.values()) + list(_GLOBAL_SCHEMA.values()):
             conn.execute(sql)
         _migrate(conn)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_user_link ON applications(user_id, job_link)")

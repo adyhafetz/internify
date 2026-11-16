@@ -136,11 +136,16 @@ async def startup_check(application) -> None:
     if not problem:
         return
     logger.warning("Startup check: %s", problem)
-    chat_id = watchlist.owner_chat_id()
-    digest = hashlib.sha1(problem.encode()).hexdigest()[:12]
-    if chat_id is None or watchlist.get_setting("startup_warned", "") == digest:
-        return   # no chat yet, or this exact problem was already reported
-    watchlist.set_setting("startup_warned", digest)
+    if users.cloud():   # the AI key is the maintainer's: tell the maintainer, never the users
+        chat_id = config.ADMIN_TELEGRAM_ID or None
+    else:
+        chat_id = watchlist.owner_chat_id()
+        digest = hashlib.sha1(problem.encode()).hexdigest()[:12]
+        if chat_id is None or watchlist.get_setting("startup_warned", "") == digest:
+            return   # no chat yet, or this exact problem was already reported
+        watchlist.set_setting("startup_warned", digest)
+    if chat_id is None:
+        return
     try:
         await application.bot.send_message(chat_id, "⚠️ " + problem)
     except Exception as err:

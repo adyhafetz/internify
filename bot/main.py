@@ -52,6 +52,9 @@ async def post_init(application) -> None:
         BotCommand("help", "Everything I can do"),
         BotCommand("cancel", "Stop the current step"),
     ]
+    from service import users
+    if users.cloud():   # the hosted version: your plan, and deleting your account
+        commands[-1:-1] = [BotCommand("plan", "Your plan"), BotCommand("deleteaccount", "Delete your account and all your data")]
     try:
         await application.bot.set_my_commands(commands)
         # Shown on the empty chat screen, before the user has typed anything: tells them the main action.
@@ -70,7 +73,7 @@ async def post_init(application) -> None:
     from bot import tracker
     tracker.schedule(application)
     import asyncio
-    asyncio.get_running_loop().create_task(tracker.sync(force=True))   # follow your Google Sheet's statuses from the start
+    asyncio.get_running_loop().create_task(tracker.sync_everyone())   # follow your Google Sheet's statuses from the start
     from bot import status
     asyncio.get_running_loop().create_task(status.startup_check(application))   # a plain warning if the AI key is wrong
 
@@ -102,6 +105,13 @@ def create_bot_app():
     from bot.tracker import tracker_callback
     app.add_handler(CallbackQueryHandler(tracker_callback, pattern=r"^jb:"))
     app.add_handler(CommandHandler("cancel", cancel_command))
+    from service import users as _users
+    if _users.cloud():   # the hosted version only
+        from bot import cloud
+        from bot.handlers.common import restricted
+        app.add_handler(CommandHandler("plan", restricted(cloud.plan_command)))
+        app.add_handler(CommandHandler("deleteaccount", restricted(cloud.delete_command)))
+        app.add_handler(CallbackQueryHandler(restricted(cloud.account_callback), pattern=r"^acct:"))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
     # Everything on your resume, by tapping: one command, no shortcuts.
@@ -118,7 +128,8 @@ def create_bot_app():
     # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
     app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-2)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, xp_text_handler), group=-1)
+    from bot import cloud as _cloud
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _cloud.quiet(xp_text_handler)), group=-1)
 
     # Job URL Scrape & Tailor Ingestion Handler
     app.add_handler(get_job_url_handler())

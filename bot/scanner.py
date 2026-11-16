@@ -13,7 +13,7 @@ from typing import Optional
 
 from bot import config
 from bot.jobflow import JobOutcome, tailor_job
-from bot.services import watchlist
+from bot.services import accounts, watchlist
 from bot.services.db import is_duplicate_url
 from bot.services.discovery import discover
 from bot.services.matcher import match
@@ -232,6 +232,7 @@ def is_running() -> bool:
     return users.current() in _running
 
 
+@accounts.for_each_user
 async def daily_scan(context) -> None:
     """The scheduled job (PTB job queue)."""
     if watchlist.scan_paused():
@@ -273,6 +274,7 @@ def missed_today(now_ts: float, last_ts: Optional[float], hh: int, mm: int, tz: 
     return now >= due and last_ts < due.timestamp()
 
 
+@accounts.for_each_user
 async def catch_up_scan(context) -> None:
     """Shortly after the bot starts: if today's check was missed because the computer was off, run it now."""
     if watchlist.scan_paused() or not config.SCAN_ENABLED:
