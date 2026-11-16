@@ -227,7 +227,7 @@ def google_start(body: GoogleClient):
     if not cid or not secret:
         return _fail("Paste both the Client ID and the Client secret first.")
     try:
-        flow = google_setup.make_flow(cid, secret, _redirect_uri())
+        flow = google_setup.make_flow(cid, secret, _redirect_uri())   # the limited permission: only files Internify creates
         url, st = flow.authorization_url(access_type="offline", prompt="consent")
     except Exception as err:
         return _fail(f"I couldn't start the Google sign-in ({err}). Check the Client ID and secret.")
@@ -253,23 +253,42 @@ def google_callback(request: Request):
     return _page("Connected to Google", "You can close this tab and go back to the setup page.")
 
 
+def _existing_sheet(cur: dict[str, str]) -> bool:
+    """An earlier setup with a full-access login and a tracker sheet, whose rows could be moved to a new sheet."""
+    return bool(cur.get("GOOGLE_SHEET_ID") and cur.get("GOOGLE_REFRESH_TOKEN") and cur.get("GOOGLE_ACCESS", "full").lower() != "app")
+
+
 @app.get("/api/google/status")
 def google_status():
     g = state["google"]
-    return {"connected": bool(g.get("creds")), "created": bool(g.get("ids"))}
+    return {"connected": bool(g.get("creds")), "created": bool(g.get("ids")), "existing_sheet": _existing_sheet(envfile.read_env(ENV_PATH))}
+
+
+class GoogleCreate(BaseModel):
+    copy_rows: bool = False   # also copy the rows of the sheet from an earlier setup into the new one
 
 
 @app.post("/api/google/create")
-def google_create():
+def google_create(body: GoogleCreate | None = None):
     g = state["google"]
     if not g.get("creds"):
         return _fail("Connect Google first.")
+    cur = envfile.read_env(ENV_PATH)
     try:
         ids = google_setup.create_tracker(g["creds"])
     except Exception as err:
         return _fail(f"I couldn't create them ({err}). Check that the Google Drive API and the Google Sheets API are both enabled for your project.")
     g["ids"] = ids
-    return JSONResponse({"ok": True, "message": "Created a Drive folder “Internify resumes” and a spreadsheet “Internify tracker”.",
+    message = "Created a Drive folder “Internify resumes” and a spreadsheet “Internify — Application Tracker”."
+    if body and body.copy_rows and _existing_sheet(cur):
+        try:   # the earlier full-access login reads the old sheet; the new login writes the new one
+            n = google_setup.copy_rows(google_setup.old_credentials(cur), cur["GOOGLE_SHEET_ID"], cur.get("GOOGLE_SHEET_NAME", ""),
+                                       g["creds"], ids["GOOGLE_SHEET_ID"])
+            message += f" Copied {n} row{'s' if n != 1 else ''} from your old tracker (the old sheet is untouched, and its resume links still work)."
+        except Exception as err:
+            message += (f" I could not copy your old rows ({err}). Your old sheet is untouched: copy them by hand, "
+                        "or run setup again without the new sheet.")
+    return JSONResponse({"ok": True, "message": message,
                          "sheet_url": f"https://docs.google.com/spreadsheets/d/{ids['GOOGLE_SHEET_ID']}/edit",
                          "folder_url": f"https://drive.google.com/drive/folders/{ids['GOOGLE_DRIVE_FOLDER_ID']}"})
 
@@ -332,8 +351,18 @@ def save(s: Settings):
         values["CONTACT_EMAIL"] = s.contact_email.strip()
     allowed = {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "GOOGLE_SHEET_ID", "GOOGLE_DRIVE_FOLDER_ID"}
     g = state["google"]
+    hand = {k: v.strip() for k, v in s.google.items() if k in allowed and v.strip()}
+    if g.get("creds") and not g.get("ids") and cur.get("GOOGLE_SHEET_ID") and not hand.get("GOOGLE_SHEET_ID"):
+        return _fail("You signed in to Google, but your current tracker sheet would stop working with the new, limited login. "
+                     "Press “Create my folder and sheet” first (tick the box to copy your old rows), or go back and don't sign in.")
+    if g.get("creds") and (hand.get("GOOGLE_SHEET_ID") or hand.get("GOOGLE_DRIVE_FOLDER_ID")) \
+            and (hand.get("GOOGLE_SHEET_ID") != g.get("ids", {}).get("GOOGLE_SHEET_ID") or hand.get("GOOGLE_DRIVE_FOLDER_ID", g.get("ids", {}).get("GOOGLE_DRIVE_FOLDER_ID")) != g.get("ids", {}).get("GOOGLE_DRIVE_FOLDER_ID")):
+        return _fail("A sheet or folder you made by hand can't be opened with the limited login from this page (it only opens files "
+                     "Internify creates). Press “Create my folder and sheet” instead, or leave the sign-in out and paste a login made "
+                     "with GOOGLE_ACCESS=full.")
     if g.get("creds"):   # signed in on this page: the login comes from here, never through the browser
-        values.update({"GOOGLE_CLIENT_ID": g["client_id"], "GOOGLE_CLIENT_SECRET": g["client_secret"], "GOOGLE_REFRESH_TOKEN": g["creds"].refresh_token})
+        values.update({"GOOGLE_CLIENT_ID": g["client_id"], "GOOGLE_CLIENT_SECRET": g["client_secret"], "GOOGLE_REFRESH_TOKEN": g["creds"].refresh_token,
+                       "GOOGLE_ACCESS": "app"})   # signed in here with the limited permission
         values.update(g.get("ids", {}))
     for k, v in s.google.items():   # values typed by hand win
         if k in allowed and v.strip():

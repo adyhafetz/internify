@@ -3,26 +3,26 @@ from __future__ import annotations
 
 import os
 
-from bot.services.google_auth import GOOGLE_SCOPES
-
 # oauthlib refuses plain http even for localhost unless told otherwise; the setup page only ever runs on your own computer
 os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 FOLDER_NAME = "Internify resumes"
-SHEET_TITLE = "Internify tracker"
-TAB_NAME = "Tracker"
-HEADERS = ["Company", "Job Title", "Location", "Job Description", "Job Requirements", "Job Link", "Status", "Resume Link", "Resume Status", "Comment"]
-from bot.services.db import SHEET_STATUSES
-STATUSES = list(SHEET_STATUSES)   # the Status drop-down: the same words the bot writes
+from bot.services import sheet_layout
+
+HEADERS, SHEET_TITLE, STATUSES, TAB_NAME = sheet_layout.HEADERS, sheet_layout.SHEET_TITLE, sheet_layout.STATUSES, sheet_layout.TAB_NAME
+
+# The limited permission: only files Internify itself creates (its folder and its tracker sheet). It is the default for a
+# new sign-in; installs that signed in earlier keep the broader one until you choose to move (see copy_rows).
+LIMITED_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 
-def make_flow(client_id: str, client_secret: str, redirect_uri: str):
+def make_flow(client_id: str, client_secret: str, redirect_uri: str, scopes: list[str] | None = None):
     """A sign-in flow for a Google "Desktop app" client, finished on the setup page's own address."""
     from google_auth_oauthlib.flow import Flow
     config = {"installed": {"client_id": client_id, "client_secret": client_secret, "redirect_uris": [redirect_uri],
                             "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token"}}
-    return Flow.from_client_config(config, scopes=GOOGLE_SCOPES, redirect_uri=redirect_uri)
+    return Flow.from_client_config(config, scopes=scopes or LIMITED_SCOPES, redirect_uri=redirect_uri)
 
 
 def _services(creds):
@@ -32,20 +32,33 @@ def _services(creds):
 
 
 def create_tracker(creds) -> dict[str, str]:
-    """Make the Drive folder for resumes and the tracker spreadsheet (right columns, a Status drop-down). Returns the IDs."""
+    """Make the Drive folder for resumes and the tracker spreadsheet (the template layout). Returns the IDs."""
     drive, sheets = _services(creds)
     folder = drive.files().create(body={"name": FOLDER_NAME, "mimeType": "application/vnd.google-apps.folder"}, fields="id").execute()
-    sheet = sheets.spreadsheets().create(body={
-        "properties": {"title": SHEET_TITLE},
-        "sheets": [{"properties": {"title": TAB_NAME, "gridProperties": {"frozenRowCount": 1}}}]},
-        fields="spreadsheetId,sheets.properties.sheetId").execute()
-    sid, tab_id = sheet["spreadsheetId"], sheet["sheets"][0]["properties"]["sheetId"]
-    sheets.spreadsheets().values().update(spreadsheetId=sid, range=f"{TAB_NAME}!A1:J1", valueInputOption="RAW", body={"values": [HEADERS]}).execute()
-    status_col = HEADERS.index("Status")
-    sheets.spreadsheets().batchUpdate(spreadsheetId=sid, body={"requests": [
-        {"repeatCell": {"range": {"sheetId": tab_id, "startRowIndex": 0, "endRowIndex": 1},
-                        "cell": {"userEnteredFormat": {"textFormat": {"bold": True}}}, "fields": "userEnteredFormat.textFormat.bold"}},
-        {"setDataValidation": {"range": {"sheetId": tab_id, "startRowIndex": 1, "endRowIndex": 2000, "startColumnIndex": status_col, "endColumnIndex": status_col + 1},
-                               "rule": {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": v} for v in STATUSES]}, "showCustomUi": True, "strict": False}}},
-    ]}).execute()
+    sid, _ = sheet_layout.create_sheet(sheets)
     return {"GOOGLE_SHEET_ID": sid, "GOOGLE_SHEET_NAME": TAB_NAME, "GOOGLE_DRIVE_FOLDER_ID": folder["id"]}
+
+
+def old_credentials(env: dict[str, str]):
+    """The login from an earlier setup (full access), built from the saved .env values, or None if there isn't one."""
+    cid, secret, token = env.get("GOOGLE_CLIENT_ID", ""), env.get("GOOGLE_CLIENT_SECRET", ""), env.get("GOOGLE_REFRESH_TOKEN", "")
+    if not (cid and secret and token):
+        return None
+    from google.oauth2.credentials import Credentials
+    return Credentials(token=None, refresh_token=token, client_id=cid, client_secret=secret,
+                       token_uri="https://oauth2.googleapis.com/token",
+                       scopes=["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"])
+
+
+def copy_rows(old_creds, old_sheet_id: str, old_tab: str, new_creds, new_sheet_id: str) -> int:
+    """Copy every row of an older tracker sheet into a new one, rearranged into the template layout by header name,
+    using the old (full access) login to read and the new login to write. The old sheet is not changed.
+    Returns how many rows were copied."""
+    _, old_sheets = _services(old_creds)
+    got = old_sheets.spreadsheets().values().get(spreadsheetId=old_sheet_id, range=old_tab or TAB_NAME).execute()
+    rows = sheet_layout.map_rows(got.get("values", []))
+    if rows:
+        _, new_sheets = _services(new_creds)
+        new_sheets.spreadsheets().values().update(
+            spreadsheetId=new_sheet_id, range=f"{TAB_NAME}!A2", valueInputOption="USER_ENTERED", body={"values": rows}).execute()
+    return len(rows)

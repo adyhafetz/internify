@@ -8,10 +8,18 @@ logger = logging.getLogger(__name__)
 # Which credential source was used last (for the startup self-check)
 credential_source: str = "none"
 
-GOOGLE_SCOPES = [
+FULL_SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets",
 ]
+APP_SCOPES = ["https://www.googleapis.com/auth/drive.file"]   # only files Internify created
+GOOGLE_SCOPES = FULL_SCOPES   # kept for scripts that import it
+
+
+def scopes() -> list[str]:
+    """What to ask Google for: the limited permission when GOOGLE_ACCESS=app, otherwise the full one (the default, so a copy
+    signed in earlier keeps working)."""
+    return APP_SCOPES if config.GOOGLE_ACCESS == "app" else FULL_SCOPES
 
 
 def get_google_credentials():
@@ -35,7 +43,7 @@ def get_google_credentials():
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=config.GOOGLE_CLIENT_ID,
                 client_secret=config.GOOGLE_CLIENT_SECRET,
-                scopes=GOOGLE_SCOPES,
+                scopes=scopes(),
             )
             credential_source = "refresh token in .env"
             return creds
@@ -47,7 +55,7 @@ def get_google_credentials():
     if token_file and os.path.exists(token_file):
         try:
             from google.oauth2.credentials import Credentials
-            creds = Credentials.from_authorized_user_file(token_file, scopes=GOOGLE_SCOPES)
+            creds = Credentials.from_authorized_user_file(token_file, scopes=scopes())
             credential_source = f"file {token_file}"
             return creds
         except Exception as e:
@@ -60,7 +68,7 @@ def get_google_credentials():
             from google.oauth2 import service_account
             creds = service_account.Credentials.from_service_account_file(
                 sa_file,
-                scopes=GOOGLE_SCOPES,
+                scopes=scopes(),
             )
             credential_source = f"service account file {sa_file}"
             return creds

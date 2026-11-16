@@ -125,8 +125,16 @@ stop working. In **Production** it does not expire.
 
 **Do you have to prove you own the domain to Google (Search Console) first? No, not to switch to Production for your
 own use.** Ownership proof is only required if you press "Prepare for verification" to remove the "unverified app"
-warning, and that route also needs a security review for the Drive permission, which is not worth it for a personal
+warning, and for the full Drive permission that route also needs a security review, which is not worth it for a personal
 tool. So: do steps 1, 3, 4 and 5 below, and treat step 2 as optional.
+
+**Which permission?** Since the setup page's newer versions, Internify asks only for `drive.file`: it can open **only the
+Drive folder and tracker sheet it created itself**, nothing else in your Drive. The setup page saves `GOOGLE_ACCESS=app` in
+`.env` for this. A copy that signed in earlier keeps the broader permission (`GOOGLE_ACCESS` is not set, which means
+`full`) and keeps working untouched. To move to the limited one, open the setup page's Google step, sign in again and press
+**Create my folder and sheet** with the box ticked to move your old rows: the old sheet is only read, never changed. If
+you prefer a sheet you made by hand, keep `GOOGLE_ACCESS=full` and the two broader scopes. *Google may or may not treat the
+limited scope more kindly at sign-in; check the consent screen in your own project.*
 
 1. <https://console.cloud.google.com> → your project → **APIs & Services → Library**: make sure **Google Drive API**
    and **Google Sheets API** are enabled.
@@ -144,7 +152,8 @@ tool. So: do steps 1, 3, 4 and 5 below, and treat step 2 as optional.
      Leave the logo empty (adding one triggers extra review). If a field complains the domain is not verified,
      that is the optional step 2; you can still save and publish.
    - **Audience**: user type **External**.
-   - **Data access / Scopes**: add `https://www.googleapis.com/auth/drive` and
+   - **Data access / Scopes**: add `https://www.googleapis.com/auth/drive.file` (the limited permission above). Only
+     if you keep `GOOGLE_ACCESS=full` also add `https://www.googleapis.com/auth/drive` and
      `https://www.googleapis.com/auth/spreadsheets`.
 4. **Audience → Publish app → Confirm**. The status becomes **In production**.
 5. Do **not** press "Prepare for verification". Verification is only for apps with many users. For

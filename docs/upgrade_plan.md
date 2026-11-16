@@ -133,7 +133,7 @@ Everything assumes a single user. The parts that will need to know *which* user:
 
 Estimated effort: **1 to 2 weeks**. Each item is its own pull request.
 
-### A1. Keyword discovery with Malaysian sources
+### A1. Keyword discovery with Malaysian sources (built)
 
 **What the user sees**
 - `/profile` → 🔭 Job search (renamed from "Job pages I check") → **🎯 What I look for**: keywords (roles), places
@@ -178,7 +178,18 @@ Estimated effort: **1 to 2 weeks**. Each item is its own pull request.
 - Each source has an offline test with recorded sample answers.
 - Status shows per-source health; a failing source is reported, not fatal.
 
-### A2. Google: limited permission, no weekly logout, no domain
+### A2. Google: limited permission (built)
+
+> **Correction after checking the existing docs:** pressing **Publish app** already removes the 7-day logout for
+> personal use without a domain or Google verification (`docs/domain_setup.md`, part 3; unverified apps are limited to
+> 100 users and show a warning). So the narrow permission is **not** what fixes the logout. What it gives: the bot
+> can only open files it created (a smaller risk if a login leaks), and a Cloud app that can pass Google's verification
+> without the expensive "restricted scope" security assessment that full Drive access needs.
+
+Status: **built** in the Phase A PR. Installs without `GOOGLE_ACCESS` keep the full permission; the setup page saves
+`GOOGLE_ACCESS=app` and the limited permission for a new sign-in, and can move an old sheet's rows into a new sheet
+(`scripts/test_google.py`). Google's file picker (to keep a hand-made sheet under the limited permission) is **not**
+built: it needs a browser sign-in flow with an API key, so a hand-made sheet stays on `GOOGLE_ACCESS=full` for now.
 
 - Change the permissions in `bot/services/google_auth.py` from `auth/drive` + `auth/spreadsheets` to
   **`auth/drive.file`** (only files the bot creates or the user opens with it). Check the Sheets API works with it
@@ -195,7 +206,7 @@ Estimated effort: **1 to 2 weeks**. Each item is its own pull request.
 
 **Done when**: a self-hosted copy stays connected for more than 7 days without a domain.
 
-### A2b. One sheet layout, matching the template
+### A2b. One sheet layout, matching the template (built)
 
 - One definition in code (`bot/services/sheet_layout.py`): column names and order (as the template, Status last),
   the sheet name, the Status drop-down, a frozen bold header and column widths.

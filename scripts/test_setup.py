@@ -146,16 +146,20 @@ assert not c.get("/api/google/status").json()["connected"]
 assert "not valid" in c.get("/", params={"code": "good-code", "state": "WRONG"}).text
 assert "cancelled" in c.get("/", params={"error": "access_denied"}).text
 assert "Connected to Google" in c.get("/", params={"code": "good-code", "state": "STATE1"}).text
-assert c.get("/api/google/status").json() == {"connected": True, "created": False}
+assert c.get("/api/google/status").json() == {"connected": True, "created": False, "existing_sheet": False}
 made = c.post("/api/google/create").json()
 assert made["ok"] and "SHEET9" in made["sheet_url"] and "FOLDER9" in made["folder_url"]
 r = save(dashboard_key="abc123def456", public_url="https://internify.example.com/", github_username="https://github.com/adyhafetz", google={})
 got = envfile.read_env(env_path)
 assert r["ok"] and got["GOOGLE_REFRESH_TOKEN"] == "1//refresh-xyz" and got["GOOGLE_CLIENT_ID"] == "cid.apps.googleusercontent.com" and got["GOOGLE_CLIENT_SECRET"] == "GOCSPX-s"
+assert got["GOOGLE_ACCESS"] == "app", "a sign-in made on the setup page is the limited kind"
 assert got["GOOGLE_SHEET_ID"] == "SHEET9" and got["GOOGLE_DRIVE_FOLDER_ID"] == "FOLDER9" and got["GOOGLE_SHEET_NAME"] == "Tracker" and got["DASHBOARD_KEY"] == "abc123def456" and got["PUBLIC_URL"] == "https://internify.example.com" and got["GITHUB_USERNAME"] == "adyhafetz"
 assert "1//refresh-xyz" not in json.dumps(c.get("/api/state").json()) and "1//refresh-xyz" not in json.dumps(made), "the login never goes through the browser"
 assert not save(dashboard_key="has space")["ok"]
-r = save(google={"GOOGLE_SHEET_ID": "mine"}); assert envfile.read_env(env_path)["GOOGLE_SHEET_ID"] == "mine", "values typed by hand win"
+r = save(google={"GOOGLE_SHEET_ID": "mine"})
+assert not r["ok"] and "limited login" in r["message"], "a hand-made sheet can't be opened with the limited sign-in from this page"
+server.state["google"] = {}
+r = save(google={"GOOGLE_SHEET_ID": "mine"}); assert envfile.read_env(env_path)["GOOGLE_SHEET_ID"] == "mine", "without the sign-in, values typed by hand win"
 # the tracker has exactly the columns the bot writes
 import bot.services.sheets as _sheets, inspect
 assert all(f'"{h}"' in inspect.getsource(_sheets.append_application) for h in google_setup.HEADERS)
