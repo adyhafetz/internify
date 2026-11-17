@@ -94,15 +94,29 @@ async def post_init(application) -> None:
             except Exception:
                 notice_time = _t(9, 30)
             application.job_queue.run_daily(cloud.daily_notices, time=notice_time, name="plan-notices")
-            application.job_queue.run_daily(cloud.retention_job, time=notice_time, name="inactive-accounts")   # a plain warning if the AI key is wrong
+            application.job_queue.run_daily(cloud.retention_job, time=notice_time, name="inactive-accounts")
+            from bot import backup
+            backup.schedule(application)
+        if config.ADMIN_TELEGRAM_ID:   # tell the maintainer, once per start, what still needs fixing
+            _, warn = cloud.preflight()
+            if warn:
+                try:
+                    await application.bot.send_message(config.ADMIN_TELEGRAM_ID, "⚠ Hosted setup:\n" + "\n".join("• " + w for w in warn))
+                except Exception:
+                    logger.warning("Could not send the setup warnings to the admin.")   # a plain warning if the AI key is wrong
 
 
 def create_bot_app():
     from service import users
     if users.cloud() and os.getenv("INTERNIFY_CLOUD_PREVIEW") != "1":
-        # The data is kept apart per user, but sign-up, plans and limits are not built yet: refuse rather than half work.
-        logger.error("MODE=cloud is not ready yet (sign-up and limits are still to come). Remove MODE from .env to run as before.")
-        sys.exit(1)
+        from bot import cloud
+        stop, warn = cloud.preflight()
+        for w in warn:
+            logger.warning("Hosted setup: %s", w)
+        if stop:   # refuse rather than half work
+            for s in stop:
+                logger.error("MODE=cloud cannot start: %s", s)
+            sys.exit(1)
     if not config.TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN is not set in environment or .env file!")
         sys.exit(1)

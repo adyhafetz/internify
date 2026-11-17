@@ -188,9 +188,10 @@ cloud_cmds = commands(main.create_bot_app())
 users.MODE = "single"; single_cmds = commands(main.create_bot_app())
 assert {"plan", "deleteaccount", "start"} <= cloud_cmds and not ({"plan", "deleteaccount"} & single_cmds) and "start" in single_cmds
 assert "/plan" in cloud.welcome_text("Sam", True) and "Welcome Sam" in cloud.welcome_text("Sam", True) and "Welcome" not in cloud.welcome_text("Sam", False)
-users.MODE = "cloud"; os.environ.pop("INTERNIFY_CLOUD_PREVIEW")
-try: main.create_bot_app(); raise SystemExit("still refused without the preview switch")
+users.MODE = "cloud"; os.environ.pop("INTERNIFY_CLOUD_PREVIEW"); config.ADMIN_TELEGRAM_ID = 0
+try: main.create_bot_app(); raise SystemExit("still started without an admin")
 except SystemExit as e: assert e.code == 1
+config.ADMIN_TELEGRAM_ID = 424242; main.create_bot_app()      # complete settings: starts (only warnings)
 users.MODE = "single"
-print("9 ok: /plan and /deleteaccount exist only in cloud mode; cloud mode is still refused without the preview switch")
+print("9 ok: /plan and /deleteaccount exist only in cloud mode; cloud mode refuses to start without an admin and starts once set up")
 print("\n✅ accounts test passed")

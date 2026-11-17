@@ -1,4 +1,5 @@
-"""The maintainer's commands in Telegram (hosted version only), for ADMIN_TELEGRAM_ID alone:
+"""The maintainer's commands in Telegram (hosted version only), for ADMIN_TELEGRAM_ID alone. <who> can be a user id, a Telegram id or
+the INT-XXXXXX payment reference a person put on their payment:
 
   /admin                         who is signed up, by plan, and this month's usage
   /users [text]                  find people by name, user id or Telegram id
@@ -6,7 +7,7 @@
   /pauseuser <who> [note]        stop someone using the bot (their data is kept)
   /resumeuser <who>              let them back in
 
-<who> is a user id or a Telegram id. Paying is manual at first: a person pays you, then you run /setplan. The person is told."""
+Paying is manual at first: a person pays you, then you run /setplan. The person is told."""
 from __future__ import annotations
 
 import asyncio
@@ -49,6 +50,8 @@ def find(who: str) -> Optional[accounts.Account]:
     acct = accounts.get(who) if users._ID.match(who) else None
     if acct is None and who.lstrip("-").isdigit():
         acct = accounts.by_telegram(int(who))
+    if acct is None and who.lower().startswith("int-"):    # the code a person puts on their payment
+        acct = accounts.by_reference(who)
     return acct if acct and acct.status != accounts.DELETED else None
 
 
@@ -81,7 +84,8 @@ def summary_text() -> str:
     if recent:
         lines += ["", "<b>Newest</b>"] + [f"• <code>{a.id}</code> {_h(a.name) or '(no name)'} · {a.plan}"
                                           + (f" until {a.plan_until}" if a.plan_until else "") + (" · paused" if a.status == accounts.PAUSED else "") for a in recent]
-    lines += ["", "<i>/users text · /setplan who plan [date] · /pauseuser who · /resumeuser who</i>"]
+    from bot import backup
+    lines += ["", "💾 " + backup.status_line(), "", "<i>/users text · /setplan who plan [date] · /pauseuser who · /resumeuser who</i>"]
     return "\n".join(lines)
 
 
@@ -186,6 +190,11 @@ async def resume_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------------------------------------------------------------- the web page (read-only)
 
+def _backup_line() -> str:
+    from bot import backup
+    return backup.status_line()
+
+
 def dashboard_data() -> dict:
     """Everything the /admin web page shows, as plain data."""
     month = plans.month_key()
@@ -199,7 +208,7 @@ def dashboard_data() -> dict:
     ai = plans.server_total("ai")
     return {
         "total": len(accts), "paused": sum(1 for a in accts if a.status == accounts.PAUSED), "by_plan": sorted(by_plan.items()),
-        "resumes": plans.server_total("resume"), "ai": ai, "scrape": plans.server_total("scrape"), "cap": cap,
+        "resumes": plans.server_total("resume"), "ai": ai, "scrape": plans.server_total("scrape"), "cap": cap, "backup": _backup_line(),
         "percent": round(100 * ai / cap) if cap else 0,
         "users": [{"id": a.id, "name": a.name, "plan": a.plan, "until": a.plan_until, "status": a.status, "joined": a.created_at[:10],
                    "last_active": (a.last_active or "")[:16] or "never", "resumes": used.get((a.id, "resume"), 0), "ai": used.get((a.id, "ai"), 0)} for a in accts],
