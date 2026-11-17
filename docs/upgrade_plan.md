@@ -357,6 +357,8 @@ account. Not built: Google's file picker for a hand-made sheet (people get a fre
 
 ## 7. Phase C: paid launch
 
+**Status: built** (payment reference, start-up check, daily backups with restore, `scripts/migrate_copy.py`, `docs/hosted_setup.md`, `docs/migrating_to_hosted.md`, `docs/launch_checklist.md`). What is left is operational: the real-account Google test, publishing the image, the legal review and the soft launch (see the launch checklist). One change from the list below: moving copies in uses the old folder directly instead of the export file, and people connect Google afresh (a new sheet with the tracker copied in).
+
 1. **Manual payments first:** `/plan` shows how to pay (DuitNow / bank transfer details) and a reference code; the
    maintainer marks the user paid in `/admin`, which sets the plan and its end date. Reminders before a plan ends.
 2. **Move the existing copies in:** back up both folders, export from `~/internify` and `~/internify-sofea` (A4),

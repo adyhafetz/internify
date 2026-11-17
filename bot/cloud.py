@@ -103,7 +103,7 @@ def quiet(func):
 
 # ---------------------------------------------------------------- what people read
 
-def welcome_text(name: str, new: bool, upgrade: bool = False) -> str:
+def welcome_text(name: str, new: bool, upgrade: bool = False, reference: str = "") -> str:
     name = html.escape(name, quote=False)       # sent as HTML: a name can't inject markup
     greeting = (f"👋 Welcome {name}! Your Internify account is ready." if new else f"👋 Hi {name}! I'm Internify.")
     return (f"{greeting}\n\n"
@@ -119,7 +119,8 @@ def welcome_text(name: str, new: bool, upgrade: bool = False) -> str:
             "• /dashboard – watch your resumes being written\n"
             "• /deleteaccount – delete your account and all your data\n"
             "• /help – everything I can do"
-            + (f"\n\n💳 <b>Paid plan</b> ({config.PAID_PRICE} a month, {config.PAID_RESUMES} resumes and the daily job search): {html.escape(config.PAY_INSTRUCTIONS, quote=False)}" if upgrade else ""))
+            + (f"\n\n💳 <b>Paid plan</b> ({config.PAID_PRICE} a month, {config.PAID_RESUMES} resumes and the daily job search): {html.escape(config.PAY_INSTRUCTIONS, quote=False)}"
+            + (f"\nPut this reference on your payment: <code>{html.escape(reference)}</code>" if reference else "") if upgrade else ""))
 
 
 def plan_text(acct: accounts.Account) -> str:
@@ -140,7 +141,8 @@ def plan_text(acct: accounts.Account) -> str:
     if acct.created_at:
         lines.append(f"• Member since {acct.created_at[:10]}")
     if lim.plan != plans.UNLIMITED:
-        lines += ["", f"<b>{'Renew' if lim.lapsed or lim.plan == plans.PAID else 'Upgrade'}</b>: {config.PAY_INSTRUCTIONS}"]
+        lines += ["", f"<b>{'Renew' if lim.lapsed or lim.plan == plans.PAID else 'Upgrade'}</b>: {html.escape(config.PAY_INSTRUCTIONS, quote=False)}",
+                  f"Put this reference on your payment so it can be matched to you: <code>{accounts.reference(acct.id)}</code>"]
     return "\n".join(lines)
 
 
@@ -282,3 +284,34 @@ async def account_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                       "Thank you for trying Internify. Send /start any time to begin again.")
         return
     await query.edit_message_text("That button has expired.")
+
+
+# ---------------------------------------------------------------- before the hosted version starts
+
+DEFAULT_PAY = "To upgrade, message the person who runs this bot."
+
+
+def preflight() -> tuple[list[str], list[str]]:
+    """Check the hosted settings. Returns (problems that stop it starting, things worth fixing that do not)."""
+    from bot import backup
+    from bot.services import google_link
+    from service import config as sc
+    stop, warn = [], []
+    if not config.ADMIN_TELEGRAM_ID:
+        stop.append("ADMIN_TELEGRAM_ID is not set: nobody could manage plans or see who signed up.")
+    if not config.TELEGRAM_BOT_TOKEN:
+        stop.append("TELEGRAM_BOT_TOKEN is not set.")
+    if not sc.OPENAI_API_KEY:
+        stop.append("The AI key is not set (OPENAI_API_KEY or GEMINI_API_KEY): nobody could make a resume.")
+    if not config.PUBLIC_URL.startswith("https://"):
+        warn.append("PUBLIC_URL is empty or not https: sign-in links and the public website will not work.")
+    if config.PAY_INSTRUCTIONS == DEFAULT_PAY:
+        warn.append("PAY_INSTRUCTIONS is still the default: people are not told how to pay you.")
+    if not google_link.enabled():
+        warn.append("Connect Google is off (needs GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PUBLIC_URL and a working GOOGLE_TOKEN_KEY): people cannot keep a sheet.")
+    if config.ALLOWED_USER_IDS:
+        warn.append("TELEGRAM_ALLOWED_USER_IDS is ignored in the hosted version: anyone can sign up. Remove it to avoid confusion.")
+    age = backup.age_hours()
+    if age is None or age > backup.STALE_HOURS:
+        warn.append("There is no recent backup yet. The first one is written at 03:30 (server time zone setting SCAN_TIMEZONE).")
+    return stop, warn

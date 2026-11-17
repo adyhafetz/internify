@@ -11,6 +11,7 @@
     <div class="stat"><b>{{ d.ai }}{% if d.cap %} <small>/ {{ d.cap }}</small>{% endif %}</b><span>AI calls this month{% if d.cap %} ({{ d.percent }}%){% endif %}</span></div>
     <div class="stat"><b>{{ d.scrape }}</b><span>scraping calls this month</span></div>
   </div>
+  <p class="muted">{{ d.backup }}</p>
   <div class="table-wrap"><table class="data">
     <thead><tr><th>User id</th><th>Name</th><th>Plan</th><th>Until</th><th>Status</th><th>Joined</th><th>Last active</th><th>Resumes</th><th>AI calls</th></tr></thead>
     <tbody>

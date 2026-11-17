@@ -58,6 +58,21 @@ def get(user_id: str) -> Optional[Account]:
         return _row(r) if r else None
 
 
+def reference(user_id: str) -> str:
+    """The code a person puts on their payment so it can be matched to their account: INT- and the first six letters of their id."""
+    return "INT-" + user_id[:6].upper()
+
+
+def by_reference(ref: str) -> Optional[Account]:
+    """The account for a payment reference (INT-AB12CD, any case, with or without the INT-). None if it matches nobody or more than one."""
+    code = (ref or "").strip().lower().removeprefix("int-")
+    if not (len(code) == 6 and code.isalnum()):
+        return None
+    with db._get_connection() as conn:
+        rows = conn.execute("SELECT * FROM accounts WHERE id LIKE ? AND status != 'deleted'", (code + "%",)).fetchall()
+    return _row(rows[0]) if len(rows) == 1 else None
+
+
 def by_telegram(telegram_id: int) -> Optional[Account]:
     """The account of this Telegram user, if they have one (a deleted account has no Telegram id any more)."""
     with db._get_connection() as conn:
