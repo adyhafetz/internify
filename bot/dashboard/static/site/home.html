@@ -1,0 +1,78 @@
+{% extends "_layout.html" %}
+{% block content %}
+<section class="hero"><div class="wrap">
+  <div>
+    <span class="label">Telegram bot for tech students in Malaysia</span>
+    <h1>A one-page resume for every internship you apply to</h1>
+    <p class="lead">Send a job link on Telegram. Internify picks the experience that fits the role, rewrites it for that job, and sends back a one-page PDF. It never adds a skill, number or result you did not save.</p>
+    <div class="actions">
+      {% if site.cta_url %}<a class="btn" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% else %}<a class="btn" href="{{ site.project_url }}">Self-host from GitHub</a>{% endif %}
+      <a class="btn ghost" href="/how-it-works">See how it works</a>
+    </div>
+    <p class="cta-note">Free plan: {{ site.free_resumes }} resumes a month. No card needed.</p>
+  </div>
+  <div>
+    <div class="result" role="img" aria-label="Example of the match report Internify sends with each resume">
+      <div class="head"><div><div class="role">Software Engineer Intern</div><div class="co">Example company, Kuala Lumpur</div></div><span class="score">82% match</span></div>
+      <ul>
+        <li><i></i><span>Shows <b>8 of 10</b> requirements</span></li>
+        <li class="miss"><i></i><span><b>Not on it:</b> Kubernetes, Redis</span></li>
+        <li><i></i><span>9 bullet points from 3 places, 4 reworded for this job</span></li>
+        <li><i></i><span>Left out: a project that does not relate to this role</span></li>
+      </ul>
+      <div class="pills"><span class="pill">✅ I applied</span><span class="pill">📝 What changed</span><span class="pill">🧩 Add a missing tool</span></div>
+    </div>
+    <p class="example">Example of what you receive in Telegram with every resume.</p>
+  </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="sec-head"><h2>How it works</h2><p>Three steps. The first one happens once.</p></div>
+  <div class="grid three">
+    <div class="card"><span class="num">1</span><h3>Save your experience</h3><p>Send your current resume as a PDF or Word file. Internify reads it into jobs, projects and bullet points that you can edit in Telegram.</p></div>
+    <div class="card"><span class="num">2</span><h3>Send a job link</h3><p>Paste a link from LinkedIn, JobStreet or any careers page. If a page blocks the bot, paste the job text instead.</p></div>
+    <div class="card"><span class="num">3</span><h3>Get the PDF and a report</h3><p>See which of the job's requirements the resume shows, what it left out, and what changed from your saved lines.</p></div>
+  </div>
+</div></section>
+
+<section id="why"><div class="wrap">
+  <div class="sec-head"><h2>What it does for your applications</h2></div>
+  <div class="grid three">
+    <div class="card"><h3>Every line is checked</h3><p>Each bullet point is compared with the saved line it came from. A tool, number or name that is not in your original is rejected.</p></div>
+    <div class="card"><h3>One page, measured</h3><p>The PDF is built and its pages are counted. If it runs over, the least relevant items go first. Your internships and jobs stay on.</p></div>
+    <div class="card"><h3>A match you can verify</h3><p>The score comes from the requirements the job lists and the ones your resume shows. You see the ones it misses.</p></div>
+    <div class="card"><h3>Internships found for you<span class="tag">Paid</span></h3><p>Each day it searches LinkedIn, JobStreet, Hiredly and the web for your keywords, then writes resumes for the best matches.</p></div>
+    <div class="card"><h3>A tracker that follows up</h3><p>Mark each job applied, in review, interviewing, offer or rejected. Get a reminder when nobody replies. Export to Excel any time.</p></div>
+    <div class="card"><h3>Your data stays yours</h3><p>Export everything as one file. Delete your account, and every saved record with it, in two taps.</p></div>
+  </div>
+</div></section>
+
+<section id="fit"><div class="wrap"><div class="card">
+  <h2>Made for CS and tech internships</h2>
+  <p>The resume is a single-column, ATS-friendly layout with Education, Work Experience, Projects, Leadership and Technical Skills. Skills are grouped as languages, frameworks, databases, AI/ML and tools. Internify can also read your public GitHub repositories to confirm tools you really use, and add them with a real bullet point. Other fields will fit less well.</p>
+</div></div></section>
+
+<section id="pricing"><div class="wrap">
+  <div class="sec-head"><h2>Pricing</h2><p>Start free. Upgrade when you apply in volume.</p></div>
+  {% include "_plans.html" %}
+  <p class="cta-note"><a href="/pricing">Compare plans and billing</a></p>
+</div></section>
+
+<section id="faq"><div class="narrow">
+  <div class="sec-head"><h2>Questions</h2></div>
+  {% for q, a in faq %}<details><summary>{{ q }}</summary><p>{{ a }}</p></details>
+  {% endfor %}
+</div></section>
+
+<section><div class="wrap">
+  <div class="closing">
+    <h2>Send your first job link</h2>
+    <p>Save your experience once, then get a tailored resume for each internship.</p>
+    <div class="actions">{% if site.cta_url %}<a class="btn" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% else %}<a class="btn" href="{{ site.project_url }}">Self-host from GitHub</a>{% endif %}</div>
+  </div>
+</div></section>
+
+<section class="tight"><div class="wrap">
+  <div class="strip"><p><b>Prefer to run it yourself?</b> Internify is open source under the MIT License. Run it on your own computer with your own keys, free.</p><a class="btn ghost small" href="{{ site.project_url }}">Self-host from GitHub</a></div>
+</div></section>
+{% endblock %}

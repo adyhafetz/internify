@@ -247,7 +247,13 @@ from here (no Docker or GitHub Packages access), so the first build is the real 
 
 Estimated effort: **2 to 4 weeks**.
 
-### B1. Per-user data
+### B1. Per-user data (built)
+
+**Status:** `service/users.py` (the acting user, validated ids, every per-user path), user-scoped database tables with a
+migration that keeps an old database's rows as the owner's, and per-user versions of the GitHub index, outcomes, backups,
+data export, run traces, chat id, scan lock and Sheet sync are in (`scripts/test_users.py`). `MODE=cloud` is **refused at
+start-up** until B2 and B3 exist. Still per copy, not per user, and left for later steps: the Google login and Sheet/Drive
+(B5), the dashboard and `/pdf/<file>` route (B4), the Telegram sign-up (B2).
 
 - A `users` table: `id` (random public code, e.g. `k3f9x2`), `telegram_id` (unique), `plan`, `status`
   (`active` / `paused` / `deleted`), `created_at`, `limits`, `google` (encrypted login), `github_username`.
@@ -259,7 +265,14 @@ Estimated effort: **2 to 4 weeks**.
 - In `MODE=single`, the context is always the owner, and paths stay where they are today
   (`output/data/…`), so self-hosters need no migration.
 
-### B2. Sign-up in Telegram
+### B2. Sign-up in Telegram (built)
+
+**Status:** accounts (`bot/services/accounts.py`, a global `accounts` table), sign-up only on `/start`, access rules
+(unknown, paused, too fast) in `restricted`, scheduled jobs run once per active user, `/plan` (plan and status for now;
+usage comes with B3), `/deleteaccount` (asked twice, deletes only that person's rows and folder) and the maintainer-only
+server-key warning (`ADMIN_TELEGRAM_ID`) are in (`scripts/test_accounts.py`). The Google disconnect on delete comes with B5.
+Cloud mode is still refused at start-up (set `INTERNIFY_CLOUD_PREVIEW=1` to try it) until B3 adds limits. Not built: `/dashboard`
+(B4) and an admin screen (B4).
 
 - `/start` from an unknown Telegram user in Cloud mode: a short welcome, the free tier explained, and "send me your
   resume to begin" (the existing import flow).
@@ -267,7 +280,15 @@ Estimated effort: **2 to 4 weeks**.
 - New commands: `/plan` (your plan and usage this month), `/dashboard` (sends a sign-in link),
   `/deleteaccount` (asks twice, then deletes all your data and disconnects Google).
 
-### B3. Plans, allowance and limits
+### B3. Plans, allowance and limits (built)
+
+**Status:** `bot/services/plans.py` (free 3 / paid 30 with the daily check / unlimited; a lapsed paid plan counts as free),
+a `usage` table (resumes, AI calls, scraping calls, per person per month), a resume reserved before the work and given
+back if it fails, the daily check for paid people only (and never more than what is left this month), the server's monthly AI
+ceiling (`AI_MONTHLY_BUDGET_CALLS`), `/plan` and ⚙️ Status with usage, plan-ending reminders, and the maintainer's Telegram
+commands (`/admin`, `/users`, `/setplan`, `/pauseuser`, `/resumeuser`) are in (`scripts/test_plans.py`). The web `/admin` page
+comes with B4. Not built: buying extra resumes in a month (the maintainer can move someone to a bigger plan by hand).
+Cloud mode is still refused at start-up unless `INTERNIFY_CLOUD_PREVIEW=1`; B4 (dashboard and admin page) and B5 (Google) remain.
 
 | | Free | Paid (RM9.90 / month) |
 |---|---|---|
@@ -280,7 +301,15 @@ Estimated effort: **2 to 4 weeks**.
 - When a limit is reached: a friendly message with how to upgrade; nothing half-done.
 - The maintainer's cost guard: a global monthly AI budget; when it is near, new free-tier resumes wait.
 
-### B4. Web paths and sign-in links
+### B4. Web paths and sign-in links (built)
+
+**Status:** the marketing pages (`/`, `/how-it-works`, `/pricing`) in the dashboard's style with search tags, structured data,
+`robots.txt`, `sitemap.xml` and a preview image; privacy and terms with hosted sections; one-time sign-in links (`/dashboard`
+in Telegram; a button, then a session cookie, hashes only); `/u/<id>/live`, `/u/<id>/api/...` and `/u/<id>/pdf/...` that only
+the signed-in person can open; every event tagged with its user; a read-only `/admin` page (`/adminweb` link) for the maintainer;
+the inactive-account deletion the privacy policy promises. Tested in `scripts/test_web.py`. Not built: actions on the admin page
+(plans and pausing stay in Telegram, to avoid a second way in that needs its own protection), a sign-out button in the dashboard
+(the `/signout` route exists), and a custom domain for the hosted version (see open questions).
 
 - `/u/<id>/live`: that user's dashboard only (their runs, their PDFs). `/api/stream` and `/pdf/...` filter by user.
 - `/dashboard` in Telegram sends a link with a short-lived one-time code; opening it sets a cookie for that user.
@@ -289,7 +318,15 @@ Estimated effort: **2 to 4 weeks**.
   by the maintainer's own sign-in link plus `ADMIN_TELEGRAM_ID`.
 - `/` becomes the marketing site (home, how it works, pricing, FAQ, privacy, terms).
 
-### B5. Connect Google (Cloud)
+### B5. Connect Google (Cloud) (built)
+
+**Status:** `bot/services/google_link.py` (encrypted per-person login, the connect flow, folder and sheet created in the person's own
+Drive with their tracker copied in, revoke on disconnect and on account deletion), per-person Sheets and Drive clients and ids,
+`/profile` → Connect Google (and Disconnect), the web routes `/connect/google/...` (a button first, so link previews can't use the
+link up), hosted privacy wording, and the maintainer's setup in `docs/domain_setup.md` part 6 are in (`scripts/test_google_connect.py`).
+**Not verified against real Google** (build environment has no access): that the app is accepted for `drive.file`, that the Sheets API
+works with that scope for sheets the app created, and what Google requires to remove the "unverified app" screen. Try it once with a real
+account. Not built: Google's file picker for a hand-made sheet (people get a fresh template sheet with their tracker copied in).
 
 - The maintainer creates **one** Google app with the `drive.file` permission, published and verified for the
   domain (homepage, privacy and terms already exist).

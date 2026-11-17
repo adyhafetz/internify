@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import os
 import sys
 from telegram import Update, BotCommand
 from telegram.ext import (
@@ -51,6 +52,10 @@ async def post_init(application) -> None:
         BotCommand("help", "Everything I can do"),
         BotCommand("cancel", "Stop the current step"),
     ]
+    from service import users
+    if users.cloud():   # the hosted version: your plan, and deleting your account
+        commands[-1:-1] = [BotCommand("plan", "Your plan"), BotCommand("dashboard", "Watch your resumes being written"),
+                           BotCommand("deleteaccount", "Delete your account and all your data")]
     try:
         await application.bot.set_my_commands(commands)
         # Shown on the empty chat screen, before the user has typed anything: tells them the main action.
@@ -69,12 +74,35 @@ async def post_init(application) -> None:
     from bot import tracker
     tracker.schedule(application)
     import asyncio
-    asyncio.get_running_loop().create_task(tracker.sync(force=True))   # follow your Google Sheet's statuses from the start
+    asyncio.get_running_loop().create_task(tracker.sync_everyone())   # follow your Google Sheet's statuses from the start
     from bot import status
-    asyncio.get_running_loop().create_task(status.startup_check(application))   # a plain warning if the AI key is wrong
+    asyncio.get_running_loop().create_task(status.startup_check(application))
+    if not config.BOT_USERNAME:   # the public pages link to the bot: take its username from Telegram unless it was set by hand
+        try:
+            config.BOT_USERNAME = application.bot.username or ""
+        except Exception:
+            pass
+    if users.cloud():   # hosted version: count what each person costs, and remind them before their plan ends
+        from bot import cloud
+        from bot.services import plans
+        plans.install()
+        if getattr(application, "job_queue", None) is not None:
+            from datetime import time as _t
+            from zoneinfo import ZoneInfo
+            try:
+                notice_time = _t(9, 30, tzinfo=ZoneInfo(config.SCAN_TIMEZONE))
+            except Exception:
+                notice_time = _t(9, 30)
+            application.job_queue.run_daily(cloud.daily_notices, time=notice_time, name="plan-notices")
+            application.job_queue.run_daily(cloud.retention_job, time=notice_time, name="inactive-accounts")   # a plain warning if the AI key is wrong
 
 
 def create_bot_app():
+    from service import users
+    if users.cloud() and os.getenv("INTERNIFY_CLOUD_PREVIEW") != "1":
+        # The data is kept apart per user, but sign-up, plans and limits are not built yet: refuse rather than half work.
+        logger.error("MODE=cloud is not ready yet (sign-up and limits are still to come). Remove MODE from .env to run as before.")
+        sys.exit(1)
     if not config.TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN is not set in environment or .env file!")
         sys.exit(1)
@@ -96,6 +124,18 @@ def create_bot_app():
     from bot.tracker import tracker_callback
     app.add_handler(CallbackQueryHandler(tracker_callback, pattern=r"^jb:"))
     app.add_handler(CommandHandler("cancel", cancel_command))
+    from service import users as _users
+    if _users.cloud():   # the hosted version only
+        from bot import cloud
+        from bot.handlers.common import restricted
+        app.add_handler(CommandHandler("plan", restricted(cloud.plan_command)))
+        app.add_handler(CommandHandler("deleteaccount", restricted(cloud.delete_command)))
+        app.add_handler(CommandHandler("dashboard", restricted(cloud.dashboard_command)))
+        app.add_handler(CallbackQueryHandler(restricted(cloud.account_callback), pattern=r"^acct:"))
+        from bot import admin   # the maintainer's own commands: they answer nobody else
+        for name, fn in (("admin", admin.admin_command), ("users", admin.users_command), ("setplan", admin.setplan_command),
+                         ("pauseuser", admin.pause_command), ("resumeuser", admin.resume_command), ("adminweb", admin.adminweb_command)):
+            app.add_handler(CommandHandler(name, fn))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
     # Everything on your resume, by tapping: one command, no shortcuts.
@@ -112,7 +152,8 @@ def create_bot_app():
     # Answers to the Archivist's questions (buttons, and typed replies, which must be seen before other text handlers)
     app.add_handler(CallbackQueryHandler(ask_callback, pattern=r"^ask:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask_text_handler), group=-2)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, xp_text_handler), group=-1)
+    from bot import cloud as _cloud
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _cloud.quiet(xp_text_handler)), group=-1)
 
     # Job URL Scrape & Tailor Ingestion Handler
     app.add_handler(get_job_url_handler())

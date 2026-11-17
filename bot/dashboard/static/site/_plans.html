@@ -1,0 +1,25 @@
+<div class="plans">
+  <div class="plan">
+    <span class="label">Free</span>
+    <p class="price">RM0</p>
+    <ul>
+      <li>{{ site.free_resumes }} resumes a month</li>
+      <li>Resume for any job link you send</li>
+      <li>Match report and application tracker</li>
+      <li>GitHub check and profile tidy-up</li>
+      <li class="no">Daily job search</li>
+    </ul>
+    {% if site.cta_url %}<a class="btn ghost block" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% endif %}
+  </div>
+  <div class="plan best">
+    <span class="label">Paid</span>
+    <p class="price">{{ site.price }}<small> / month</small></p>
+    <ul>
+      <li>{{ site.paid_resumes }} resumes a month</li>
+      <li>Daily job search for your keywords</li>
+      <li>Up to {{ site.paid_scan_max }} resumes written per daily search</li>
+      <li>Everything in Free</li>
+    </ul>
+    {% if site.paid_cta_url %}<a class="btn block" href="{{ site.paid_cta_url }}" rel="noopener">Get Paid on Telegram</a>{% endif %}
+  </div>
+</div>

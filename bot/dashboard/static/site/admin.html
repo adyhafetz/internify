@@ -1,0 +1,22 @@
+{% extends "_layout.html" %}
+{% block content %}
+<section class="doc"><div class="wrap">
+  <span class="label">Maintainer</span>
+  <h1>Admin</h1>
+  <p class="muted">Read-only. Give plans and pause people in Telegram: /setplan, /pauseuser, /resumeuser.</p>
+  <div class="stats">
+    <div class="stat"><b>{{ d.total }}</b><span>people{% if d.paused %} ({{ d.paused }} paused){% endif %}</span></div>
+    {% for plan, n in d.by_plan %}<div class="stat"><b>{{ n }}</b><span>{{ plan }}</span></div>{% endfor %}
+    <div class="stat"><b>{{ d.resumes }}</b><span>resumes this month</span></div>
+    <div class="stat"><b>{{ d.ai }}{% if d.cap %} <small>/ {{ d.cap }}</small>{% endif %}</b><span>AI calls this month{% if d.cap %} ({{ d.percent }}%){% endif %}</span></div>
+    <div class="stat"><b>{{ d.scrape }}</b><span>scraping calls this month</span></div>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>User id</th><th>Name</th><th>Plan</th><th>Until</th><th>Status</th><th>Joined</th><th>Last active</th><th>Resumes</th><th>AI calls</th></tr></thead>
+    <tbody>
+    {% for u in d.users %}<tr><td><code>{{ u.id }}</code></td><td>{{ u.name or '–' }}</td><td>{{ u.plan }}</td><td>{{ u.until or '–' }}</td><td>{{ u.status }}</td><td>{{ u.joined }}</td><td>{{ u.last_active }}</td><td>{{ u.resumes }}</td><td>{{ u.ai }}</td></tr>
+    {% else %}<tr><td colspan="9">Nobody has signed up yet.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div></section>
+{% endblock %}

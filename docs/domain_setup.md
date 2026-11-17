@@ -203,3 +203,22 @@ anyone with the link). Open the Drive link while signed in.
 
 Send them `https://internify.yourdomain.com/live?key=YOUR_KEY`. Anyone with that link can see your runs, which
 include job text and resume lines, so share it only when needed and change `DASHBOARD_KEY` afterwards.
+
+---
+
+## 6. The hosted version: Google for everyone (maintainer only)
+
+Skip this unless you run the hosted version (`MODE=cloud`). People connect their **own** Google Drive from Telegram, so you set up one Google app that all of them use. Nothing of theirs is stored in your Drive.
+
+1. In the same Google Cloud project, enable the **Google Drive API** and **Google Sheets API**.
+2. **Credentials → Create client → Web application** (not Desktop). Under **Authorized redirect URIs** add exactly `https://internify.yourdomain.com/connect/google/callback` (your `PUBLIC_URL` plus `/connect/google/callback`). Put its ID and secret in `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+3. **Consent screen → Data access:** add only `https://www.googleapis.com/auth/drive.file`. Do **not** add the broad Drive or Sheets scopes: with only this one, Internify can open just the folder and sheet it creates in each person's Drive.
+4. **Branding:** your home page, privacy page and terms (`PUBLIC_URL`, `/privacy`, `/terms`) are already there. Publish the app (see part 3). With many people connecting you will want Google to **verify** the app so they don't see an "unverified app" screen and the 100-user limit does not apply. Check Google's current requirements for `drive.file` in your own project: I could not test this against Google from the build environment, so **connect a real account once yourself before telling anyone**.
+5. Make an encryption key and put it in `.env` as `GOOGLE_TOKEN_KEY`:
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+   Every person's saved Google login is encrypted with it. **Back it up somewhere safe:** nobody can recover it. If it is lost or changed, saved logins stop working and people simply tap Connect Google again.
+6. Restart the bot. `⚙️ Status` shows "Google Drive and Sheets: not connected" for a person until they connect, and "not available on this server" if a setting above is missing.
+
+What a person sees: `/profile` → Connect Google → a button → "Continue with Google" → back to a "Google is connected" page, and a message in Telegram with links to their new folder and sheet.

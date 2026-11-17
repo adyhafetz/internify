@@ -27,7 +27,7 @@ from bot.extraction import (
 from bot import config
 from bot.handlers.common import restricted
 from bot.services import starter_pages, watchlist
-from service import editor
+from service import editor, users
 from service.profile_data import (
     _load_skeleton_raw,
     add_education,
@@ -73,6 +73,10 @@ def list_screen(notice: str = "") -> Screen:
     rows += [[_btn(_short(f"{ICON[e.kind]} {e.label} ({e.count})", 60), "o", e.kind, e.ref, 0)] for e in entries]
     rows.append([_btn(f"🔧 Skills ({sum(n for _, _, n in editor.list_skill_categories())})", "s")])
     rows.append([_btn(f"🔭 Job search ({len(watchlist.list_sources())} pages)", "w")])
+    if users.cloud():   # the hosted version: connect your own Google Drive and Sheet
+        from bot.services import google_link
+        if google_link.enabled():
+            rows.append([_btn("🔗 Google: connected" if google_link.get() else "🔗 Connect Google", "gc")])
     if my_links():
         rows.append([_btn("🔗 My links", "lk")])
     rows.append([_btn("🧹 Tidy up", "ty"), _btn("⚙️ Status", "st")])
@@ -84,15 +88,40 @@ def my_links() -> list[tuple[str, str]]:
     """(button text, address) for what is set up: the dashboard, the tracker sheet and the resume folder.
     Telegram only accepts public https addresses on buttons, so a localhost address is left out."""
     links: list[tuple[str, str]] = []
-    if config.PUBLIC_URL.startswith("https://"):
+    if config.PUBLIC_URL.startswith("https://") and not users.cloud():   # in the hosted version /dashboard in the chat gives a sign-in link
         links.append(("📊 Live dashboard", f"{config.PUBLIC_URL}/dashboard"))
-    sheet = config.GOOGLE_SHEET_ID.strip()
+    from bot.services import google_auth
+    sheet, _, folder_raw = google_auth.ids()      # .env in single mode; the person's own connection in the hosted version
+    sheet = sheet.strip()
     if sheet:
         links.append(("📑 Application tracker (Google Sheet)", f"https://docs.google.com/spreadsheets/d/{sheet}/edit"))
-    folder = config.GOOGLE_DRIVE_FOLDER_ID.strip().rstrip("/").rsplit("/", 1)[-1]
+    folder = folder_raw.strip().rstrip("/").rsplit("/", 1)[-1]
     if folder:
         links.append(("📁 Resume folder (Google Drive)", f"https://drive.google.com/drive/folders/{folder}"))
     return links
+
+
+def google_screen(notice: str = "") -> Screen:
+    """Hosted version: connect your own Google Drive and Sheet, see them, or disconnect."""
+    from bot.services import google_link, websession
+    lines = [notice, ""] if notice else []
+    if not google_link.enabled():
+        lines += ["🔗 <b>Google</b>", "Connecting Google isn't available on this server."]
+        return "\n".join(lines), InlineKeyboardMarkup([[_btn("⬅ Back to profile", "l")]])
+    link = google_link.get()
+    if link:
+        lines += ["🔗 <b>Google is connected</b>", "",
+                  "Each resume is saved in your Drive folder, and each application is a row in your tracker sheet. Change a Status in the sheet and I follow it. "
+                  "I can open only these two things, nothing else in your Drive. They stay yours if you disconnect.", ""]
+        rows = [[InlineKeyboardButton("📑 Open the tracker sheet", url=link.sheet_url)], [InlineKeyboardButton("📁 Open the resume folder", url=link.folder_url)],
+                [_btn("Disconnect Google", "gd")], [_btn("⬅ Back to profile", "l")]]
+        return "\n".join(lines), InlineKeyboardMarkup(rows)
+    token = websession.new_login(users.current(), "google")
+    lines += ["🔗 <b>Connect Google</b>", "",
+              "I'll create a folder and a tracker spreadsheet in <b>your own Google Drive</b> (they use your storage, not mine) and save each resume there. "
+              "I can open only those two things, nothing else in your Drive. You can disconnect any time. The link below works once, for 15 minutes."]
+    rows = [[InlineKeyboardButton("Connect Google", url=f"{config.PUBLIC_URL}/connect/google/{token}")], [_btn("⬅ Back to profile", "l")]]
+    return "\n".join(lines), InlineKeyboardMarkup(rows)
 
 
 def links_screen() -> Screen:
@@ -419,6 +448,16 @@ async def _handle(query, context, action: str, args: list[str]) -> Optional[Scre
         return watchlist_screen()
     if action == "lk":
         return links_screen()
+    if action == "gc":
+        return await asyncio.to_thread(google_screen)
+    if action == "gd":
+        return ("🔗 <b>Disconnect Google?</b>\n\nI stop saving to your Drive and following your sheet, and I ask Google to forget the connection. "
+                "Your folder, sheet and PDFs stay in your Drive. Your tracker here is kept.",
+                InlineKeyboardMarkup([[_btn("Yes, disconnect", "gdy")], [_btn("Keep it connected", "gc")]]))
+    if action == "gdy":
+        from bot.services import google_link
+        await asyncio.to_thread(google_link.disconnect)
+        return await asyncio.to_thread(google_screen, "✅ Google is disconnected.")
     if action in ("st", "sT"):
         from bot import status
         app = getattr(context, "application", None)

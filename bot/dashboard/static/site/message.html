@@ -1,0 +1,9 @@
+{% extends "_layout.html" %}
+{% block content %}
+<section class="doc"><div class="narrow">
+  <h1>{{ heading }}</h1>
+  <p class="lead">{{ text }}</p>
+  {% if button_url %}<form method="post" action="{{ button_url }}" class="actions"><button class="btn" type="submit">{{ button_label }}</button></form>{% endif %}
+  {% if link_url %}<p><a class="btn ghost" href="{{ link_url }}">{{ link_label }}</a></p>{% endif %}
+</div></section>
+{% endblock %}

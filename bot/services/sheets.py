@@ -1,18 +1,18 @@
 from __future__ import annotations
 import logging
 from typing import Optional
-from bot import config
-from bot.services.google_auth import get_google_credentials
+from bot.services.google_auth import get_google_credentials, ids as google_ids
+from service import users
 
 logger = logging.getLogger(__name__)
 
-_gspread_client = None
+_clients: dict = {}    # user id -> that person's Sheets client (one in single mode)
 
 
 def _get_client():
-    global _gspread_client
-    if _gspread_client is not None:
-        return _gspread_client
+    me = users.current_or_none() or "none"
+    if me in _clients:
+        return _clients[me]
 
     creds = get_google_credentials()
     if not creds:
@@ -20,27 +20,28 @@ def _get_client():
 
     try:
         import gspread
-        _gspread_client = gspread.authorize(creds)
+        _clients[me] = gspread.authorize(creds)
         logger.info("Initialized Google Sheets client with unified Google credentials.")
-        return _gspread_client
+        return _clients[me]
     except Exception as e:
         logger.error("Failed to initialize gspread client: %s", e)
         return None
 
 
 def _get_worksheet():
+    sheet_id, tab, _ = google_ids()
     client = _get_client()
-    if not client or not config.GOOGLE_SHEET_ID:
+    if not client or not sheet_id:
         return None
     try:
-        sh = client.open_by_key(config.GOOGLE_SHEET_ID)
+        sh = client.open_by_key(sheet_id)
         try:
-            return sh.worksheet(config.GOOGLE_SHEET_NAME)
+            return sh.worksheet(tab)
         except Exception:
-            logger.info("Tab '%s' not found in spreadsheet. Falling back to first sheet tab.", config.GOOGLE_SHEET_NAME)
+            logger.info("Tab '%s' not found in spreadsheet. Falling back to first sheet tab.", tab)
             return sh.get_worksheet(0)
     except Exception as e:
-        logger.error("Failed to open spreadsheet '%s': %s", config.GOOGLE_SHEET_ID, e)
+        logger.error("Failed to open spreadsheet '%s': %s", sheet_id, e)
         return None
 
 

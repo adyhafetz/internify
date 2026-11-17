@@ -5,7 +5,7 @@ import hashlib
 import os
 import shutil
 
-from service import config
+from service import config, users
 from service.clients import openai_client
 from service.models import FactBullet, ResumeSkeleton
 
@@ -26,14 +26,16 @@ def ensure_data_file(path: str, sample_name: str) -> None:
     shutil.copyfile(sample, path)
 
 
-def load_facts(path: str = config.FACT_STORE_PATH) -> list[FactBullet]:
+def load_facts(path: str | None = None) -> list[FactBullet]:
+    path = path or users.facts_path()   # the acting user's file
     ensure_data_file(path, "facts.json")
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     return [FactBullet(**item) for item in raw]
 
 
-def load_skeleton(path: str = config.SKELETON_PATH) -> ResumeSkeleton:
+def load_skeleton(path: str | None = None) -> ResumeSkeleton:
+    path = path or users.skeleton_path()
     ensure_data_file(path, "resume_skeleton.json")
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -56,12 +58,13 @@ def _save_cache(path: str, cache: dict) -> None:
 
 def get_fact_embeddings(
     facts: list[FactBullet],
-    cache_path: str = config.EMBEDDING_CACHE_PATH,
+    cache_path: str | None = None,
 ) -> dict[str, list[float]]:
     """
     Returns {fact_id: embedding_vector}. Only calls the embeddings API for
     facts that are new or whose text changed since the last run.
     """
+    cache_path = cache_path or users.embedding_cache_path()
     cache = _load_cache(cache_path)
     result: dict[str, list[float]] = {}
     to_embed: list[FactBullet] = []

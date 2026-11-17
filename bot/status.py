@@ -13,7 +13,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot import config
 from bot.services import watchlist
-from service import config as sc
+from service import config as sc, users
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +36,24 @@ def _next_run(application, name: str) -> Optional[str]:
 
 
 def _github_line() -> str:
-    if not sc.GITHUB_USERNAME:
+    username = users.github_username()
+    if not username:
         return "off (no GitHub username set)"
     from service import github_evidence
     idx = github_evidence.load_index()
-    if idx.get("username") != sc.GITHUB_USERNAME or not idx.get("checked"):
-        return f"{_h(sc.GITHUB_USERNAME)}, repos not read yet"
+    if idx.get("username") != username or not idx.get("checked"):
+        return f"{_h(username)}, repos not read yet"
     hours = (time.time() - idx["checked"]) / 3600
     age = f"{int(hours * 60)} min" if hours < 1 else f"{int(hours)} h" if hours < 48 else f"{int(hours / 24)} days"
-    return f"{_h(sc.GITHUB_USERNAME)}, {len(idx.get('repos', {}))} repos, read {age} ago"
+    return f"{_h(username)}, {len(idx.get('repos', {}))} repos, read {age} ago"
+
+
+def _plan_line() -> str:
+    from bot.services import plans
+    try:
+        return plans.short_summary()
+    except Exception:
+        return ""
 
 
 def _looking_for() -> str:
@@ -62,13 +71,18 @@ def _looking_for() -> str:
 
 def screen(application=None, notice: str = ""):
     provider = "Google Gemini (free tier)" if sc.AI_PROVIDER == "gemini" else "OpenAI"
-    google = "set up" if (config.GOOGLE_REFRESH_TOKEN or os.path.exists(config.GOOGLE_TOKEN_FILE)) and (config.GOOGLE_SHEET_ID or config.GOOGLE_DRIVE_FOLDER_ID) else "off"
+    if users.cloud():   # the hosted version: this person's own connection
+        from bot.services import google_link
+        google = "connected" if google_link.get() else ("not connected: /profile, Connect Google" if google_link.enabled() else "not available on this server")
+    else:
+        google = "set up" if (config.GOOGLE_REFRESH_TOKEN or os.path.exists(config.GOOGLE_TOKEN_FILE)) and (config.GOOGLE_SHEET_ID or config.GOOGLE_DRIVE_FOLDER_ID) else "off"
     scan = "paused" if watchlist.scan_paused() else ("on" if config.SCAN_ENABLED else "off")
     lines = [notice, ""] if notice else []
     lines += [
         "⚙️ <b>Status</b>",
         "",
         "<b>Set up</b>",
+        *([f"• Plan: {_h(plan_line)}"] if (plan_line := _plan_line()) else []),
         f"• AI: {provider}, key {'✓' if sc.OPENAI_API_KEY else '✕ missing'}",
         f"  writes with {_h(sc.GENERATOR_MODEL)}, checks with {_h(sc.CRITIC_MODEL)}, reads with {_h(sc.EXTRACTOR_MODEL)}",
         f"• Only you can use the bot: {'yes' if config.ALLOWED_USER_IDS else 'no (anyone who finds it can)'}",
@@ -135,11 +149,16 @@ async def startup_check(application) -> None:
     if not problem:
         return
     logger.warning("Startup check: %s", problem)
-    chat_id = watchlist.owner_chat_id()
-    digest = hashlib.sha1(problem.encode()).hexdigest()[:12]
-    if chat_id is None or watchlist.get_setting("startup_warned", "") == digest:
-        return   # no chat yet, or this exact problem was already reported
-    watchlist.set_setting("startup_warned", digest)
+    if users.cloud():   # the AI key is the maintainer's: tell the maintainer, never the users
+        chat_id = config.ADMIN_TELEGRAM_ID or None
+    else:
+        chat_id = watchlist.owner_chat_id()
+        digest = hashlib.sha1(problem.encode()).hexdigest()[:12]
+        if chat_id is None or watchlist.get_setting("startup_warned", "") == digest:
+            return   # no chat yet, or this exact problem was already reported
+        watchlist.set_setting("startup_warned", digest)
+    if chat_id is None:
+        return
     try:
         await application.bot.send_message(chat_id, "⚠️ " + problem)
     except Exception as err:

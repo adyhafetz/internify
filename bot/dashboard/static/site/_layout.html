@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title }}</title>
+<meta name="description" content="{{ description }}">
+{% if noindex %}<meta name="robots" content="noindex,nofollow">{% else %}<meta name="robots" content="index,follow,max-image-preview:large">{% endif %}
+{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+<meta name="theme-color" content="#F8FAFC">
+<link rel="icon" href="/assets/brand/logo-mark.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/site/style.css">
+{% if not noindex %}
+<meta property="og:site_name" content="Internify">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_MY">
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ description }}">
+{% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+{% if og_image %}<meta property="og:image" content="{{ og_image }}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Internify: a one-page resume for every internship you apply to">{% endif %}
+<meta name="twitter:card" content="{{ 'summary_large_image' if og_image else 'summary' }}">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ description }}">
+{% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% endif %}
+{% endif %}
+{% for block in json_ld %}<script type="application/ld+json">{{ block | tojson }}</script>
+{% endfor %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" aria-label="Internify home"><img src="/assets/brand/logo-mark.svg" alt="" width="30" height="30"><span class="wordmark" role="img" aria-label="Internify"></span></a>
+  <nav class="main" aria-label="Main">
+    {% if marketing %}
+    <a class="hide-sm" href="/how-it-works"{% if page == '/how-it-works' %} aria-current="page"{% endif %}>How it works</a>
+    <a href="/pricing"{% if page == '/pricing' %} aria-current="page"{% endif %}>Pricing</a>
+    <a class="hide-sm" href="{{ site.project_url }}">GitHub</a>
+    {% if site.cta_url %}<a class="btn small" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% endif %}
+    {% else %}
+    <a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a>
+    {% endif %}
+  </nav>
+</div></header>
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+<footer class="site"><div class="wrap">
+  <div><p><b>Internify</b></p><p>Resumes for tech internships, written from your own saved experience. Open source under the MIT License.</p></div>
+  <div><h4>Product</h4>{% if marketing %}<a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a>{% endif %}<a href="{{ site.project_url }}">Self-host from GitHub</a></div>
+  <div><h4>Legal</h4><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></div>
+</div></footer>
+</body>
+</html>

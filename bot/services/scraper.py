@@ -23,7 +23,7 @@ from bs4 import BeautifulSoup
 
 from bot import config
 from bot.services import ai
-from service import events
+from service import events, metering
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +176,7 @@ class _Ctx:
 
 
 async def _via_scrapingant(ctx: _Ctx) -> Page:
+    metering.count("scrape")
     try:
         async with _client(45.0) as client:
             resp = await client.get("https://api.scrapingant.com/v2/markdown", params={"url": ctx.url},

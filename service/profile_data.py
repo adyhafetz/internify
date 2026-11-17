@@ -7,7 +7,7 @@ from typing import Literal, get_args
 
 from pydantic import BaseModel, Field
 
-from service import config
+from service import users
 from service.fact_store.store import _load_cache, _save_cache, ensure_data_file
 from service.latex.compile import compile_tex
 from service.models import GeneratedResume, ResumeBullet, ResumeSkeleton
@@ -46,34 +46,39 @@ def _unique_id(base_id: str, existing: set[str]) -> str:
 
 
 def _load_skeleton_raw() -> dict:
-    ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")
-    with open(config.SKELETON_PATH, "r", encoding="utf-8") as f:
+    path = users.skeleton_path()
+    ensure_data_file(path, "resume_skeleton.json")
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_skeleton_raw(data: dict) -> None:
-    os.makedirs(os.path.dirname(config.SKELETON_PATH) or ".", exist_ok=True)
-    with open(config.SKELETON_PATH, "w", encoding="utf-8") as f:
+    path = users.skeleton_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def _load_facts_raw() -> list[dict]:
-    ensure_data_file(config.FACT_STORE_PATH, "facts.json")
-    with open(config.FACT_STORE_PATH, "r", encoding="utf-8") as f:
+    path = users.facts_path()
+    ensure_data_file(path, "facts.json")
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_facts_raw(data: list[dict]) -> None:
-    os.makedirs(os.path.dirname(config.FACT_STORE_PATH) or ".", exist_ok=True)
-    with open(config.FACT_STORE_PATH, "w", encoding="utf-8") as f:
+    path = users.facts_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def _evict_from_cache(fact_ids: list[str]) -> None:
-    cache = _load_cache(config.EMBEDDING_CACHE_PATH)
+    path = users.embedding_cache_path()
+    cache = _load_cache(path)
     for fid in fact_ids:
         cache.pop(fid, None)
-    _save_cache(config.EMBEDDING_CACHE_PATH, cache)
+    _save_cache(path, cache)
 
 
 def _insert_suggested_skills(skeleton: dict, suggested: dict[str, list[str]]) -> dict[str, list[str]]:

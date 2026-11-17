@@ -4,34 +4,39 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from bot import config
+from service import users
 
 logger = logging.getLogger(__name__)
 
 
-_remembered_chat = None
+_remembered_chat: dict[str, int] = {}   # user id -> the chat last written down for them
 
 
 def _remember_chat(update: Update) -> None:
     """The scheduled scan has no message to reply to, so remember which chat is yours (once, when it changes)."""
-    global _remembered_chat
     chat = getattr(update, "effective_chat", None)
-    if chat is None or chat.id == _remembered_chat:
+    me = users.current()
+    if chat is None or chat.id == _remembered_chat.get(me):
         return
     try:
         from bot.services import watchlist
         watchlist.set_setting("owner_chat_id", str(chat.id))
-        _remembered_chat = chat.id
+        _remembered_chat[me] = chat.id
     except Exception as err:   # never let bookkeeping break a command
         logger.debug("Could not remember the chat: %s", err)
 
 
 def restricted(func):
-    """Decorator to ensure only authorized Telegram users can interact with the bot."""
+    """Decorator to ensure only authorized Telegram users can interact with the bot. In the hosted version (MODE=cloud) it
+    instead finds the person's account (created on /start) and runs the handler as them."""
     @functools.wraps(func)
     async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user = update.effective_user
         if not user:
             return None
+        if users.cloud():
+            from bot import cloud
+            return await cloud.run_as_account(update, context, func, args, kwargs)
         if config.ALLOWED_USER_IDS and user.id not in config.ALLOWED_USER_IDS:
             logger.warning("Unauthorized access attempt by user %s (ID: %d)", user.username, user.id)
             if update.effective_message:
@@ -47,6 +52,11 @@ def restricted(func):
 @restricted
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name if update.effective_user else "there"
+    if users.cloud():
+        from bot import cloud
+        upgrade = bool(getattr(context, "args", None) and context.args[0] == "paid")     # the pricing page's "Get Paid on Telegram" button
+        await update.effective_message.reply_text(cloud.welcome_text(name, bool(context.user_data.pop("new_account", False)), upgrade), parse_mode="HTML")
+        return
     await update.effective_message.reply_text(
         f"👋 Hi {name}! I'm Internify.\n\n"
         "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, "

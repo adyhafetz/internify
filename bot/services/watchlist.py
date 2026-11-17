@@ -11,7 +11,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from bot.services import db as _db_module
-from bot.services.db import application_links
+from bot.services.db import _uid, application_links
 
 _ready = False
 
@@ -117,22 +117,22 @@ def add_source(url: str, auto: int = 0, label: str = "") -> Source:
     if kind in BOARD_KINDS:
         url = BOARD_URL[kind].format(ident)
     with _get_connection() as conn:
-        existing = conn.execute("SELECT * FROM watch_sources WHERE url = ?", (url,)).fetchone()
+        existing = conn.execute("SELECT * FROM watch_sources WHERE user_id = ? AND url = ?", (_uid(), url)).fetchone()
         if existing is None and auto and url in _removed():
             raise SourceError("You removed this one before, so it isn't added again automatically.")
         if existing:
             if existing["auto"] and not auto:   # you added it yourself: it's yours now, not an automatic one
-                conn.execute("UPDATE watch_sources SET auto = 0 WHERE id = ?", (existing["id"],)); conn.commit()
+                conn.execute("UPDATE watch_sources SET auto = 0 WHERE id = ? AND user_id = ?", (existing["id"], _uid())); conn.commit()
             return _row(conn.execute("SELECT * FROM watch_sources WHERE id = ?", (existing["id"],)).fetchone())
-        cur = conn.execute("INSERT INTO watch_sources (url, kind, ident, label, auto) VALUES (?, ?, ?, ?, ?)",
-                           (url, kind, ident, label, auto))
+        cur = conn.execute("INSERT INTO watch_sources (user_id, url, kind, ident, label, auto) VALUES (?, ?, ?, ?, ?, ?)",
+                           (_uid(), url, kind, ident, label, auto))
         conn.commit()
         return _row(conn.execute("SELECT * FROM watch_sources WHERE id = ?", (cur.lastrowid,)).fetchone())
 
 
 def list_sources() -> list[Source]:
     with _get_connection() as conn:
-        return [_row(r) for r in conn.execute("SELECT * FROM watch_sources ORDER BY auto, id").fetchall()]
+        return [_row(r) for r in conn.execute("SELECT * FROM watch_sources WHERE user_id = ? ORDER BY auto, id", (_uid(),)).fetchall()]
 
 
 def _removed() -> list[str]:
@@ -147,8 +147,8 @@ def remove_source(source_id: int) -> bool:
     """Stop checking a page. One that was found automatically is remembered, so it isn't added back tomorrow."""
     import json
     with _get_connection() as conn:
-        row = conn.execute("SELECT url, auto FROM watch_sources WHERE id = ?", (source_id,)).fetchone()
-        cur = conn.execute("DELETE FROM watch_sources WHERE id = ?", (source_id,)); conn.commit()
+        row = conn.execute("SELECT url, auto FROM watch_sources WHERE id = ? AND user_id = ?", (source_id, _uid())).fetchone()
+        cur = conn.execute("DELETE FROM watch_sources WHERE id = ? AND user_id = ?", (source_id, _uid())); conn.commit()
     if row is not None and row["auto"]:
         set_setting("sources_removed", json.dumps((_removed() + [row["url"]])[-300:]))
     return cur.rowcount > 0
@@ -157,18 +157,18 @@ def remove_source(source_id: int) -> bool:
 def retarget(source_id: int, kind: str, ident: str) -> None:
     """A career page turned out to be a board on a hiring system with an API: read it that way from now on."""
     with _get_connection() as conn:
-        conn.execute("UPDATE watch_sources SET kind = ?, ident = ? WHERE id = ?", (kind, ident, source_id))
+        conn.execute("UPDATE watch_sources SET kind = ?, ident = ? WHERE id = ? AND user_id = ?", (kind, ident, source_id, _uid()))
         conn.commit()
 
 
 def count_auto(auto: int) -> int:
     with _get_connection() as conn:
-        return conn.execute("SELECT COUNT(*) FROM watch_sources WHERE auto = ?", (auto,)).fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM watch_sources WHERE user_id = ? AND auto = ?", (_uid(), auto)).fetchone()[0]
 
 
 def mark_checked(source_id: int, status: str) -> None:
     with _get_connection() as conn:
-        conn.execute("UPDATE watch_sources SET last_checked = CURRENT_TIMESTAMP, last_status = ? WHERE id = ?", (status[:200], source_id))
+        conn.execute("UPDATE watch_sources SET last_checked = CURRENT_TIMESTAMP, last_status = ? WHERE id = ? AND user_id = ?", (status[:200], source_id, _uid()))
         conn.commit()
 
 
@@ -202,20 +202,20 @@ WAIT_DAYS = 14   # a job not read yet stays in line for the next checks this lon
 def seen(url: str) -> bool:
     """Already dealt with (read, tailored, filtered, ...). A job still waiting in line to be read is not."""
     with _get_connection() as conn:
-        return conn.execute("SELECT 1 FROM seen_jobs WHERE url = ? AND status != 'waiting'", (url,)).fetchone() is not None
+        return conn.execute("SELECT 1 FROM seen_jobs WHERE user_id = ? AND url = ? AND status != 'waiting'", (_uid(), url)).fetchone() is not None
 
 
 def known(url: str) -> bool:
     """Seen in any earlier check, including one still waiting to be read."""
     with _get_connection() as conn:
-        return conn.execute("SELECT 1 FROM seen_jobs WHERE url = ?", (url,)).fetchone() is not None
+        return conn.execute("SELECT 1 FROM seen_jobs WHERE user_id = ? AND url = ?", (_uid(), url)).fetchone() is not None
 
 
 def expire_waiting(days: int = WAIT_DAYS) -> int:
     """Jobs that waited in line this long without making the cut are let go (so the line can't grow forever)."""
     with _get_connection() as conn:
         cur = conn.execute("UPDATE seen_jobs SET status = 'low-fit', reason = 'waited too long without making the cut' "
-                           "WHERE status = 'waiting' AND first_seen < datetime('now', ?)", (f"-{int(days)} days",))
+                           "WHERE user_id = ? AND status = 'waiting' AND first_seen < datetime('now', ?)", (_uid(), f"-{int(days)} days"))
         conn.commit()
         return cur.rowcount
 
@@ -223,10 +223,10 @@ def expire_waiting(days: int = WAIT_DAYS) -> int:
 def mark_seen(url: str, title: str = "", company: str = "", status: str = "new", fit: float = 0.0, reason: str = "") -> None:
     with _get_connection() as conn:
         conn.execute(
-            """INSERT INTO seen_jobs (url, title, company, status, fit, reason) VALUES (?, ?, ?, ?, ?, ?)
-               ON CONFLICT(url) DO UPDATE SET title = excluded.title, company = excluded.company, status = excluded.status,
+            """INSERT INTO seen_jobs (user_id, url, title, company, status, fit, reason) VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(user_id, url) DO UPDATE SET title = excluded.title, company = excluded.company, status = excluded.status,
                                               fit = excluded.fit, reason = excluded.reason""",
-            (url, title[:200], company[:120], status, fit, reason[:300]))
+            (_uid(), url, title[:200], company[:120], status, fit, reason[:300]))
         conn.commit()
 
 
@@ -234,13 +234,14 @@ def mark_seen(url: str, title: str = "", company: str = "", status: str = "new",
 
 def get_setting(key: str, default: str = "") -> str:
     with _get_connection() as conn:
-        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        row = conn.execute("SELECT value FROM settings WHERE user_id = ? AND key = ?", (_uid(), key)).fetchone()
         return row["value"] if row else default
 
 
 def set_setting(key: str, value: str) -> None:
     with _get_connection() as conn:
-        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+        conn.execute("INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value",
+                     (_uid(), key, value))
         conn.commit()
 
 

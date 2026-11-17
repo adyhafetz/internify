@@ -6,6 +6,8 @@ import sqlite3
 import logging
 from typing import Optional
 
+from service import users
+
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.getenv("DATABASE_PATH", "output/internify.db")
@@ -18,56 +20,148 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _uid() -> str:
+    """The user whose rows these queries are about (the owner in single mode; in cloud mode, whoever is set)."""
+    return users.current()
+
+
+# Every table has a user_id, and what must be unique is unique per user: two people may apply to the same job link, watch
+# the same page or save a setting with the same name. A copy from before this (single user) keeps all its rows as the
+# owner's: see _add_user_ids.
+_SCHEMA = {
+    "applications": """
+        CREATE TABLE IF NOT EXISTS applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT 'owner',
+            company TEXT NOT NULL,
+            job_title TEXT NOT NULL,
+            location TEXT DEFAULT '',
+            job_description TEXT DEFAULT '',
+            job_requirements TEXT DEFAULT '',
+            job_link TEXT,
+            status TEXT DEFAULT 'New',
+            score REAL DEFAULT 0.0,
+            resume_status TEXT DEFAULT '',
+            pdf_path TEXT DEFAULT '',
+            drive_link TEXT DEFAULT '',
+            comment TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            applied_at TIMESTAMP,
+            status_at TIMESTAMP,
+            followup_at TIMESTAMP,
+            deadline TEXT DEFAULT '',
+            deadline_reminded INTEGER DEFAULT 0,
+            facts_used TEXT DEFAULT '',
+            details TEXT DEFAULT '',
+            gaps TEXT DEFAULT '',
+            UNIQUE (user_id, job_link)
+        )""",
+    # The daily job check: where to look, what it has already seen, and its settings
+    "watch_sources": """
+        CREATE TABLE IF NOT EXISTS watch_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT 'owner',
+            url TEXT NOT NULL,
+            kind TEXT NOT NULL,              -- greenhouse | lever | ashby | smartrecruiters | workable | page
+            ident TEXT DEFAULT '',           -- board / company name for the job-board kinds
+            label TEXT DEFAULT '',
+            auto INTEGER DEFAULT 0,          -- 0 = you added it, 1 = from the jobs you sent, 2 = found by the web search
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_checked TIMESTAMP,
+            last_status TEXT DEFAULT '',
+            UNIQUE (user_id, url)
+        )""",
+    "seen_jobs": """
+        CREATE TABLE IF NOT EXISTS seen_jobs (
+            user_id TEXT NOT NULL DEFAULT 'owner',
+            url TEXT NOT NULL,
+            title TEXT DEFAULT '',
+            company TEXT DEFAULT '',
+            status TEXT DEFAULT 'new',       -- new | waiting | low-fit | shortlisted | tailored | failed | filtered | duplicate
+            fit REAL DEFAULT 0.0,
+            reason TEXT DEFAULT '',
+            first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, url)
+        )""",
+    "settings": """
+        CREATE TABLE IF NOT EXISTS settings (
+            user_id TEXT NOT NULL DEFAULT 'owner',
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            PRIMARY KEY (user_id, key)
+        )""",
+}
+
+
+# Tables about the users themselves (not rows that belong to one user, so they have no user_id and are never rebuilt)
+_GLOBAL_SCHEMA = {
+    "accounts": """
+        CREATE TABLE IF NOT EXISTS accounts (
+            id TEXT PRIMARY KEY,                       -- the random user id (users.valid)
+            telegram_id INTEGER UNIQUE,                -- NULL once the account is deleted, so the person can sign up again
+            name TEXT DEFAULT '',
+            plan TEXT NOT NULL DEFAULT 'free',
+            plan_until TEXT DEFAULT '',                -- YYYY-MM-DD, empty = no end date
+            status TEXT NOT NULL DEFAULT 'active',     -- active | paused | deleted
+            note TEXT DEFAULT '',                      -- the maintainer's own note (why paused, how they paid)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_active TIMESTAMP,
+            deleted_at TIMESTAMP
+        )""",
+    # Signing in on the web (hosted mode): a one-time link sent in Telegram becomes a browser session. Only hashes are stored.
+    "web_tokens": """
+        CREATE TABLE IF NOT EXISTS web_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,                     -- a user id, or "admin"
+            role TEXT NOT NULL,                        -- user | admin
+            expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0
+        )""",
+    "web_sessions": """
+        CREATE TABLE IF NOT EXISTS web_sessions (
+            session_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            expires_at REAL NOT NULL
+        )""",
+    # Hosted mode: each person's own Google connection. The login is stored encrypted (bot/services/google_link.py).
+    "google_links": """
+        CREATE TABLE IF NOT EXISTS google_links (
+            user_id TEXT PRIMARY KEY,
+            token_enc TEXT NOT NULL,                   -- the refresh token, encrypted with GOOGLE_TOKEN_KEY
+            sheet_id TEXT DEFAULT '',
+            sheet_tab TEXT DEFAULT 'Tracker',
+            folder_id TEXT DEFAULT '',
+            connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+    "google_states": """
+        CREATE TABLE IF NOT EXISTS google_states (
+            state_hash TEXT PRIMARY KEY,               -- the "state" Google hands back after sign-in: one use, ties it to the person
+            user_id TEXT NOT NULL,
+            expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0
+        )""",
+    # What each person has used this month: resumes written, AI calls, paid scraping calls (hosted mode only)
+    "usage": """
+        CREATE TABLE IF NOT EXISTS usage (
+            user_id TEXT NOT NULL,
+            month TEXT NOT NULL,                       -- YYYY-MM
+            kind TEXT NOT NULL,                        -- resume | ai | scrape
+            n INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, month, kind)
+        )""",
+}
+
+
 def init_db() -> None:
-    """Initializes the SQLite schema if it does not already exist."""
+    """Initializes the SQLite schema if it does not already exist, and upgrades an older one in place (no rows are lost)."""
     with _get_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS applications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                company TEXT NOT NULL,
-                job_title TEXT NOT NULL,
-                location TEXT DEFAULT '',
-                job_description TEXT DEFAULT '',
-                job_requirements TEXT DEFAULT '',
-                job_link TEXT UNIQUE,
-                status TEXT DEFAULT 'New',
-                score REAL DEFAULT 0.0,
-                resume_status TEXT DEFAULT '',
-                pdf_path TEXT DEFAULT '',
-                drive_link TEXT DEFAULT '',
-                comment TEXT DEFAULT '',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_job_link ON applications(job_link)")
-        # The daily job check: where to look, what it has already seen, and its settings
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS watch_sources (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                url TEXT UNIQUE NOT NULL,
-                kind TEXT NOT NULL,              -- greenhouse | lever | page
-                ident TEXT DEFAULT '',           -- board / company name for the job-board kinds
-                label TEXT DEFAULT '',
-                auto INTEGER DEFAULT 0,          -- 1 = found from the jobs you already sent
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_checked TIMESTAMP,
-                last_status TEXT DEFAULT ''
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS seen_jobs (
-                url TEXT PRIMARY KEY,
-                title TEXT DEFAULT '',
-                company TEXT DEFAULT '',
-                status TEXT DEFAULT 'new',       -- new | low-fit | shortlisted | tailored | failed | rejected
-                fit REAL DEFAULT 0.0,
-                reason TEXT DEFAULT '',
-                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        for sql in list(_SCHEMA.values()) + list(_GLOBAL_SCHEMA.values()):
+            conn.execute(sql)
         _migrate(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_user_link ON applications(user_id, job_link)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_user_status ON applications(user_id, status)")
         conn.commit()
     logger.info("Initialized SQLite database at %s", DB_PATH)
 
@@ -96,8 +190,29 @@ _RENAMED = {"Interview": INTERVIEW, "Not applying": WITHDRAWN, "No reply": REJEC
 FOLLOWUP_DAYS = int(os.getenv("FOLLOWUP_DAYS", "14"))
 
 
+def _columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+
+
+def _add_user_ids(conn: sqlite3.Connection) -> None:
+    """A database from before users existed: rebuild each table that has no user_id with it (every old row becomes the
+    owner's, with the same ids), because uniqueness has to become per user and SQLite can't change that in place."""
+    for table, sql in _SCHEMA.items():
+        old_cols = _columns(conn, table)
+        if "user_id" in old_cols:
+            continue
+        conn.execute(f"ALTER TABLE {table} RENAME TO {table}_old")
+        conn.execute(sql)
+        keep = [c for c in old_cols if c in _columns(conn, table)]
+        names = ", ".join(keep)
+        conn.execute(f"INSERT OR IGNORE INTO {table} ({names}) SELECT {names} FROM {table}_old")
+        conn.execute(f"DROP TABLE {table}_old")
+        logger.info("Upgraded table %s: rows kept as the owner's", table)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
-    have = {r[1] for r in conn.execute("PRAGMA table_info(applications)").fetchall()}
+    _add_user_ids(conn)
+    have = set(_columns(conn, "applications"))
     for col, kind in _NEW_COLUMNS.items():
         if col not in have:
             conn.execute(f"ALTER TABLE applications ADD COLUMN {col} {kind}")
@@ -109,7 +224,7 @@ def is_duplicate_url(url: str) -> bool:
     """Checks if an application with the given job URL already exists in SQLite."""
     clean_url = url.strip().lower()
     with _get_connection() as conn:
-        cur = conn.execute("SELECT id FROM applications WHERE LOWER(TRIM(job_link)) = ?", (clean_url,))
+        cur = conn.execute("SELECT id FROM applications WHERE user_id = ? AND LOWER(TRIM(job_link)) = ?", (_uid(), clean_url))
         return cur.fetchone() is not None
 
 
@@ -125,14 +240,14 @@ def upsert_application(
     """Re-tailoring a link that is already tracked refreshes its row instead of violating the UNIQUE job_link."""
     clean_url = job_link.strip().lower()
     with _get_connection() as conn:
-        row = conn.execute("SELECT id FROM applications WHERE LOWER(TRIM(job_link)) = ?", (clean_url,)).fetchone()
+        row = conn.execute("SELECT id FROM applications WHERE user_id = ? AND LOWER(TRIM(job_link)) = ?", (_uid(), clean_url)).fetchone()
         if row is None:
             cur = conn.execute(
                 """
-                INSERT INTO applications (company, job_title, location, job_description, job_requirements, job_link, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO applications (user_id, company, job_title, location, job_description, job_requirements, job_link, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (company, job_title, location, job_description, job_requirements, job_link, status),
+                (_uid(), company, job_title, location, job_description, job_requirements, job_link, status),
             )
             conn.commit()
             return cur.lastrowid
@@ -143,9 +258,9 @@ def upsert_application(
             UPDATE applications SET company = ?, job_title = ?, location = ?, job_description = ?,
                 job_requirements = ?, updated_at = CURRENT_TIMESTAMP,
                 status = CASE WHEN status IN ({', '.join('?' for _ in USER_STATUSES)}) THEN status ELSE ? END
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (company, job_title, location, job_description, job_requirements, *USER_STATUSES, status, app_id),
+            (company, job_title, location, job_description, job_requirements, *USER_STATUSES, status, app_id, _uid()),
         )
         conn.commit()
         return app_id
@@ -190,8 +305,8 @@ def update_application(
         updates.append("comment = ?")
         params.append(comment)
 
-    params.append(app_id)
-    query = f"UPDATE applications SET {', '.join(updates)} WHERE id = ?"
+    params += [app_id, _uid()]   # only ever this user's own row
+    query = f"UPDATE applications SET {', '.join(updates)} WHERE id = ? AND user_id = ?"
 
     with _get_connection() as conn:
         conn.execute(query, params)
@@ -205,10 +320,11 @@ def get_recent_applications(limit: int = 10) -> list[dict]:
             """
             SELECT id, company, job_title, status, score, resume_status, drive_link, created_at
             FROM applications
+            WHERE user_id = ?
             ORDER BY id DESC
             LIMIT ?
             """,
-            (limit,),
+            (_uid(), limit),
         )
         return [dict(row) for row in cur.fetchall()]
 
@@ -218,13 +334,13 @@ def recent_job_texts(limit: int = 15) -> list[str]:
     """Title and summary of the jobs you sent most recently: what you tend to go for."""
     with _get_connection() as conn:
         cur = conn.execute(
-            "SELECT job_title, company, job_description FROM applications ORDER BY id DESC LIMIT ?", (limit,))
+            "SELECT job_title, company, job_description FROM applications WHERE user_id = ? ORDER BY id DESC LIMIT ?", (_uid(), limit))
         return [f"{r['job_title']} at {r['company']}. {(r['job_description'] or '')[:240]}".strip() for r in cur.fetchall()]
 
 
 def application_links() -> list[str]:
     with _get_connection() as conn:
-        return [r["job_link"] for r in conn.execute("SELECT job_link FROM applications WHERE job_link != ''").fetchall()]
+        return [r["job_link"] for r in conn.execute("SELECT job_link FROM applications WHERE user_id = ? AND job_link != ''", (_uid(),)).fetchall()]
 
 
 # ---------------------------------------------------------------- the tracker: where each application stands
@@ -245,7 +361,7 @@ def _row(r) -> dict:
 
 def get_application(app_id: int) -> Optional[dict]:
     with _get_connection() as conn:
-        r = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
+        r = conn.execute("SELECT * FROM applications WHERE id = ? AND user_id = ?", (app_id, _uid())).fetchone()
         return _row(r) if r else None
 
 
@@ -257,49 +373,49 @@ def set_status(app_id: int, status: str) -> Optional[dict]:
             conn.execute(
                 f"""UPDATE applications SET status = ?, status_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
                        applied_at = COALESCE(applied_at, CURRENT_TIMESTAMP),
-                       followup_at = datetime('now', '+{FOLLOWUP_DAYS} days') WHERE id = ?""", (status, app_id))
+                       followup_at = datetime('now', '+{FOLLOWUP_DAYS} days') WHERE id = ? AND user_id = ?""", (status, app_id, _uid()))
         else:
             conn.execute("""UPDATE applications SET status = ?, status_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
-                               followup_at = NULL WHERE id = ?""", (status, app_id))
+                               followup_at = NULL WHERE id = ? AND user_id = ?""", (status, app_id, _uid()))
         conn.commit()
     return get_application(app_id)
 
 
 def snooze_followup(app_id: int, days: int = 7) -> None:
     with _get_connection() as conn:
-        conn.execute(f"UPDATE applications SET followup_at = datetime('now', '+{int(days)} days') WHERE id = ?", (app_id,))
+        conn.execute(f"UPDATE applications SET followup_at = datetime('now', '+{int(days)} days') WHERE id = ? AND user_id = ?", (app_id, _uid()))
         conn.commit()
 
 
 def due_followups() -> list[dict]:
     """Applied a while ago and no news since: time to ask."""
     with _get_connection() as conn:
-        rows = conn.execute("""SELECT * FROM applications WHERE status IN (?, ?) AND followup_at IS NOT NULL
-                                 AND followup_at <= datetime('now') ORDER BY followup_at""", WAITING).fetchall()
+        rows = conn.execute("""SELECT * FROM applications WHERE user_id = ? AND status IN (?, ?) AND followup_at IS NOT NULL
+                                 AND followup_at <= datetime('now') ORDER BY followup_at""", (_uid(), *WAITING)).fetchall()
         return [_row(r) for r in rows]
 
 
 def deadlines_soon(days: int = 3) -> list[dict]:
     """Resumes ready but not marked applied, whose posting closes within ``days`` days (and not reminded yet)."""
     with _get_connection() as conn:
-        rows = conn.execute("""SELECT * FROM applications WHERE status = 'Ready' AND deadline != '' AND deadline_reminded = 0
+        rows = conn.execute("""SELECT * FROM applications WHERE user_id = ? AND status = 'Ready' AND deadline != '' AND deadline_reminded = 0
                                  AND date(deadline) >= date('now') AND date(deadline) <= date('now', ?)
-                                 ORDER BY deadline""", (f"+{int(days)} days",)).fetchall()
+                                 ORDER BY deadline""", (_uid(), f"+{int(days)} days")).fetchall()
         return [_row(r) for r in rows]
 
 
 def mark_deadline_reminded(app_id: int) -> None:
     with _get_connection() as conn:
-        conn.execute("UPDATE applications SET deadline_reminded = 1 WHERE id = ?", (app_id,))
+        conn.execute("UPDATE applications SET deadline_reminded = 1 WHERE id = ? AND user_id = ?", (app_id, _uid()))
         conn.commit()
 
 
 def list_applications(statuses: Optional[tuple[str, ...]] = None, limit: int = 8, offset: int = 0) -> tuple[list[dict], int]:
     """(one page of applications, newest first, how many there are in all)."""
-    where, params = "", []
+    where, params = "WHERE user_id = ?", [_uid()]
     if statuses:
-        where = f"WHERE status IN ({', '.join('?' for _ in statuses)})"
-        params = list(statuses)
+        where += f" AND status IN ({', '.join('?' for _ in statuses)})"
+        params += list(statuses)
     with _get_connection() as conn:
         total = conn.execute(f"SELECT COUNT(*) FROM applications {where}", params).fetchone()[0]
         rows = conn.execute(f"SELECT * FROM applications {where} ORDER BY id DESC LIMIT ? OFFSET ?", params + [limit, offset]).fetchall()
@@ -308,18 +424,18 @@ def list_applications(statuses: Optional[tuple[str, ...]] = None, limit: int = 8
 
 def all_applications() -> list[dict]:
     with _get_connection() as conn:
-        return [_row(r) for r in conn.execute("SELECT * FROM applications ORDER BY id").fetchall()]
+        return [_row(r) for r in conn.execute("SELECT * FROM applications WHERE user_id = ? ORDER BY id", (_uid(),)).fetchall()]
 
 
 def status_counts() -> dict[str, int]:
     with _get_connection() as conn:
-        return {r[0]: r[1] for r in conn.execute("SELECT status, COUNT(*) FROM applications GROUP BY status").fetchall()}
+        return {r[0]: r[1] for r in conn.execute("SELECT status, COUNT(*) FROM applications WHERE user_id = ? GROUP BY status", (_uid(),)).fetchall()}
 
 
 def week_stats() -> dict[str, int]:
     """The last 7 days: resumes written, applications sent, replies (interview, offer or rejection)."""
     with _get_connection() as conn:
-        one = lambda sql, *p: conn.execute(sql, p).fetchone()[0]
+        one = lambda sql, *p: conn.execute(sql.replace("FROM applications WHERE", "FROM applications WHERE user_id = ? AND", 1), (_uid(), *p)).fetchone()[0]
         return {
             "written": one("SELECT COUNT(*) FROM applications WHERE created_at >= datetime('now', '-7 days')"),
             "applied": one("SELECT COUNT(*) FROM applications WHERE applied_at >= datetime('now', '-7 days')"),
@@ -372,7 +488,7 @@ def find_similar(company: str, job_title: str, exclude_link: str = "") -> Option
     """An application you already made for the same job at the same company (through another link), or None."""
     target = (exclude_link or "").strip().lower()
     with _get_connection() as conn:
-        rows = conn.execute("SELECT * FROM applications WHERE status != 'Failed' ORDER BY id DESC LIMIT 500").fetchall()
+        rows = conn.execute("SELECT * FROM applications WHERE user_id = ? AND status != 'Failed' ORDER BY id DESC LIMIT 500", (_uid(),)).fetchall()
     for r in rows:
         if (r["job_link"] or "").strip().lower() == target:
             continue
@@ -383,30 +499,36 @@ def find_similar(company: str, job_title: str, exclude_link: str = "") -> Option
 
 def get_application_by_link(url: str) -> Optional[dict]:
     with _get_connection() as conn:
-        r = conn.execute("SELECT * FROM applications WHERE LOWER(TRIM(job_link)) = ?", (url.strip().lower(),)).fetchone()
+        r = conn.execute("SELECT * FROM applications WHERE user_id = ? AND LOWER(TRIM(job_link)) = ?", (_uid(), url.strip().lower())).fetchone()
         return _row(r) if r else None
 
 
 # ---------------------------------------------------------------- moving your data (export / import)
 
+_PORTABLE_SKIP = {"user_id"}   # who a row belongs to is decided where it is imported, never by the file
+
+
 def export_tracker() -> dict:
-    """Everything in the tracker part of the database as plain lists: your applications, the job pages you watch and the
-    jobs already seen. (Settings are handled by the caller, which knows which ones are safe to move.)"""
+    """Everything in the tracker part of the database for the acting user as plain lists: applications, the job pages
+    watched and the jobs already seen. (Settings are handled by the caller, which knows which ones are safe to move.)"""
     with _get_connection() as conn:
-        return {name: [dict(r) for r in conn.execute(f"SELECT * FROM {name}").fetchall()]
+        return {name: [{k: v for k, v in dict(r).items() if k not in _PORTABLE_SKIP}
+                       for r in conn.execute(f"SELECT * FROM {name} WHERE user_id = ? ORDER BY rowid", (_uid(),)).fetchall()]
                 for name in ("applications", "watch_sources", "seen_jobs")}
 
 
 def replace_tracker(data: dict) -> dict[str, int]:
-    """Replace the applications, watched pages and seen jobs with these rows, all or nothing. Columns this database
-    doesn't have are ignored, and a row that isn't a dict is skipped. Returns how many rows went in."""
+    """Replace the acting user's applications, watched pages and seen jobs with these rows, all or nothing. Columns this
+    database doesn't have are ignored, a row that isn't a dict is skipped, and the rows always become this user's: row ids
+    and user ids in the file are not used (they could collide with another user's). Returns how many rows went in."""
     counts: dict[str, int] = {}
+    uid = _uid()
     with _get_connection() as conn:
         conn.execute("BEGIN")
         try:
             for name in ("applications", "watch_sources", "seen_jobs"):
-                cols = [r[1] for r in conn.execute(f"PRAGMA table_info({name})").fetchall()]
-                conn.execute(f"DELETE FROM {name}")
+                cols = [c for c in _columns(conn, name) if c not in ("id", "user_id")]
+                conn.execute(f"DELETE FROM {name} WHERE user_id = ?", (uid,))
                 n = 0
                 for row in data.get(name, []):
                     if not isinstance(row, dict):
@@ -414,8 +536,8 @@ def replace_tracker(data: dict) -> dict[str, int]:
                     use = [c for c in cols if c in row and row[c] is not None]
                     if not use:
                         continue
-                    conn.execute(f"INSERT OR REPLACE INTO {name} ({', '.join(use)}) VALUES ({', '.join('?' for _ in use)})",
-                                 [row[c] if isinstance(row[c], (int, float, str)) else json.dumps(row[c]) for c in use])
+                    conn.execute(f"INSERT OR REPLACE INTO {name} (user_id, {', '.join(use)}) VALUES (?, {', '.join('?' for _ in use)})",
+                                 [uid] + [row[c] if isinstance(row[c], (int, float, str)) else json.dumps(row[c]) for c in use])
                     n += 1
                 counts[name] = n
             conn.commit()

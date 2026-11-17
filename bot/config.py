@@ -6,6 +6,29 @@ load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
+# Hosted mode (MODE=cloud) only: the maintainer's Telegram ID, who is told about problems with the server's AI key, and how many
+# messages or taps one person may make per minute.
+_raw_admin = os.getenv("ADMIN_TELEGRAM_ID", "").strip()
+ADMIN_TELEGRAM_ID = int(_raw_admin) if _raw_admin.isdigit() else 0
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
+
+# The public site. The bot's Telegram username (filled in from Telegram at start-up when not set), the project's address, the paid
+# plan's price as shown on the pricing page, and MARKETING_SITE=1 to show the public home, pricing and how-it-works pages on a
+# normal copy too (the hosted version always shows them).
+BOT_USERNAME = os.getenv("PUBLIC_BOT_USERNAME", "").strip().lstrip("@")
+PROJECT_URL = os.getenv("PROJECT_URL", "https://github.com/adyhafetz/internify").strip().rstrip("/")
+PAID_PRICE = os.getenv("PAID_PRICE", "RM9.90").strip()
+MARKETING_SITE = os.getenv("MARKETING_SITE", "").strip().lower() in ("1", "true", "yes")
+
+# Hosted mode: what each plan includes (resumes a month), the most resumes one daily check writes, a monthly ceiling on AI calls for the
+# whole server (0 = no ceiling), when to remind people their plan is ending, and what /plan tells people about how to pay.
+FREE_RESUMES = int(os.getenv("FREE_RESUMES", "3"))
+PAID_RESUMES = int(os.getenv("PAID_RESUMES", "30"))
+PAID_SCAN_MAX = int(os.getenv("PAID_SCAN_MAX", "3"))
+AI_MONTHLY_BUDGET_CALLS = int(os.getenv("AI_MONTHLY_BUDGET_CALLS", "0"))
+PLAN_REMINDER_DAYS = int(os.getenv("PLAN_REMINDER_DAYS", "3"))
+PAY_INSTRUCTIONS = os.getenv("PAY_INSTRUCTIONS", "").strip() or "To upgrade, message the person who runs this bot."
+
 # Optional comma-separated Telegram User IDs to restrict access
 _raw_allowed = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "").strip()
 ALLOWED_USER_IDS: set[int] = {
@@ -26,6 +49,10 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN", "").strip()
 GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
+# Hosted mode: people connect their own Google from /profile. GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are then a "Web application"
+# client (redirect address: PUBLIC_URL/connect/google/callback), and each person's login is stored encrypted with this key
+# (make one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"). Keep it safe: it can't be recovered.
+GOOGLE_TOKEN_KEY = os.getenv("GOOGLE_TOKEN_KEY", "").strip()
 # "app": the login can only open files Internify created itself (the setup page's folder and sheet). "full": all Drive and
 # Sheets files. A new Google sign-in from the setup page saves "app". A copy set up earlier has no value here and keeps "full",
 # so nothing stops working until you choose to move.

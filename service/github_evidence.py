@@ -19,7 +19,7 @@ from typing import Optional
 
 import httpx
 
-from service import config, events, tools_catalog
+from service import config, events, tools_catalog, users
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ def tools_in_file(path: str, text: str) -> set[str]:
 # ---------------------------------------------------------------- the index
 
 def _index_path() -> str:
-    return os.path.join(os.path.dirname(config.FACT_STORE_PATH) or ".", "github_index.json")
+    return users.github_index_path()
 
 
 def load_index() -> dict:
@@ -333,7 +333,7 @@ def add_tool_with_bullet(tool: str, idx: dict, username: str) -> Optional[Added]
 # ---------------------------------------------------------------- what was added, and taking one back
 
 def _added_path() -> str:
-    return os.path.join(os.path.dirname(config.FACT_STORE_PATH) or ".", "github_added.json")
+    return users.github_added_path()
 
 
 def recent_added(limit: int = 10) -> list[dict]:
@@ -400,7 +400,7 @@ def missing_from_profile(idx: dict, username: str, skills: dict[str, list[str]],
 
 def sync_from_github(limit: int = 8, force: bool = False) -> list[Added]:
     """Used by the Curator: add tools from your repos that your profile is missing, each with one bullet point."""
-    username = config.GITHUB_USERNAME
+    username = users.github_username()
     if not username:
         return []
     from service.profile_data import _load_skeleton_raw
@@ -440,7 +440,7 @@ def project_updates(skeleton: dict, facts: list[dict], max_projects: int = 20) -
     rewritten to say more precisely what the repo shows. Returned as plain suggestions for the Curator (nothing is saved).
     A rewrite may only use facts from the old bullet point or the repo."""
     from service.latex.fit import adds_new_facts
-    username = config.GITHUB_USERNAME
+    username = users.github_username()
     if not username:
         return []
     idx = load_index()
@@ -508,7 +508,7 @@ def check_github(job, missing: list[str]) -> GithubResult:
     """Look for proof of the missing tools in your repos. A tool is added only with one bullet point that shows it; what
     can't be backed this way is left for the usual question. Never raises."""
     res = GithubResult()
-    username = config.GITHUB_USERNAME
+    username = users.github_username()
     terms = concrete_missing(job, missing)
     if not username or not terms:
         return res

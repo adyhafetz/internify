@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-from service import config
+from service import users
 from service.fact_store.store import ensure_data_file
 from service.profile_data import (
     SKILL_CATEGORIES,
@@ -51,7 +51,7 @@ def profile_is_sample() -> bool:
 
 
 def _backups_dir() -> str:
-    return os.path.join(os.path.dirname(config.FACT_STORE_PATH), "backups")
+    return users.backups_dir()
 
 
 def backup_current(reason: str = "") -> str:
@@ -63,9 +63,9 @@ def backup_current(reason: str = "") -> str:
         n += 1
         folder = os.path.join(_backups_dir(), f"{stamp}-{n}")
     os.makedirs(folder, exist_ok=True)
-    ensure_data_file(config.SKELETON_PATH, "resume_skeleton.json")   # a fresh install has not created these yet
-    ensure_data_file(config.FACT_STORE_PATH, "facts.json")
-    for path in (config.SKELETON_PATH, config.FACT_STORE_PATH):
+    ensure_data_file(users.skeleton_path(), "resume_skeleton.json")   # a fresh install has not created these yet
+    ensure_data_file(users.facts_path(), "facts.json")
+    for path in (users.skeleton_path(), users.facts_path()):
         shutil.copy2(path, os.path.join(folder, os.path.basename(path)))
     if reason:
         with open(os.path.join(folder, "reason.txt"), "w", encoding="utf-8") as f:
@@ -114,7 +114,7 @@ def restore_backup(folder: str) -> str:
     if not os.path.isdir(folder) or not os.path.exists(os.path.join(folder, "facts.json")):
         raise FileNotFoundError("That backup is gone.")
     backup_current("undo")
-    for name, path in (("resume_skeleton.json", config.SKELETON_PATH), ("facts.json", config.FACT_STORE_PATH)):
+    for name, path in (("resume_skeleton.json", users.skeleton_path()), ("facts.json", users.facts_path())):
         src = os.path.join(folder, name)
         if os.path.exists(src):
             shutil.copy2(src, path)
