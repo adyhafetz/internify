@@ -26,7 +26,7 @@ def _hash(raw: str) -> str:
 
 def new_login(user_id: str, role: str = "user", now: Optional[float] = None) -> str:
     """A one-time sign-in token for this person (or for the maintainer's admin page). Returns the raw token to put in a link."""
-    if role not in ("user", "admin") or (role == "admin") != (user_id == ADMIN):
+    if role not in ("user", "admin", "google") or (role == "admin") != (user_id == ADMIN):
         raise ValueError("role and user id don't match")
     raw = secrets.token_urlsafe(32)
     with db._get_connection() as conn:
@@ -37,11 +37,26 @@ def new_login(user_id: str, role: str = "user", now: Optional[float] = None) -> 
     return raw
 
 
-def peek(raw: str, now: Optional[float] = None) -> bool:
-    """Is this token still good (not used, not expired)? Changes nothing."""
+def peek(raw: str, now: Optional[float] = None, role: Optional[tuple[str, ...]] = ("user", "admin")) -> bool:
+    """Is this token still good (not used, not expired) for this kind of link? Changes nothing."""
+    marks = ", ".join("?" for _ in (role or ()))
     with db._get_connection() as conn:
-        r = conn.execute("SELECT 1 FROM web_tokens WHERE token_hash = ? AND used = 0 AND expires_at >= ?", (_hash(raw or ""), now or time.time())).fetchone()
+        r = conn.execute("SELECT 1 FROM web_tokens WHERE token_hash = ? AND used = 0 AND expires_at >= ?" + (f" AND role IN ({marks})" if role else ""),
+                         (_hash(raw or ""), now or time.time(), *(role or ()))).fetchone()
         return r is not None
+
+
+def use_link(raw: str, role: str, now: Optional[float] = None) -> Optional[str]:
+    """Use up a one-time link of this kind (for example "google") and return the person it belongs to, or None if it is unknown,
+    used, expired or of another kind. One statement, so two tries at once can't both succeed."""
+    now = now or time.time()
+    with db._get_connection() as conn:
+        cur = conn.execute("UPDATE web_tokens SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at >= ? AND role = ?", (_hash(raw or ""), now, role))
+        if cur.rowcount != 1:
+            return None
+        row = conn.execute("SELECT user_id FROM web_tokens WHERE token_hash = ?", (_hash(raw),)).fetchone()
+        conn.commit()
+    return row[0] if row else None
 
 
 def sign_in(raw: str, now: Optional[float] = None) -> Optional[tuple[str, str, str]]:
@@ -49,7 +64,7 @@ def sign_in(raw: str, now: Optional[float] = None) -> Optional[tuple[str, str, s
     unknown, used or expired. The token is used up in one statement, so two tries at once can't both succeed."""
     now = now or time.time()
     with db._get_connection() as conn:
-        cur = conn.execute("UPDATE web_tokens SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at >= ?", (_hash(raw or ""), now))
+        cur = conn.execute("UPDATE web_tokens SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at >= ? AND role IN ('user', 'admin')", (_hash(raw or ""), now))
         if cur.rowcount != 1:
             return None
         user_id, role = conn.execute("SELECT user_id, role FROM web_tokens WHERE token_hash = ?", (_hash(raw),)).fetchone()

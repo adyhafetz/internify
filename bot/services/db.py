@@ -125,6 +125,23 @@ _GLOBAL_SCHEMA = {
             role TEXT NOT NULL,
             expires_at REAL NOT NULL
         )""",
+    # Hosted mode: each person's own Google connection. The login is stored encrypted (bot/services/google_link.py).
+    "google_links": """
+        CREATE TABLE IF NOT EXISTS google_links (
+            user_id TEXT PRIMARY KEY,
+            token_enc TEXT NOT NULL,                   -- the refresh token, encrypted with GOOGLE_TOKEN_KEY
+            sheet_id TEXT DEFAULT '',
+            sheet_tab TEXT DEFAULT 'Tracker',
+            folder_id TEXT DEFAULT '',
+            connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+    "google_states": """
+        CREATE TABLE IF NOT EXISTS google_states (
+            state_hash TEXT PRIMARY KEY,               -- the "state" Google hands back after sign-in: one use, ties it to the person
+            user_id TEXT NOT NULL,
+            expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0
+        )""",
     # What each person has used this month: resumes written, AI calls, paid scraping calls (hosted mode only)
     "usage": """
         CREATE TABLE IF NOT EXISTS usage (

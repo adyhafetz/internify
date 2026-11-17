@@ -161,7 +161,7 @@ def admin_page(data: dict) -> str:
 
 
 def robots_txt() -> str:
-    lines = ["User-agent: *", "Allow: /", "Disallow: /u/", "Disallow: /admin", "Disallow: /auth/", "Disallow: /api/", "Disallow: /pdf/",
+    lines = ["User-agent: *", "Allow: /", "Disallow: /u/", "Disallow: /admin", "Disallow: /auth/", "Disallow: /connect/", "Disallow: /api/", "Disallow: /pdf/",
              "Disallow: /live", "Disallow: /dashboard"]
     if base_url():
         lines.append(f"Sitemap: {base_url()}/sitemap.xml")

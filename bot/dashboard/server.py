@@ -99,7 +99,7 @@ def _login_info() -> str:
 async def _cloud_gate(request: Request, call_next):
     """Hosted mode: public pages, then a browser session for /u/<id>/... (only your own id) and for /admin (the maintainer only)."""
     path = request.url.path
-    if path in CLOUD_PUBLIC or path.startswith(("/site/", "/assets/", "/auth/")):
+    if path in CLOUD_PUBLIC or path.startswith(("/site/", "/assets/", "/auth/", "/connect/")):
         return await call_next(request)
     sess = await asyncio.to_thread(websession.session, request.cookies.get(SESSION_COOKIE, ""))
     m = USER_PATH.match(path)
@@ -120,7 +120,7 @@ async def access(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "DENY")
-    if request.url.path.startswith(("/u/", "/admin", "/auth/", "/api/", "/pdf/", "/live")):
+    if request.url.path.startswith(("/u/", "/admin", "/auth/", "/connect/", "/api/", "/pdf/", "/live")):
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -224,6 +224,61 @@ def auth_sign_in(token: str, request: Request):
     resp.set_cookie(SESSION_COOKIE, cookie, max_age=websession.SESSION_TTL, httponly=True, samesite="lax", secure=_https(request), path="/")
     resp.headers["Referrer-Policy"] = "no-referrer"
     return resp
+
+
+# ---------------------------------------------------------------- connecting Google (hosted mode)
+
+def _connect_message(heading: str, text: str, status: int = 200, **kw) -> HTMLResponse:
+    back = site.bot_url()
+    kw.setdefault("link_url", back or "/"); kw.setdefault("link_label", "Back to Telegram" if back else "Back to the home page")
+    return HTMLResponse(site.message_page(heading, text, status_title=f"{heading} · Internify", **kw), status_code=status,
+                        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
+@app.get("/connect/google/callback")
+async def google_callback(code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    """Where Google sends the person back after they sign in."""
+    from bot.services import google_link
+    if not users.cloud() or not google_link.enabled():
+        return _connect_message("Not available", "Connecting Google isn't set up on this server.", 404)
+    if error:
+        return _connect_message("Nothing was connected", "You did not allow access, so Google was not connected. You can try again from /profile in Telegram whenever you like.")
+    if not code or not state:
+        return _connect_message("This link is not valid", "Open Telegram, go to /profile and tap Connect Google.", 400)
+    try:
+        done = await asyncio.to_thread(google_link.finish, code, state)
+    except google_link.GoogleLinkError as err:
+        return _connect_message("Google was not connected", str(err), 400)
+    note = ("Your folder and sheet from before are connected again." if done.reused else
+            "Created a folder “Internify resumes” and a spreadsheet “Internify — Application Tracker” in your Google Drive"
+            + (f", and copied {done.copied} application{'s' if done.copied != 1 else ''} into it." if done.copied else "."))
+    await asyncio.to_thread(google_link.tell, done.user_id, f"✅ Google is connected. {note}\n\nSheet: {done.sheet_url}\nFolder: {done.folder_url}")
+    return _connect_message("Google is connected", note + " Go back to Telegram: your resumes will be saved there from now on.")
+
+
+@app.get("/connect/google/{token}")
+def google_confirm(token: str):
+    """The page the connect link opens. It only shows a button: apps that fetch links to make a preview must not use the link up."""
+    from bot.services import google_link
+    if not users.cloud() or not google_link.enabled():
+        return _connect_message("Not available", "Connecting Google isn't set up on this server yet.", 404)
+    if not websession.peek(token, role=("google",)):
+        return _connect_message("This link has expired", "Connect links work once and for 15 minutes. Open Telegram, go to /profile and tap Connect Google for a new one.", 400)
+    return _connect_message("Connect your Google Drive",
+                            "Internify will create a folder and a tracker spreadsheet in your own Google Drive, and save each resume there. It can open only those "
+                            "two things, nothing else in your Drive, and you can disconnect any time in Telegram.",
+                            button_url=f"/connect/google/{token}", button_label="Continue with Google", link_url="", link_label="")
+
+
+@app.post("/connect/google/{token}")
+def google_start(token: str):
+    from bot.services import google_link
+    if not users.cloud() or not google_link.enabled():
+        return _connect_message("Not available", "Connecting Google isn't set up on this server yet.", 404)
+    uid = websession.use_link(token, "google")
+    if uid is None:
+        return _connect_message("This link has expired", "Connect links work once and for 15 minutes. Open Telegram, go to /profile and tap Connect Google for a new one.", 400)
+    return RedirectResponse(google_link.authorization_url(uid), status_code=303, headers={"Referrer-Policy": "no-referrer"})
 
 
 @app.post("/signout")

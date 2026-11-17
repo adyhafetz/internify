@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 
 from bot import config
+from service import users
 from bot.services import google_auth
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,15 @@ def _hint(err: Exception) -> str:
 def check_google_setup() -> list[str]:
     """Returns human-readable status lines; also logs them."""
     lines: list[str] = []
-    wants_sheet, wants_drive = bool(config.GOOGLE_SHEET_ID), bool(config.GOOGLE_DRIVE_FOLDER_ID)
+    sheet_id, sheet_tab, folder_id = google_auth.ids()      # from .env, or from the person's own connection in the hosted version
+    wants_sheet, wants_drive = bool(sheet_id), bool(folder_id)
 
     creds = google_auth.get_google_credentials()
+    if creds is None and users.cloud():
+        lines.append("Google: not connected. Open /profile and tap Connect Google. Until then resumes arrive here in Telegram, and your tracker is /applied.")
+        for line in lines:
+            logger.info(line)
+        return lines
     if creds is None:
         missing = [n for n, v in (("GOOGLE_CLIENT_ID", config.GOOGLE_CLIENT_ID),
                                   ("GOOGLE_CLIENT_SECRET", config.GOOGLE_CLIENT_SECRET),
@@ -54,10 +61,10 @@ def check_google_setup() -> list[str]:
         try:
             from bot.services import sheets
             client = sheets._get_client()
-            sh = client.open_by_key(config.GOOGLE_SHEET_ID)
+            sh = client.open_by_key(sheet_id)
             tabs = [w.title for w in sh.worksheets()]
-            tab = config.GOOGLE_SHEET_NAME if config.GOOGLE_SHEET_NAME in tabs else tabs[0]
-            note = "" if config.GOOGLE_SHEET_NAME in tabs else f" (no tab named '{config.GOOGLE_SHEET_NAME}', using '{tab}')"
+            tab = sheet_tab if sheet_tab in tabs else tabs[0]
+            note = "" if sheet_tab in tabs else f" (no tab named '{sheet_tab}', using '{tab}')"
             lines.append(f"Sheet: connected to '{sh.title}', tab '{tab}'{note}.")
         except Exception as e:
             lines.append(f"Sheet: NOT working. {_hint(e)}")
@@ -68,7 +75,7 @@ def check_google_setup() -> list[str]:
         try:
             from bot.services import drive
             svc = drive._get_drive_service()
-            folder = svc.files().get(fileId=config.GOOGLE_DRIVE_FOLDER_ID.strip().rstrip("/"),
+            folder = svc.files().get(fileId=folder_id.strip().rstrip("/"),
                                      fields="name", supportsAllDrives=True).execute()
             lines.append(f"Drive: connected to folder '{folder.get('name')}'.")
         except Exception as e:

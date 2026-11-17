@@ -130,7 +130,11 @@ def delete_account(user_id: str) -> dict[str, int]:
         conn.commit()
     folder = users.user_root(user_id)
     shutil.rmtree(folder, ignore_errors=True)
-    # Google login and Sheet/Drive: disconnected here once Connect Google exists (B5); the user's own files stay theirs
+    try:   # their Google login is revoked and forgotten; the folder and sheet in their own Drive stay theirs
+        from bot.services import google_link
+        google_link.disconnect(user_id)
+    except Exception as err:
+        logger.warning("Could not disconnect Google while deleting %s: %s", user_id, err)
     logger.info("Deleted account %s", user_id)
     return removed
 

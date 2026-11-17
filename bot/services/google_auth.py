@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import os
 from bot import config
+from service import users
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,16 @@ def scopes() -> list[str]:
     return APP_SCOPES if config.GOOGLE_ACCESS == "app" else FULL_SCOPES
 
 
+def ids() -> tuple[str, str, str]:
+    """(spreadsheet id, tab name, Drive folder id) for the acting user: from .env in single mode, from the person's own connection in
+    the hosted version (empty until they connect)."""
+    if users.cloud():
+        from bot.services import google_link
+        link = google_link.get()
+        return (link.sheet_id, link.sheet_tab, link.folder_id) if link else ("", "Tracker", "")
+    return config.GOOGLE_SHEET_ID, config.GOOGLE_SHEET_NAME, config.GOOGLE_DRIVE_FOLDER_ID
+
+
 def get_google_credentials():
     """
     Returns unified Google OAuth2 or Service Account credentials for both Drive and Sheets.
@@ -32,6 +43,12 @@ def get_google_credentials():
     """
     global credential_source
     credential_source = "none"
+
+    if users.cloud():   # hosted: each person's own connection (never the server's .env)
+        from bot.services import google_link
+        creds = google_link.credentials()
+        credential_source = "this person's own Google connection" if creds else "none"
+        return creds
 
     # 1. OAuth2 refresh token from environment variables
     if config.GOOGLE_REFRESH_TOKEN and config.GOOGLE_CLIENT_ID and config.GOOGLE_CLIENT_SECRET:

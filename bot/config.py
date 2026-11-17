@@ -49,6 +49,10 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN", "").strip()
 GOOGLE_TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json").strip()
+# Hosted mode: people connect their own Google from /profile. GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are then a "Web application"
+# client (redirect address: PUBLIC_URL/connect/google/callback), and each person's login is stored encrypted with this key
+# (make one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"). Keep it safe: it can't be recovered.
+GOOGLE_TOKEN_KEY = os.getenv("GOOGLE_TOKEN_KEY", "").strip()
 # "app": the login can only open files Internify created itself (the setup page's folder and sheet). "full": all Drive and
 # Sheets files. A new Google sign-in from the setup page saves "app". A copy set up earlier has no value here and keeps "full",
 # so nothing stops working until you choose to move.

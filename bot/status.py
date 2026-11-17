@@ -71,7 +71,11 @@ def _looking_for() -> str:
 
 def screen(application=None, notice: str = ""):
     provider = "Google Gemini (free tier)" if sc.AI_PROVIDER == "gemini" else "OpenAI"
-    google = "set up" if (config.GOOGLE_REFRESH_TOKEN or os.path.exists(config.GOOGLE_TOKEN_FILE)) and (config.GOOGLE_SHEET_ID or config.GOOGLE_DRIVE_FOLDER_ID) else "off"
+    if users.cloud():   # the hosted version: this person's own connection
+        from bot.services import google_link
+        google = "connected" if google_link.get() else ("not connected: /profile, Connect Google" if google_link.enabled() else "not available on this server")
+    else:
+        google = "set up" if (config.GOOGLE_REFRESH_TOKEN or os.path.exists(config.GOOGLE_TOKEN_FILE)) and (config.GOOGLE_SHEET_ID or config.GOOGLE_DRIVE_FOLDER_ID) else "off"
     scan = "paused" if watchlist.scan_paused() else ("on" if config.SCAN_ENABLED else "off")
     lines = [notice, ""] if notice else []
     lines += [

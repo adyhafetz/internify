@@ -114,6 +114,7 @@ def welcome_text(name: str, new: bool, upgrade: bool = False) -> str:
             "Other things:\n"
             "• /profile – see and edit everything on your resume\n"
             "• /applied – your applications: applied, in review, interviewing, offers\n"
+            "• /profile → Connect Google – keep each resume in your own Google Drive, with a tracker sheet\n"
             "• /plan – your plan\n"
             "• /dashboard – watch your resumes being written\n"
             "• /deleteaccount – delete your account and all your data\n"

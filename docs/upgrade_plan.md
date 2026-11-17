@@ -318,7 +318,15 @@ the inactive-account deletion the privacy policy promises. Tested in `scripts/te
   by the maintainer's own sign-in link plus `ADMIN_TELEGRAM_ID`.
 - `/` becomes the marketing site (home, how it works, pricing, FAQ, privacy, terms).
 
-### B5. Connect Google (Cloud)
+### B5. Connect Google (Cloud) (built)
+
+**Status:** `bot/services/google_link.py` (encrypted per-person login, the connect flow, folder and sheet created in the person's own
+Drive with their tracker copied in, revoke on disconnect and on account deletion), per-person Sheets and Drive clients and ids,
+`/profile` → Connect Google (and Disconnect), the web routes `/connect/google/...` (a button first, so link previews can't use the
+link up), hosted privacy wording, and the maintainer's setup in `docs/domain_setup.md` part 6 are in (`scripts/test_google_connect.py`).
+**Not verified against real Google** (build environment has no access): that the app is accepted for `drive.file`, that the Sheets API
+works with that scope for sheets the app created, and what Google requires to remove the "unverified app" screen. Try it once with a real
+account. Not built: Google's file picker for a hand-made sheet (people get a fresh template sheet with their tracker copied in).
 
 - The maintainer creates **one** Google app with the `drive.file` permission, published and verified for the
   domain (homepage, privacy and terms already exist).

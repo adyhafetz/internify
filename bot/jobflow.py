@@ -21,7 +21,7 @@ from bot.services.db import (SHEET_STATUSES, USER_STATUSES, find_similar, get_ap
 from bot.services.drive import upload_to_drive
 from bot.services.scraper import MIN_PAGE_CHARS, Page, scrape_job_url
 from bot.services.sheets import append_application, find_row_by_url, update_application_status
-from service import events
+from service import events, users
 from service.importer import profile_is_sample
 from service.pipeline import run_pipeline
 from service.models import ProcessRequest
@@ -118,10 +118,13 @@ def build_caption(outcome: JobOutcome, intro: str = "") -> str:
         caption += f"• ✂️ {html_escape(outcome.fit_note)}\n"
     if outcome.drive_link:
         caption += f'• ☁️ <a href="{html_escape(outcome.drive_link)}">Open in Google Drive</a>\n'
+    elif users.cloud():
+        caption += "• 💾 Not saved to Google Drive. Connect Google in /profile to keep a copy there\n"
     else:
         caption += "• 💾 Saved on this computer only (Google Drive isn't connected)\n"
     if not outcome.sheet_row:
-        caption += "• 📋 Not added to your Google Sheet (not connected)\n"
+        caption += ("• 📋 Not added to a Google Sheet (connect Google in /profile)\n" if users.cloud()
+                    else "• 📋 Not added to your Google Sheet (not connected)\n")
     if outcome.gaps:
         caption += f"• 🧩 The job also wants {html_escape(_names(outcome.gaps))}. Have real experience? Tap 🧩 below.\n"
     room = min(300, 980 - len(caption) - 40)   # a file caption may be at most 1024 characters

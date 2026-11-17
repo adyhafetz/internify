@@ -2,18 +2,18 @@ from __future__ import annotations
 import logging
 import os
 from typing import Optional
-from bot import config
-from bot.services.google_auth import get_google_credentials
+from bot.services.google_auth import get_google_credentials, ids as google_ids
+from service import users
 
 logger = logging.getLogger(__name__)
 
-_drive_service = None
+_services: dict = {}    # user id -> that person's Drive client (one in single mode)
 
 
 def _get_drive_service():
-    global _drive_service
-    if _drive_service is not None:
-        return _drive_service
+    me = users.current_or_none() or "none"
+    if me in _services:
+        return _services[me]
 
     creds = get_google_credentials()
     if not creds:
@@ -22,9 +22,9 @@ def _get_drive_service():
 
     try:
         from googleapiclient.discovery import build
-        _drive_service = build("drive", "v3", credentials=creds)
+        _services[me] = build("drive", "v3", credentials=creds)
         logger.info("Initialized Google Drive client with unified Google credentials.")
-        return _drive_service
+        return _services[me]
     except Exception as e:
         logger.error("Failed to initialize Google Drive service: %s", e)
         return None
@@ -42,7 +42,8 @@ def upload_to_drive(file_path: str, destination_name: str) -> Optional[str]:
     try:
         from googleapiclient.http import MediaFileUpload
 
-        clean_folder_id = config.GOOGLE_DRIVE_FOLDER_ID.strip().rstrip("/") if config.GOOGLE_DRIVE_FOLDER_ID else None
+        folder = google_ids()[2]
+        clean_folder_id = folder.strip().rstrip("/") if folder else None
         file_metadata = {"name": destination_name}
         if clean_folder_id:
             file_metadata["parents"] = [clean_folder_id]

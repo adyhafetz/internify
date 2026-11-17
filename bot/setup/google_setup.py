@@ -39,6 +39,15 @@ def create_tracker(creds) -> dict[str, str]:
     return {"GOOGLE_SHEET_ID": sid, "GOOGLE_SHEET_NAME": TAB_NAME, "GOOGLE_DRIVE_FOLDER_ID": folder["id"]}
 
 
+def write_rows(creds, sheet_id: str, rows: list[list[str]]) -> int:
+    """Write rows (already in the template's column order) under the header row of a tracker sheet. Returns how many."""
+    if not rows:
+        return 0
+    _, sheets = _services(creds)
+    sheets.spreadsheets().values().update(spreadsheetId=sheet_id, range=f"{TAB_NAME}!A2", valueInputOption="USER_ENTERED", body={"values": rows}).execute()
+    return len(rows)
+
+
 def old_credentials(env: dict[str, str]):
     """The login from an earlier setup (full access), built from the saved .env values, or None if there isn't one."""
     cid, secret, token = env.get("GOOGLE_CLIENT_ID", ""), env.get("GOOGLE_CLIENT_SECRET", ""), env.get("GOOGLE_REFRESH_TOKEN", "")
