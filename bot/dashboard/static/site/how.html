@@ -1,0 +1,48 @@
+{% extends "_layout.html" %}
+{% block content %}
+<section class="doc"><div class="narrow">
+  <span class="label">How it works</span>
+  <h1>From a job link to a one-page resume</h1>
+  <p class="lead">Internify works inside Telegram. You save your experience once. After that, each job link takes one message.</p>
+
+  <h2>Set up once</h2>
+  <ol>
+    <li><b>Open the bot and send /start.</b> This creates your account.</li>
+    <li><b>Send your current resume.</b> A PDF, Word or text file. Internify shows what it found. Nothing is saved until you confirm.</li>
+    <li><b>Check it in /profile.</b> Tap any job, project or bullet point to edit, delete or add a line.</li>
+  </ol>
+
+  <h2>What happens to a job link</h2>
+  <ol>
+    <li><b>Reads the page.</b> If the site blocks the bot, it tries other ways in, and asks you to paste the job text as a last step.</li>
+    <li><b>Works out what the job wants.</b> Tools, requirements and keywords, and whether it is an internship.</li>
+    <li><b>Finds your matching experience.</b> It ranks your saved bullet points for this job. Every job or internship you have keeps its best points.</li>
+    <li><b>Writes the resume.</b> It rewords your saved lines for the role, and cites the saved line each one came from.</li>
+    <li><b>Checks every line.</b> Code compares each bullet point with its source. A tool, number or name that is not in the source sends it back for a rewrite.</li>
+    <li><b>Builds the PDF and counts the pages.</b> If it is longer than one page, it shortens wording and leaves out the least relevant items.</li>
+    <li><b>Sends the PDF and a report</b> in Telegram: the requirements it shows, the ones it misses, and what was reworded or left out.</li>
+  </ol>
+
+  <h2>After you apply</h2>
+  <ul>
+    <li>Tap <b>I applied</b>, then move the job through in review, interviewing, offer or rejected.</li>
+    <li>If nobody replies, Internify asks you for news after two weeks, and reminds you before a closing date.</li>
+    <li>Export the tracker to Excel, or export all your data as one file, at any time.</li>
+  </ul>
+
+  <h2>On the paid plan</h2>
+  <ul>
+    <li>Set the jobs you want, for example "software engineer intern", and where.</li>
+    <li>Each day Internify searches LinkedIn, JobStreet, Hiredly and the web for them, skips closed jobs and ones you already have, and picks the best matches.</li>
+    <li>It writes a resume for each match and sends it to you. You decide whether to apply.</li>
+  </ul>
+
+  <h2>What it does not do</h2>
+  <ul>
+    <li>It does not apply to jobs for you.</li>
+    <li>It does not invent experience. If a job needs a tool you have not saved, it tells you, and offers to add it if you really have used it.</li>
+    <li>It does not promise an interview. You should read every resume before you send it.</li>
+  </ul>
+  <div class="actions" style="margin-top:30px">{% if site.cta_url %}<a class="btn" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% endif %}<a class="btn ghost" href="/pricing">See pricing</a></div>
+</div></section>
+{% endblock %}

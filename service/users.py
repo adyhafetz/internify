@@ -50,6 +50,12 @@ def current() -> str:
     return uid
 
 
+def current_or_none() -> Optional[str]:
+    """Like ``current`` but never raises: None when there is no user (cloud mode, work done for the server itself)."""
+    uid = _current.get()
+    return uid if uid is not None else (None if cloud() else OWNER)
+
+
 @contextlib.contextmanager
 def use(user_id: str) -> Iterator[str]:
     """Act as this user for the code inside the ``with`` block (and the work it starts)."""

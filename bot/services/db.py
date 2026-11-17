@@ -109,6 +109,22 @@ _GLOBAL_SCHEMA = {
             last_active TIMESTAMP,
             deleted_at TIMESTAMP
         )""",
+    # Signing in on the web (hosted mode): a one-time link sent in Telegram becomes a browser session. Only hashes are stored.
+    "web_tokens": """
+        CREATE TABLE IF NOT EXISTS web_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,                     -- a user id, or "admin"
+            role TEXT NOT NULL,                        -- user | admin
+            expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0
+        )""",
+    "web_sessions": """
+        CREATE TABLE IF NOT EXISTS web_sessions (
+            session_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            expires_at REAL NOT NULL
+        )""",
     # What each person has used this month: resumes written, AI calls, paid scraping calls (hosted mode only)
     "usage": """
         CREATE TABLE IF NOT EXISTS usage (

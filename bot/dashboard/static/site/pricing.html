@@ -1,0 +1,33 @@
+{% extends "_layout.html" %}
+{% block content %}
+<section class="doc"><div class="wrap">
+  <span class="label">Pricing</span>
+  <h1>Two plans. Pay only if you need more.</h1>
+  <p class="lead">Start free with {{ site.free_resumes }} resumes a month. Move to Paid when you apply in volume or want the daily job search.</p>
+  {% include "_plans.html" %}
+  <p class="cta-note">Prices are in Malaysian ringgit. The monthly count starts again on the 1st.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Compare plans</h2>
+  <div class="table-wrap"><table class="compare">
+    <thead><tr><th></th><th>Free</th><th>Paid</th></tr></thead>
+    <tbody>
+      <tr><th>Price</th><td>RM0</td><td>{{ site.price }} / month</td></tr>
+      <tr><th>Resumes a month</th><td>{{ site.free_resumes }}</td><td>{{ site.paid_resumes }}</td></tr>
+      <tr><th>Resume for any job link</th><td>Yes</td><td>Yes</td></tr>
+      <tr><th>Match report and tracker</th><td>Yes</td><td>Yes</td></tr>
+      <tr><th>GitHub check and profile tidy-up</th><td>Yes</td><td>Yes</td></tr>
+      <tr><th>Daily job search</th><td>No</td><td>Yes, up to {{ site.paid_scan_max }} resumes per search</td></tr>
+      <tr><th>Export and delete your data</th><td>Yes</td><td>Yes</td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<section><div class="narrow">
+  <div class="sec-head"><h2>Billing</h2></div>
+  {% for q, a in billing_faq %}<details><summary>{{ q }}</summary><p>{{ a }}</p></details>
+  {% endfor %}
+  <div class="actions" style="margin-top:26px">{% if site.cta_url %}<a class="btn" href="{{ site.cta_url }}" rel="noopener">Start free on Telegram</a>{% endif %}</div>
+</div></section>
+{% endblock %}

@@ -54,7 +54,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name if update.effective_user else "there"
     if users.cloud():
         from bot import cloud
-        await update.effective_message.reply_text(cloud.welcome_text(name, bool(context.user_data.pop("new_account", False))))
+        upgrade = bool(getattr(context, "args", None) and context.args[0] == "paid")     # the pricing page's "Get Paid on Telegram" button
+        await update.effective_message.reply_text(cloud.welcome_text(name, bool(context.user_data.pop("new_account", False)), upgrade), parse_mode="HTML")
         return
     await update.effective_message.reply_text(
         f"👋 Hi {name}! I'm Internify.\n\n"

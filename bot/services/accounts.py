@@ -123,6 +123,8 @@ def delete_account(user_id: str) -> dict[str, int]:
         for table in _USER_TABLES:
             removed[table] = conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,)).rowcount
         removed["usage"] = conn.execute("DELETE FROM usage WHERE user_id = ?", (user_id,)).rowcount
+        conn.execute("DELETE FROM web_sessions WHERE user_id = ?", (user_id,))     # signed out everywhere, at once
+        conn.execute("DELETE FROM web_tokens WHERE user_id = ?", (user_id,))
         conn.execute("UPDATE accounts SET status = 'deleted', telegram_id = NULL, name = '', note = '', plan_until = '', "
                      "deleted_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         conn.commit()

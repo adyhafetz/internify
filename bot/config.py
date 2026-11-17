@@ -12,6 +12,14 @@ _raw_admin = os.getenv("ADMIN_TELEGRAM_ID", "").strip()
 ADMIN_TELEGRAM_ID = int(_raw_admin) if _raw_admin.isdigit() else 0
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
 
+# The public site. The bot's Telegram username (filled in from Telegram at start-up when not set), the project's address, the paid
+# plan's price as shown on the pricing page, and MARKETING_SITE=1 to show the public home, pricing and how-it-works pages on a
+# normal copy too (the hosted version always shows them).
+BOT_USERNAME = os.getenv("PUBLIC_BOT_USERNAME", "").strip().lstrip("@")
+PROJECT_URL = os.getenv("PROJECT_URL", "https://github.com/adyhafetz/internify").strip().rstrip("/")
+PAID_PRICE = os.getenv("PAID_PRICE", "RM9.90").strip()
+MARKETING_SITE = os.getenv("MARKETING_SITE", "").strip().lower() in ("1", "true", "yes")
+
 # Hosted mode: what each plan includes (resumes a month), the most resumes one daily check writes, a monthly ceiling on AI calls for the
 # whole server (0 = no ceiling), when to remind people their plan is ending, and what /plan tells people about how to pay.
 FREE_RESUMES = int(os.getenv("FREE_RESUMES", "3"))

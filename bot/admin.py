@@ -123,6 +123,19 @@ async def _tell(context, acct: accounts.Account, text: str) -> bool:
 
 
 @admin_only
+async def adminweb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/adminweb: a one-time link that signs this browser in to the read-only admin page."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from bot.services import websession
+    if not config.PUBLIC_URL:
+        await update.effective_message.reply_text("Set PUBLIC_URL in .env first: the web pages need your site's address.")
+        return
+    token = await asyncio.to_thread(websession.new_login, websession.ADMIN, "admin")
+    await update.effective_message.reply_text("🛠 Admin page. The link works once and for 15 minutes.", reply_markup=InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Open admin", url=f"{config.PUBLIC_URL}/auth/{token}")]]))
+
+
+@admin_only
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(await asyncio.to_thread(summary_text), parse_mode="HTML")
 
@@ -169,3 +182,25 @@ async def pause_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only
 async def resume_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _set_status(update, context, accounts.ACTIVE)
+
+
+# ---------------------------------------------------------------- the web page (read-only)
+
+def dashboard_data() -> dict:
+    """Everything the /admin web page shows, as plain data."""
+    month = plans.month_key()
+    with db._get_connection() as conn:
+        accts = [accounts._row(r) for r in conn.execute("SELECT * FROM accounts WHERE status != 'deleted' ORDER BY rowid DESC LIMIT 500").fetchall()]
+        used: dict[tuple[str, str], int] = {(r[0], r[1]): r[2] for r in conn.execute("SELECT user_id, kind, n FROM usage WHERE month = ?", (month,)).fetchall()}
+    by_plan: dict[str, int] = {}
+    for a in accts:
+        by_plan[a.plan] = by_plan.get(a.plan, 0) + 1
+    cap = config.AI_MONTHLY_BUDGET_CALLS
+    ai = plans.server_total("ai")
+    return {
+        "total": len(accts), "paused": sum(1 for a in accts if a.status == accounts.PAUSED), "by_plan": sorted(by_plan.items()),
+        "resumes": plans.server_total("resume"), "ai": ai, "scrape": plans.server_total("scrape"), "cap": cap,
+        "percent": round(100 * ai / cap) if cap else 0,
+        "users": [{"id": a.id, "name": a.name, "plan": a.plan, "until": a.plan_until, "status": a.status, "joined": a.created_at[:10],
+                   "last_active": (a.last_active or "")[:16] or "never", "resumes": used.get((a.id, "resume"), 0), "ai": used.get((a.id, "ai"), 0)} for a in accts],
+    }

@@ -1,10 +1,12 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Terms of Service · Internify</title><meta name="description" content="The terms for using Internify."><link rel="icon" href="/assets/brand/logo-mark.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/site/style.css"></head><body><div class="wrap">
-<nav><a class="brand" href="/"><img src="/assets/brand/logo-mark.svg" alt=""><span role="img" aria-label="Internify"></span></a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav>
+{% extends "_layout.html" %}
+{% block content %}
+<section class="doc"><div class="narrow">
 <h1>Terms of Service</h1>
 <p><em>Last updated: November 2026</em></p>
-<p>These terms cover the copy of Internify that runs at this address. Internify is a personal, open-source tool run by its owner for their own use and is not offered to the public. By using it you agree to the following.</p>
+{% if marketing %}<p>These terms cover the hosted Internify service run at this address by its operator. Internify is also open-source software that you can run yourself. By creating an account and using the service you agree to the following.</p>
+{% else %}<p>These terms cover the copy of Internify that runs at this address. Internify is a personal, open-source tool run by its owner for their own use and is not offered to the public. By using it you agree to the following.</p>
+
+{% endif %}
 
 <h2>Drafts, not promises</h2>
 <p>Resumes are written by AI from the experience you saved. Internify is designed to use only that experience and checks every line against it, but it can still make mistakes. You must read every resume and confirm it is accurate before you send it to anyone. You are responsible for what you submit to employers.</p>
@@ -21,13 +23,29 @@
 <h2>Google account</h2>
 <p>Internify connects to your Google account only with your permission, for the features described in the <a href="/privacy">Privacy Policy</a>. You can withdraw that permission at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
 
+
+{% if marketing %}
+<h2>Plans and limits</h2>
+<p>There is a free plan with {{ site.free_resumes }} resumes a month and a paid plan with {{ site.paid_resumes }} resumes a month and the daily job search. The count starts again on the 1st of each month. A resume that fails to build does not count. The paid plan costs {{ site.price }} a month, is paid directly to the operator, and runs until the end date the operator records for you. When it ends your account moves to the free plan and keeps your saved data. Limits and prices may change; the operator will tell you before a change affects your plan.</p>
+
+<h2>Your account</h2>
+<p>You are responsible for what happens under your Telegram account. The operator may pause an account that abuses the service, for example by going far beyond fair use or by sending other people's data without permission. You can delete your account and all its data at any time with /deleteaccount.</p>
+
+<h2>No promise of results</h2>
+<p>Internify helps you write and track applications. It does not promise interviews, offers or any particular result, and it does not apply to jobs for you.</p>
+
+<h2>The service can change</h2>
+<p>Features that depend on other websites, such as searching job boards, can stop working when those sites change. The operator may change or stop the service. If it stops, you can export your data first.</p>
+{% endif %}
+
 <h2>No warranty and limited liability</h2>
-<p>The software is provided "as is", without warranty of any kind, under the MIT License (see the <a href="https://github.com/adyhafetz/internify">source code</a>). To the extent the law allows, the operator is not liable for lost opportunities, lost data, or any other damage from using it.</p>
+<p>The software is provided "as is", without warranty of any kind, under the MIT License (see the <a href="{{ site.project_url }}">source code</a>). To the extent the law allows, the operator is not liable for lost opportunities, lost data, or any other damage from using it.</p>
 
 <h2>Changes and ending use</h2>
 <p>These terms may change; the date above will change with them. The operator may stop the service at any time. You can stop using it at any time.</p>
 
 <h2>Contact</h2>
-<p>{{CONTACT}}</p>
-<footer>Internify is open source: <a href="https://github.com/adyhafetz/internify">github.com/adyhafetz/internify</a> · <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a></footer>
-</div></body></html>
+<p>{{ contact }}</p>
+
+</div></section>
+{% endblock %}

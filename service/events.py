@@ -93,11 +93,14 @@ class EventBus:
         with self._lock:
             return list(self._runs.get(run_id, []))
 
-    def list_runs(self) -> list[dict[str, Any]]:
+    def list_runs(self, user: Optional[str] = None) -> list[dict[str, Any]]:
+        """Runs, newest first. With ``user``, only that person's."""
         with self._lock:
             out = []
             for rid in reversed(self._order):
                 evs = self._runs.get(rid, [])
+                if user is not None and (not evs or evs[0].get("user") != user):
+                    continue
                 head = next((e for e in evs if e["kind"] == RUN), None)
                 out.append({
                     "run_id": rid,
@@ -107,9 +110,14 @@ class EventBus:
                 })
             return out
 
-    def latest_run_id(self) -> Optional[str]:
+    def latest_run_id(self, user: Optional[str] = None) -> Optional[str]:
+        """The newest run (of this person, if ``user`` is given)."""
         with self._lock:
-            return self._order[-1] if self._order else None
+            for rid in reversed(self._order):
+                evs = self._runs.get(rid, [])
+                if user is None or (evs and evs[0].get("user") == user):
+                    return rid
+            return None
 
 
 bus = EventBus()
@@ -291,6 +299,12 @@ class in_run:
         return False
 
 
+def _who() -> Optional[str]:
+    """Whose run this is, written on every event so the dashboard can show people only their own."""
+    from service import users
+    return users.current_or_none()
+
+
 def emit_run(state: str, **data: Any) -> None:
     """Run-level markers: started / finished / failed, and for a scan with several jobs, job_started / job_finished /
     job_failed (the run stays open while the next job begins)."""
@@ -298,7 +312,7 @@ def emit_run(state: str, **data: Any) -> None:
     if rid is None:
         return
     bus.publish(rid, {
-        "run_id": rid, "ts": time.time(), "agent": None, "to": None,
+        "run_id": rid, "ts": time.time(), "agent": None, "to": None, "user": _who(),
         "kind": RUN, "message": state, "data": {"state": state, **data},
     })
     if state in ("finished", "failed"):
@@ -311,7 +325,7 @@ def emit(agent: str, kind: str, message: str, to: Optional[str] = None, **data: 
     if rid is None:
         return
     bus.publish(rid, {
-        "run_id": rid, "ts": time.time(), "agent": agent, "to": to,
+        "run_id": rid, "ts": time.time(), "agent": agent, "to": to, "user": _who(),
         "kind": kind, "message": message, "data": data,
     })
 

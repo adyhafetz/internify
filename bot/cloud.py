@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import html
 import logging
+import os
 import time
 from typing import Optional
 
@@ -101,7 +103,8 @@ def quiet(func):
 
 # ---------------------------------------------------------------- what people read
 
-def welcome_text(name: str, new: bool) -> str:
+def welcome_text(name: str, new: bool, upgrade: bool = False) -> str:
+    name = html.escape(name, quote=False)       # sent as HTML: a name can't inject markup
     greeting = (f"👋 Welcome {name}! Your Internify account is ready." if new else f"👋 Hi {name}! I'm Internify.")
     return (f"{greeting}\n\n"
             "Send me a job link and I'll write a 1-page resume for that job, using only your real experience, then send you the PDF.\n\n"
@@ -112,8 +115,10 @@ def welcome_text(name: str, new: bool) -> str:
             "• /profile – see and edit everything on your resume\n"
             "• /applied – your applications: applied, in review, interviewing, offers\n"
             "• /plan – your plan\n"
+            "• /dashboard – watch your resumes being written\n"
             "• /deleteaccount – delete your account and all your data\n"
-            "• /help – everything I can do")
+            "• /help – everything I can do"
+            + (f"\n\n💳 <b>Paid plan</b> ({config.PAID_PRICE} a month, {config.PAID_RESUMES} resumes and the daily job search): {html.escape(config.PAY_INSTRUCTIONS, quote=False)}" if upgrade else ""))
 
 
 def plan_text(acct: accounts.Account) -> str:
@@ -148,9 +153,60 @@ def _delete_keyboard(step: int) -> InlineKeyboardMarkup:
                                  [InlineKeyboardButton("Keep my account", callback_data="acct:no")]])
 
 
+async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/dashboard: a one-time sign-in link to your own live dashboard (sent as a button, so no link preview is fetched)."""
+    from bot.services import websession
+    if not config.PUBLIC_URL:
+        await update.effective_message.reply_text("The web dashboard isn't set up on this server yet.")
+        return
+    token = await asyncio.to_thread(websession.new_login, users.current())
+    await update.effective_message.reply_text(
+        "🖥 Your live dashboard shows each step of your resumes as it is written.\n\nThe link works once and for 15 minutes.",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Open my dashboard", url=f"{config.PUBLIC_URL}/auth/{token}")]]))
+
+
 async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     acct = await asyncio.to_thread(accounts.get, users.current())
     await update.effective_message.reply_text(await asyncio.to_thread(plan_text, acct), parse_mode="HTML")
+
+
+INACTIVE_DAYS = int(os.getenv("INACTIVE_DELETE_DAYS", "183"))   # about six months
+INACTIVE_WARN_DAYS = 7
+
+
+async def retention_job(context) -> None:
+    """Once a day: an account with no activity for about six months (and no paid or unlimited plan running) gets a message a week
+    before it is deleted, and is then deleted with everything in it. Anything the person does in the bot starts the count again.
+    This is what the Privacy Policy promises."""
+    import datetime as dt
+    from bot.services import watchlist
+    if not users.cloud():
+        return
+    today = dt.date.today()
+    for acct in await asyncio.to_thread(accounts.active):
+        if acct.plan == "unlimited" or (acct.plan == "paid" and acct.plan_until and acct.plan_until >= today.isoformat()):
+            continue
+        try:
+            last = dt.date.fromisoformat((acct.last_active or acct.created_at)[:10])
+        except ValueError:
+            continue
+        idle = (today - last).days
+        if idle < INACTIVE_DAYS - INACTIVE_WARN_DAYS:
+            continue
+        try:
+            with users.use(acct.id):
+                chat_id = watchlist.owner_chat_id()
+                if idle >= INACTIVE_DAYS:
+                    await asyncio.to_thread(accounts.delete_account, acct.id)
+                    if chat_id is not None:
+                        await context.bot.send_message(chat_id, "🗑 Your Internify account was inactive for about six months, so it and all its data were deleted. "
+                                                       "Send /start any time to begin again.")
+                elif chat_id is not None and watchlist.get_setting("retention_warned", "") != last.isoformat():
+                    watchlist.set_setting("retention_warned", last.isoformat())
+                    await context.bot.send_message(chat_id, f"⏳ You haven't used Internify for a while. In {INACTIVE_DAYS - idle} days your account and all its data will be "
+                                                   "deleted. Send any message to keep it, or export your data first: /profile, My data.")
+        except Exception:
+            logger.exception("Retention check failed for %s", acct.id)
 
 
 @accounts.for_each_user

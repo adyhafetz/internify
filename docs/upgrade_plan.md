@@ -301,7 +301,15 @@ Cloud mode is still refused at start-up unless `INTERNIFY_CLOUD_PREVIEW=1`; B4 (
 - When a limit is reached: a friendly message with how to upgrade; nothing half-done.
 - The maintainer's cost guard: a global monthly AI budget; when it is near, new free-tier resumes wait.
 
-### B4. Web paths and sign-in links
+### B4. Web paths and sign-in links (built)
+
+**Status:** the marketing pages (`/`, `/how-it-works`, `/pricing`) in the dashboard's style with search tags, structured data,
+`robots.txt`, `sitemap.xml` and a preview image; privacy and terms with hosted sections; one-time sign-in links (`/dashboard`
+in Telegram; a button, then a session cookie, hashes only); `/u/<id>/live`, `/u/<id>/api/...` and `/u/<id>/pdf/...` that only
+the signed-in person can open; every event tagged with its user; a read-only `/admin` page (`/adminweb` link) for the maintainer;
+the inactive-account deletion the privacy policy promises. Tested in `scripts/test_web.py`. Not built: actions on the admin page
+(plans and pausing stay in Telegram, to avoid a second way in that needs its own protection), a sign-out button in the dashboard
+(the `/signout` route exists), and a custom domain for the hosted version (see open questions).
 
 - `/u/<id>/live`: that user's dashboard only (their runs, their PDFs). `/api/stream` and `/pdf/...` filter by user.
 - `/dashboard` in Telegram sends a link with a short-lived one-time code; opening it sets a cookie for that user.

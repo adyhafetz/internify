@@ -54,7 +54,8 @@ async def post_init(application) -> None:
     ]
     from service import users
     if users.cloud():   # the hosted version: your plan, and deleting your account
-        commands[-1:-1] = [BotCommand("plan", "Your plan"), BotCommand("deleteaccount", "Delete your account and all your data")]
+        commands[-1:-1] = [BotCommand("plan", "Your plan"), BotCommand("dashboard", "Watch your resumes being written"),
+                           BotCommand("deleteaccount", "Delete your account and all your data")]
     try:
         await application.bot.set_my_commands(commands)
         # Shown on the empty chat screen, before the user has typed anything: tells them the main action.
@@ -76,6 +77,11 @@ async def post_init(application) -> None:
     asyncio.get_running_loop().create_task(tracker.sync_everyone())   # follow your Google Sheet's statuses from the start
     from bot import status
     asyncio.get_running_loop().create_task(status.startup_check(application))
+    if not config.BOT_USERNAME:   # the public pages link to the bot: take its username from Telegram unless it was set by hand
+        try:
+            config.BOT_USERNAME = application.bot.username or ""
+        except Exception:
+            pass
     if users.cloud():   # hosted version: count what each person costs, and remind them before their plan ends
         from bot import cloud
         from bot.services import plans
@@ -87,7 +93,8 @@ async def post_init(application) -> None:
                 notice_time = _t(9, 30, tzinfo=ZoneInfo(config.SCAN_TIMEZONE))
             except Exception:
                 notice_time = _t(9, 30)
-            application.job_queue.run_daily(cloud.daily_notices, time=notice_time, name="plan-notices")   # a plain warning if the AI key is wrong
+            application.job_queue.run_daily(cloud.daily_notices, time=notice_time, name="plan-notices")
+            application.job_queue.run_daily(cloud.retention_job, time=notice_time, name="inactive-accounts")   # a plain warning if the AI key is wrong
 
 
 def create_bot_app():
@@ -123,10 +130,11 @@ def create_bot_app():
         from bot.handlers.common import restricted
         app.add_handler(CommandHandler("plan", restricted(cloud.plan_command)))
         app.add_handler(CommandHandler("deleteaccount", restricted(cloud.delete_command)))
+        app.add_handler(CommandHandler("dashboard", restricted(cloud.dashboard_command)))
         app.add_handler(CallbackQueryHandler(restricted(cloud.account_callback), pattern=r"^acct:"))
         from bot import admin   # the maintainer's own commands: they answer nobody else
         for name, fn in (("admin", admin.admin_command), ("users", admin.users_command), ("setplan", admin.setplan_command),
-                         ("pauseuser", admin.pause_command), ("resumeuser", admin.resume_command)):
+                         ("pauseuser", admin.pause_command), ("resumeuser", admin.resume_command), ("adminweb", admin.adminweb_command)):
             app.add_handler(CommandHandler(name, fn))
     app.add_handler(CommandHandler("resume", master_resume_command))
 
